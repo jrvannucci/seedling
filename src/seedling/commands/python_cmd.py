@@ -114,5 +114,5 @@ def run(args) -> int:
 
     print(colors.ok(f"Done. Python {version_spec} is available as base '{tag}'") +
           f" (-> {installed.name}).")
-    print(f"Create a venv from it with:  seed venv <name>")
+    print("Create a venv from it with:  seed venv <name>")
     return 0

@@ -224,7 +224,7 @@ def _open_in_browser(path: Path) -> bool:
     system = platform.system()
     try:
         if system == "Windows":
-            os.startfile(str(path))  # noqa: type-ignore  # Windows-only
+            os.startfile(str(path))  # type: ignore[attr-defined]  # Windows-only
         elif system == "Darwin":
             subprocess.Popen(["open", str(path)], start_new_session=True)
         else:

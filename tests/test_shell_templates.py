@@ -7,9 +7,8 @@ from __future__ import annotations
 import subprocess
 import textwrap
 
-import pytest
 
-from conftest import (BASH, POWERSHELL, REPO_ROOT, needs_bash,
+from conftest import (POWERSHELL, REPO_ROOT, needs_bash,
                       needs_powershell, run_bash)
 
 SH_TEMPLATE = REPO_ROOT / "src" / "seedling" / "shell" / "seed.sh.template"

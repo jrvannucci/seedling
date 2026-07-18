@@ -9,7 +9,6 @@ from __future__ import annotations
 import shutil
 import subprocess
 
-import pytest
 
 from conftest import BASH, REPO_ROOT, needs_bash
 

@@ -7,11 +7,10 @@ CA bundles, auto-setup, hook management. No network is touched anywhere.
 from __future__ import annotations
 
 import json
-import subprocess
 
 import pytest
 
-from conftest import BASH, make_repo_copy, needs_bash, plant_stub_uv, run_bash
+from conftest import make_repo_copy, needs_bash, plant_stub_uv, run_bash
 
 pytestmark = needs_bash
 
@@ -115,10 +114,10 @@ class TestDefaultInstall:
 
     def test_auto_setup_skips(self, install_env):
         copy, fake_home, home, run_install = install_env
-        result = run_install("SEEDLING_AUTO_SETUP=false")
+        run_install("SEEDLING_AUTO_SETUP=false")
         assert "seed-cli python" not in _calls(home)
         (home / "system" / "bin" / "calls.log").unlink(missing_ok=True)
-        result = run_install("SEEDLING_AUTO_VSCODE=false")
+        run_install("SEEDLING_AUTO_VSCODE=false")
         calls = _calls(home)
         assert "seed-cli venv dev" in calls
         assert "vscode --no-open" not in calls

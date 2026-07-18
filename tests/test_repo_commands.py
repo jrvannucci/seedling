@@ -9,7 +9,6 @@ import subprocess
 import pytest
 
 from conftest import GIT, needs_git
-from seedling import paths
 from seedling.commands import repo_cmd
 
 

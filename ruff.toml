@@ -1,0 +1,19 @@
+# Lint config for seedling's own source.
+#
+# seedling ships ruff as a default venv package, a default VS Code extension,
+# and the configured default formatter -- so the codebase it ships from is held
+# to it too. Enforced in CI (.github/workflows/ci.yml).
+#
+# Lives at the repo root rather than in src/pyproject.toml so it also covers
+# tests/ and installers/, which sit outside the package.
+
+target-version = "py39"  # matches requires-python in src/pyproject.toml
+
+# Distribution artifacts and vendored payloads, never seedling's own source.
+exclude = ["offline-bundle", "vendor", "docs/_build"]
+
+[lint]
+# Ruff's default rule set (pycodestyle errors + pyflakes). Deliberately not
+# broader: the point is catching dead code and real mistakes, not imposing a
+# style rewrite on a working codebase.
+select = ["E4", "E7", "E9", "F"]

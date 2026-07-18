@@ -37,7 +37,6 @@ def _run(capsys, *argv):
 
 
 def test_config_roundtrip_in_spaced_home(spaced_home, capsys):
-    from seedling import config
     code, _ = _run(capsys, "config", "set", "default_venv", "dev")
     assert code == 0
     settings = spaced_home / "system" / "config" / "settings.json"

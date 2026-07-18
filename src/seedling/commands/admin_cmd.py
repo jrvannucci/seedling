@@ -14,9 +14,8 @@ Every command here:
 
 from __future__ import annotations
 
-from pathlib import Path
 
-from .. import admin, colors, confirm, paths
+from .. import admin, colors, confirm
 from . import kill_cmd
 
 

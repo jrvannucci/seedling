@@ -19,11 +19,10 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 
 from pathlib import Path
 
-from . import colors, config, fsutil, paths
+from . import colors, config, fsutil
 
 
 def is_elevated() -> bool:

@@ -5,7 +5,6 @@ parent, or another user's profile hook."""
 
 from __future__ import annotations
 
-import json
 import pathlib
 
 import pytest

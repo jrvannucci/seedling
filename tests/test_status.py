@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 
-from conftest import make_base_python, make_venv_dirs
+from conftest import make_venv_dirs
 from seedling import config, paths
 
 

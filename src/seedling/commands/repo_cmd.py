@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import platform
-import shutil
 import subprocess
 
 from .. import confirm, paths, uv_tool, git_tool, fsutil

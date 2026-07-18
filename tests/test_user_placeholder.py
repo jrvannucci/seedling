@@ -5,9 +5,7 @@ from __future__ import annotations
 
 import subprocess
 
-import pytest
 
-import conftest
 from conftest import BASH, make_repo_copy, needs_bash, plant_stub_uv
 from seedling import paths
 

@@ -7,7 +7,6 @@ assert the ownership step is *invoked*, not that it does real ACL work."""
 
 from __future__ import annotations
 
-import pathlib
 
 import pytest
 

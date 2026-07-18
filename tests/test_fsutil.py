@@ -7,7 +7,6 @@ import subprocess
 import sys
 import time
 
-import pytest
 
 from conftest import windows_only
 from seedling import fsutil

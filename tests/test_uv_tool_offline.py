@@ -63,7 +63,7 @@ def test_directory_index_generates_uv_toml(home):
 
 def test_uv_toml_refreshes_when_setting_changes(home):
     config.set_value("package_index", r"S:\old")
-    cfg = uv_tool._build_env(None)["UV_CONFIG_FILE"]
+    uv_tool._build_env(None)  # writes the initial uv.toml with the old value
     config.set_value("package_index", r"S:\new")
     assert 'file:///S:/new' in open(uv_tool._build_env(None)["UV_CONFIG_FILE"], encoding="utf-8").read()
 
