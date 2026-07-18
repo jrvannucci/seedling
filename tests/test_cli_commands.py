@@ -4,11 +4,10 @@ summary, python-cmd helpers."""
 
 from __future__ import annotations
 
-import json
 
 import pytest
 
-from conftest import make_base_python, make_venv_dirs
+from conftest import REPO_ROOT, make_base_python, make_venv_dirs
 from seedling import config, paths
 from seedling.commands import python_cmd
 
@@ -124,7 +123,7 @@ def test_summary_shows_install_type(run_cli, home):
 
 
 def test_is_multi_user_ignores_corrupt_settings(home):
-    from seedling import config, paths
+    from seedling import config
     paths.ensure_layout()
     paths.CONFIG_FILE.write_text("{ broken json")
     assert config.is_multi_user() is False  # never raises
@@ -139,6 +138,38 @@ def test_where(run_cli, home):
     code, out = run_cli("where")
     assert code == 0
     assert str(home) in out
+
+
+# --- version reporting -------------------------------------------------------
+
+@pytest.mark.parametrize("flag", ["--version", "-V"])
+def test_version_flag(run_cli, flag):
+    """Both spellings print the running version and exit cleanly. (-V survives
+    the PowerShell `seed` wrapper because it's a simple function -- no
+    parameter binding -- so it can't be eaten as a -Verbose prefix.)"""
+    import seedling
+    code, out = run_cli(flag)
+    assert code == 0
+    assert out.strip() == f"seedling {seedling.__version__}"
+
+
+def test_version_matches_the_packaged_metadata():
+    """__init__.py is the single source of truth: pyproject must stay dynamic,
+    or the two drift and `seed --version` starts lying about what's installed."""
+    import re
+    pyproject = (REPO_ROOT / "src" / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'dynamic = ["version"]' in pyproject
+    assert '[tool.hatch.version]' in pyproject
+    assert 'path = "seedling/__init__.py"' in pyproject
+    # no competing hardcoded version = ... line in [project]
+    assert not re.search(r'^version\s*=', pyproject, flags=re.M)
+
+
+def test_grouped_help_reports_the_version(run_cli):
+    import seedling
+    code, out = run_cli("help")
+    assert code == 0
+    assert f"seedling {seedling.__version__}" in out
 
 
 def test_empty_state_messages(run_cli):

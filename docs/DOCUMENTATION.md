@@ -1139,6 +1139,23 @@ Prints the seedling home directory (`~/seedling`, or the value of the
 seed where
 ```
 
+### `seed --version`
+
+Prints the version of seedling that is actually running, as
+`seedling <version>`. Worth quoting in any bug report — with
+`seed update-commands` in the picture, an install can be at a different
+version than the share it was built from.
+
+```
+seed --version
+seed -V
+```
+
+The version lives in exactly one place, `src/seedling/__init__.py`.
+`src/pyproject.toml` reads it from there (`dynamic = ["version"]`), so a
+release is a one-line edit and the built distribution, the CLI, and the
+grouped `seed help` footer can never disagree.
+
 ### `seed summary [--sizes]`
 
 One read-only screen showing everything seedling has installed: uv/git/VS

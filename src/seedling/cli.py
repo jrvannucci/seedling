@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 
-from . import colors, config, paths, runlog
+from . import __version__, colors, config, paths, runlog
 from .commands import (
     activate_cmd,
     admin_cmd,
@@ -132,6 +132,7 @@ def print_grouped_help(show_admin: bool = False) -> None:
               " for the elevated commands that remove other users' installs.")
         print()
     print("Run any command with -h for its full options, e.g. `seed venv -h`.")
+    print(f"seedling {__version__} -- `seed --version` prints this on its own.")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -140,6 +141,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="seedling: a tidy, single-folder wrapper around uv for "
                      "getting started with Python.",
     )
+    parser.add_argument("-V", "--version", action="version",
+                        version=f"seedling {__version__}",
+                        help="Print seedling's version and exit")
     sub = parser.add_subparsers(dest="command")
 
     # Flags shared by every destructive command.
@@ -259,8 +263,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Install a cloned repo's dependencies into the active venv")
     p_install_repo.add_argument("name", nargs="?", help="Name of the repo to install")
 
-    p_remove = sub.add_parser("remove-user", parents=[danger],
-                              help="Delete everything seedling manages")
+    sub.add_parser("remove-user", parents=[danger],
+                   help="Delete everything seedling manages")
 
     sub.add_parser("remove-venv-all", parents=[danger],
                    help="Delete every venv seedling has created")
@@ -332,8 +336,8 @@ def build_parser() -> argparse.ArgumentParser:
     #     install. Registered so they dispatch, but omitted from the grouped
     #     help unless `seed help --admin` is used. All support the danger
     #     flags (-y / --preview / --non-interactive).
-    p_apa = sub.add_parser("admin-purge-all-users", parents=[danger],
-                            help="[admin] Remove EVERY user's install under the shared root")
+    sub.add_parser("admin-purge-all-users", parents=[danger],
+                   help="[admin] Remove EVERY user's install under the shared root")
 
     p_aru = sub.add_parser("admin-remove-user", parents=[danger],
                             help="[admin] Remove one user's entire seedling install")
