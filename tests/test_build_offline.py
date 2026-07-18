@@ -1,12 +1,17 @@
-"""Pure-logic unit tests for the offline bundle builder (installers/
-build_offline.py): platform/asset mapping, parsing uv's interpreter-download
-line, and the conf writer. No network -- the download/subprocess steps are
-exercised by hand on a connected machine, not in CI."""
+"""Unit tests for the offline bundle builder (installers/build_offline.py):
+platform/asset mapping, parsing uv's interpreter-download line, the conf
+writer, and the VS Code staging step.
+
+No network anywhere -- the VS Code tests stub subprocess.run and time.sleep, so
+the retry window and the staging-cleanup guarantees are pinned without
+downloading the real ~300MB payload. The actual downloads are still only
+exercised by hand on a connected machine."""
 
 from __future__ import annotations
 
 import importlib.util
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -109,3 +114,208 @@ def test_write_conf_handles_windows_backslash_value(tmp_path):
 def test_dry_run_returns_zero(tmp_path):
     code = build_offline.main(["--dry-run", "--output", str(tmp_path / "b")])
     assert code == 0
+
+
+# --- VS Code staging -------------------------------------------------------
+# The heavy step (~300MB). Everything below stubs the child process, so what's
+# under test is the retry/cleanup logic around it, never a real download.
+
+
+def _completed(returncode: int, stdout: str = ""):
+    """Stand-in for subprocess.CompletedProcess."""
+    return types.SimpleNamespace(returncode=returncode, stdout=stdout)
+
+
+@pytest.fixture
+def no_sleep(monkeypatch):
+    """Collapse the ~2.5 minute retry window; records what would've been slept."""
+    import time
+    slept = []
+    monkeypatch.setattr(time, "sleep", lambda s: slept.append(s))
+    return slept
+
+
+@pytest.fixture
+def stub_cli(monkeypatch):
+    """Pretend a VS Code CLI was found in the staged tree."""
+    from seedling.commands import vscode_cmd
+    monkeypatch.setattr(vscode_cmd, "_find_cli", lambda app_dir: ["code"])
+    return vscode_cmd
+
+
+def test_extensions_present_false_when_dir_missing(tmp_path):
+    assert build_offline._extensions_present(tmp_path) is False
+
+
+def test_extensions_present_false_for_bare_manifest(tmp_path):
+    """VS Code seeds extensions.json even with nothing installed -- a file
+    alone must not read as 'extensions are present'."""
+    ext = tmp_path / "data" / "extensions"
+    ext.mkdir(parents=True)
+    (ext / "extensions.json").write_text("[]")
+    assert build_offline._extensions_present(tmp_path) is False
+
+
+def test_extensions_present_true_with_an_installed_extension(tmp_path):
+    (tmp_path / "data" / "extensions" / "ms-python.python-2024.1.0").mkdir(parents=True)
+    assert build_offline._extensions_present(tmp_path) is True
+
+
+def test_install_extensions_batches_into_one_call(tmp_path, monkeypatch,
+                                                  stub_cli, no_sleep):
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        return _completed(0)
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    assert build_offline._install_extensions(tmp_path) is True
+    # One invocation, carrying every extension -- not one process per extension.
+    assert len(calls) == 1
+    assert calls[0].count("--install-extension") == len(stub_cli.DEFAULT_EXTENSIONS)
+    assert not no_sleep, "no retry should be needed on a first-try success"
+
+
+def test_install_extensions_retries_until_the_tree_is_ready(tmp_path, monkeypatch,
+                                                            stub_cli, no_sleep):
+    """The documented failure mode: the CLI fails while the OS is still
+    scanning the freshly-extracted files, then the same tree succeeds."""
+    attempts = {"n": 0}
+
+    def fake_run(cmd, **kw):
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            return _completed(1, "Signature verification failed with ENOENT")
+        return _completed(0)
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    assert build_offline._install_extensions(tmp_path) is True
+    assert attempts["n"] == 3
+    assert no_sleep == [5, 10]  # backed off between the two failures only
+
+
+def test_install_extensions_gives_up_after_the_retry_window(tmp_path, monkeypatch,
+                                                            stub_cli, no_sleep):
+    attempts = {"n": 0}
+
+    def fake_run(cmd, **kw):
+        attempts["n"] += 1
+        return _completed(1, "some noise\nfinal error line")
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    assert build_offline._install_extensions(tmp_path) is False
+    # 8 delays => 9 attempts, and the advertised ~2.5 minutes of waiting.
+    assert attempts["n"] == 9
+    assert sum(no_sleep) == 150
+
+
+def test_install_extensions_without_a_cli_is_not_fatal(tmp_path, monkeypatch, no_sleep):
+    from seedling.commands import vscode_cmd
+    monkeypatch.setattr(vscode_cmd, "_find_cli", lambda app_dir: None)
+    assert build_offline._install_extensions(tmp_path) is False
+
+
+def test_build_vscode_short_circuits_when_already_staged(tmp_path, monkeypatch):
+    vendor = tmp_path / "vendor" / "vscode"
+    (vendor / "app").mkdir(parents=True)
+
+    def explode(*a, **kw):
+        raise AssertionError("must not re-download an already-staged VS Code")
+
+    monkeypatch.setattr(build_offline.subprocess, "run", explode)
+    assert build_offline.build_vscode(vendor, tmp_path / "vscode-staging") is True
+
+
+def test_build_vscode_moves_the_tree_and_drops_staging(tmp_path, monkeypatch):
+    staging = tmp_path / "vscode-staging"
+    app = staging / "extensions" / "vscode" / "app"
+
+    def fake_run(cmd, **kw):
+        # Stand in for the child `vscode_cmd.install()` run.
+        (app / "bin").mkdir(parents=True)
+        (app / "data" / "extensions" / "charliermarsh.ruff-1.0").mkdir(parents=True)
+        return _completed(0)
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    vendor = tmp_path / "vendor" / "vscode"
+    assert build_offline.build_vscode(vendor, staging) is True
+    assert (vendor / "app" / "bin").is_dir()
+    assert not staging.exists()
+
+
+def test_build_vscode_cleans_up_when_the_child_fails(tmp_path, monkeypatch):
+    staging = tmp_path / "vscode-staging"
+
+    def fake_run(cmd, **kw):
+        staging.mkdir(parents=True, exist_ok=True)  # partial tree, no app/
+        return _completed(1)
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    vendor = tmp_path / "vendor" / "vscode"
+    assert build_offline.build_vscode(vendor, staging) is False
+    assert not staging.exists()
+    assert not vendor.exists()
+
+
+def test_build_vscode_drops_staging_even_when_interrupted(tmp_path, monkeypatch):
+    """Staging lives inside the folder deployers copy to the share, so a Ctrl-C
+    partway through the extension retry must not strand ~300MB there."""
+    staging = tmp_path / "vscode-staging"
+    app = staging / "extensions" / "vscode" / "app"
+
+    def fake_run(cmd, **kw):
+        app.mkdir(parents=True)
+        return _completed(0)
+
+    def interrupted(app_dir):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    monkeypatch.setattr(build_offline, "_install_extensions", interrupted)
+
+    with pytest.raises(KeyboardInterrupt):
+        build_offline.build_vscode(tmp_path / "vendor" / "vscode", staging)
+    assert not staging.exists()
+
+
+def test_dry_run_plan_states_the_vscode_choice(tmp_path, capsys):
+    build_offline.main(["--dry-run", "-o", str(tmp_path / "a")])
+    assert "yes (~300MB" in capsys.readouterr().out
+    build_offline.main(["--dry-run", "--no-vscode", "-o", str(tmp_path / "b")])
+    assert "skipped (--no-vscode)" in capsys.readouterr().out
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="MinGit is Windows-only")
+def test_mingit_is_opt_in_under_yes(tmp_path, monkeypatch, capsys):
+    """--yes takes every default, and MinGit's default is off -- so an
+    unattended build skips it unless --mingit flips that default."""
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    monkeypatch.setattr(build_offline, "build_vscode", lambda vendor, staging: False)
+    fetched = []
+    monkeypatch.setattr(build_offline, "build_mingit",
+                        lambda d: fetched.append(d) or True)
+
+    build_offline.main(["--yes", "-o", str(tmp_path / "a")])
+    assert fetched == []
+
+    build_offline.main(["--yes", "--mingit", "-o", str(tmp_path / "b")])
+    assert len(fetched) == 1
+    assert fetched[0].name == "git"
+
+
+def test_summary_flags_a_failed_vscode_step(tmp_path, monkeypatch, capsys):
+    """A failed 300MB step must not read as a clean build in the summary."""
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    monkeypatch.setattr(build_offline, "build_vscode", lambda vendor, staging: False)
+    assert build_offline.main(["--yes", "-o", str(tmp_path / "b")]) == 0
+    out = capsys.readouterr().out
+    assert "redo step 6" in out
+
+
+def test_summary_omits_the_vscode_row_when_not_requested(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    assert build_offline.main(["--yes", "--no-vscode", "-o", str(tmp_path / "b")]) == 0
+    out = capsys.readouterr().out
+    assert "redo step 6" not in out
+    assert "pre-seeded VS Code" not in out

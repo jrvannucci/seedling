@@ -15,11 +15,12 @@ any of this — they run `install.cmd` from the share and everything works.
 
 > **In a hurry?** For the common share-only case, skip the manual steps: run
 > **`build-offline.cmd`** (`sh ./build-offline.cmd` on macOS/Linux) on a
-> connected machine. It downloads uv, the Python interpreter archives, and all
-> the wheels, then writes a matching `seedling.conf` — see
+> connected machine. It downloads uv, the Python interpreter archives, all the
+> wheels, and (optionally) VS Code + its extensions, then writes a matching
+> `seedling.conf` — see
 > [Putting it together](#putting-it-together-preparing-the-share). The rest of
 > this page explains what it's doing and covers the cases it leaves to you
-> (self-hosted indexes, VS Code, corporate CAs).
+> (self-hosted indexes, corporate CAs).
 
 Everything is driven by **editing [`seedling.conf`](../seedling.conf)** in the
 copy of the repo you distribute (plus dropping a few binaries in `vendor/`) —
@@ -247,7 +248,9 @@ git is needed for exactly two things, both avoidable:
   `vendor/git/` in your repo copy — the installer places it at
   `~\seedling\extensions\git\`, which seedling checks right after PATH
   and never re-downloads from — or deploy git through your normal
-  software channel.
+  software channel. [`build-offline.cmd`](#the-easy-way-build-offlinecmd) can
+  fetch it for you: it asks during the walkthrough, and `--mingit` turns it on
+  (which is also what includes it under `--yes`).
 - **URL-based `seed update-commands`** — only if your `update_source` is a
   git URL. A directory `update_source` (the network-share flow above)
   needs no git at all.
@@ -259,10 +262,13 @@ If neither applies, skip this component entirely.
 ## 6. VS Code (optional)
 
 `seed vscode` downloads VS Code from Microsoft's update API and extensions
-from the marketplace — neither has a supported mirror. Two options:
+from the marketplace — neither has a supported mirror. Three options:
 
-- **Pre-seed it**: run `seed vscode` once on a connected machine, then copy
-  the resulting `~/seedling/extensions/vscode/` folder into `vendor/vscode/`
+- **Let the builder do it** (easiest): [`build-offline.cmd`](#putting-it-together-preparing-the-share)
+  downloads VS Code + the default extensions and drops them into `vendor/vscode/`
+  for you. Skip that step with `--no-vscode` if you don't want it.
+- **Pre-seed it by hand**: run `seed vscode` once on a connected machine, then
+  copy the resulting `~/seedling/extensions/vscode/` folder into `vendor/vscode/`
   in your repo copy — the installer places it on each machine, and seedling
   detects the existing install and never re-downloads. VS Code is fully
   portable in this layout — settings and extensions travel with the folder.
@@ -312,27 +318,36 @@ folder:
 
 ```
 offline-bundle/
-  seedling/          <- repo copy, with vendor/uv filled in and seedling.conf written
+  seedling/          <- repo copy, with vendor/uv + vendor/vscode filled in and seedling.conf written
   python-builds/     <- the exact interpreter archive your shipped uv wants
   wheels/            <- hatchling + the default venv packages (+ any --packages you add)
 ```
 
-Copy that folder to your share and you're done — the generated `seedling.conf`
-already points at the three paths. Useful flags:
+It also pre-seeds portable **VS Code and its default extensions** into
+`vendor/vscode/` (the ~300MB step — skip it with `--no-vscode`). Copy the folder
+to your share and you're done — the generated `seedling.conf` already points at
+the three paths. Useful flags:
 
 | Flag | Purpose |
 |---|---|
 | `--yes` | Build unattended, taking the default answer for every step |
 | `--python 3.12,3.11` | Which interpreter version(s) to mirror (default: newest) |
 | `--packages pandas,polars` | Extra wheels to stock beyond the defaults |
+| `--no-vscode` | Skip the VS Code + extensions download (the ~300MB step) |
+| `--mingit` | Also bundle portable MinGit (Windows; off by default) |
 | `--deploy-root S:\tools` | Bake the final share path into `seedling.conf` |
 | `--dry-run` | Show the plan and exit without downloading |
 
 It is **not** a `seed` command — it prepares the distribution, so it runs from
 the checkout before seedling is installed anywhere. It needs Python 3.9+ and
 internet on the build machine, and targets the platform you run it on (build on
-the same OS/arch as your offline machines). VS Code and corporate CA certs stay
-manual (see #6 and the CA section); everything else is automatic.
+the same OS/arch as your offline machines).
+
+uv, the interpreters, the wheels, and VS Code + extensions are all automatic.
+Two things are opt-in: **MinGit** is off unless you pass `--mingit` (most fleets
+already have git — see [#5](#5-git-optional)), and **corporate CA
+certs** are yours to supply (see the CA section). Note that under `--yes` every
+step takes its default, so MinGit is skipped unless you pass `--mingit` too.
 
 ### By hand
 

@@ -26,7 +26,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 import urllib.parse
 import urllib.request
@@ -168,8 +167,7 @@ def _extract_uv_binary(archive: Path, into: Path) -> list[str]:
             with zipfile.ZipFile(archive) as z:
                 z.extractall(tmp)
         else:
-            with tarfile.open(archive) as t:
-                t.extractall(tmp)
+            download.extract_tar(archive, tmp)
         placed = []
         for name in ("uv", "uv.exe", "uvx", "uvx.exe"):
             for found in tmp.rglob(name):
@@ -324,6 +322,111 @@ def build_mingit(vendor_git: Path) -> bool:
     return True
 
 
+def _extensions_present(app_dir: Path) -> bool:
+    """True if at least one extension is installed in the portable data dir
+    (VS Code seeds a bare extensions.json even when none are installed)."""
+    ext_dir = app_dir / "data" / "extensions"
+    return ext_dir.is_dir() and any(p.is_dir() for p in ext_dir.iterdir())
+
+
+def _install_extensions(app_dir: Path) -> bool:
+    """Install the default extensions into the freshly-extracted VS Code,
+    retrying over a generous window. Two things bite an unattended build here:
+      1. A dot-prefixed path component makes the CLI fail signature
+         verification ('ENOENT') -- so the staging dir must NOT be dotted
+         (handled by the caller).
+      2. Immediately after a 300MB extract the CLI fails while the OS finishes
+         scanning the new files; the same tree succeeds ~a minute later. So we
+         retry for up to ~2.5 minutes instead of giving up after a few seconds.
+    Reuses seedling's own extension list and CLI resolution."""
+    import time
+
+    from seedling.commands import vscode_cmd
+
+    cli = vscode_cmd._find_cli(app_dir)
+    if not cli:
+        warn("VS Code CLI not found; extensions were not installed.")
+        return False
+    ext_args: list[str] = []
+    for ext in vscode_cmd.DEFAULT_EXTENSIONS:
+        ext_args += ["--install-extension", ext]
+    # Cumulative wait across the retries: ~150s.
+    delays = [5, 10, 15, 20, 25, 25, 25, 25]
+    last = "unknown"
+    for attempt in range(len(delays) + 1):
+        result = subprocess.run(
+            [*cli, *ext_args, "--force"], stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            check=False)
+        if result.returncode == 0:
+            ok(f"Installed {len(vscode_cmd.DEFAULT_EXTENSIONS)} extensions.")
+            return True
+        lines = (result.stdout or "").strip().splitlines()
+        last = lines[-1] if lines else "unknown"
+        if attempt == 0:
+            info("VS Code isn't ready for extensions yet (the OS is still "
+                 "scanning the freshly-extracted files); retrying for up to "
+                 "~2.5 minutes ...")
+        if attempt < len(delays):
+            time.sleep(delays[attempt])
+    warn("Extensions couldn't be installed (VS Code itself is staged). "
+         f"Last error: {last}")
+    return False
+
+
+def build_vscode(vendor_vscode: Path, staging: Path) -> bool:
+    """Pre-seed portable VS Code AND the default extensions into vendor/vscode/.
+    Rather than reimplement the VS Code update-API download + marketplace
+    extension install, drive seedling's OWN vscode installer against a throwaway
+    home (SEEDLING_HOME=staging), then move the finished tree into place. Heavy:
+    ~300MB for VS Code plus the extensions."""
+    if (vendor_vscode / "app").exists():
+        ok(f"VS Code already staged in {vendor_vscode} -- skipping.")
+        return True
+
+    info("Downloading VS Code via seedling's own installer "
+         "(~300MB; this can take a few minutes) ...")
+    env = os.environ.copy()
+    env["SEEDLING_HOME"] = str(staging)
+    env["SEEDLING_NO_LOG"] = "1"
+    env["PYTHONPATH"] = (str(REPO_ROOT / "src") + os.pathsep
+                         + env.get("PYTHONPATH", ""))
+    # Let install() download + extract, but NOT install extensions -- a
+    # just-extracted tree isn't ready for the CLI yet, so the builder installs
+    # them itself afterward with a long retry window (_install_extensions).
+    snippet = ("import sys; from seedling.commands import vscode_cmd; "
+               "sys.exit(0 if vscode_cmd.install(force=False, "
+               "install_extensions=False) else 1)")
+    try:
+        result = subprocess.run([sys.executable, "-c", snippet], env=env)
+    except OSError as e:  # noqa: BLE001 -- nothing staged yet if it never launched
+        warn(f"couldn't launch the VS Code installer: {e}")
+        return False
+
+    # Everything below leaves a ~300MB staging tree behind if it doesn't finish,
+    # and staging lives INSIDE the bundle folder that docs/OFFLINE.md tells
+    # deployers to copy wholesale to the share -- so drop it unconditionally,
+    # including on Ctrl-C partway through the extension retry window.
+    try:
+        app_dir = staging / "extensions" / "vscode" / "app"
+        if result.returncode != 0 or not app_dir.exists():
+            warn("VS Code setup didn't complete (see the output above). Skipped; "
+                 "you can pre-seed it by hand later (see docs/OFFLINE.md #6).")
+            return False
+
+        if not _extensions_present(app_dir):
+            _install_extensions(app_dir)
+
+        vendor_vscode.parent.mkdir(parents=True, exist_ok=True)
+        # Move (fast -- same drive: staging lives under the output folder) the
+        # whole portable tree out of the throwaway home.
+        shutil.move(str(app_dir.parent), str(vendor_vscode))
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    ok(f"VS Code + extensions staged in {vendor_vscode}.")
+    return True
+
+
 # --------------------------------------------------------------------------
 # staging + config
 # --------------------------------------------------------------------------
@@ -378,6 +481,14 @@ def main(argv=None) -> int:
         help="Extra packages to add to the offline wheel index, "
              "comma-separated (on top of hatchling + the default venv packages).")
     parser.add_argument(
+        "--no-vscode", action="store_true",
+        help="Skip the VS Code + extensions download (the ~300MB step).")
+    parser.add_argument(
+        "--mingit", action="store_true",
+        help="Also download portable MinGit into vendor/git/ (Windows only). "
+             "Off by default -- only needed if your offline machines have no "
+             "system git; this is what makes it reachable under --yes.")
+    parser.add_argument(
         "--deploy-root", default="",
         help="The path the bundle will live at on the TARGET machines (e.g. "
              r"S:\tools). seedling.conf is written with paths under it. "
@@ -415,6 +526,9 @@ def main(argv=None) -> int:
     print(f"  Deploy path : {deploy_root}  (edit seedling.conf if this changes)")
     print(f"  Python      : {', '.join(v or 'newest' for v in versions)}")
     print(f"  Wheels      : {', '.join(packages)}")
+    print(f"  VS Code     : {'skipped (--no-vscode)' if args.no_vscode else 'yes (~300MB, with extensions)'}")
+    if system == "Windows":
+        print(f"  MinGit      : {'yes (--mingit)' if args.mingit else 'no (pass --mingit to include it)'}")
 
     if args.dry_run:
         print()
@@ -486,20 +600,29 @@ def main(argv=None) -> int:
     info("Only needed if your offline machines have no system git and you use "
          "`seed repo-clone` or URL-based `seed update-commands`.")
     if system == "Windows":
+        # Off unless asked for: most fleets already have git. --mingit flips the
+        # default, which is also what makes this step reachable under --yes.
         if ask("Download portable MinGit into vendor/git/?",
-               default=False, auto=auto):
+               default=args.mingit, auto=auto):
             build_mingit(vendor / "git")
     else:
         info("Building on a non-Windows host; MinGit is Windows-only. Skipped.")
 
-    # 6. VS Code (optional, guided -- too large/stateful to fetch reliably here).
-    step(6, "VS Code (optional -- guided)")
-    info("There's no supported VS Code mirror, so pre-seed it by hand:")
-    info("  1. On a connected machine WITH seedling installed, run: seed vscode")
-    info("  2. Copy ~/seedling/extensions/vscode/ into "
-         + colors.bold(str(vendor / "vscode")))
-    info("The installer then places it and never re-downloads. Or skip VS Code "
-         "entirely -- everything else works without it.")
+    # 6. VS Code + extensions (optional, automated -- the heavy one).
+    step(6, "VS Code + extensions (optional, ~300MB)")
+    info("Pre-seeds the portable VS Code and the default extensions (Python, "
+         "Jupyter, ruff) into vendor/vscode/, so offline machines get the "
+         "editor with no marketplace access. Everything else works without it.")
+    vscode_wanted = False
+    vscode_ok = False
+    if args.no_vscode:
+        info("Skipped (--no-vscode).")
+    elif ask("Download VS Code + extensions now? (~300MB)",
+             default=True, auto=auto):
+        vscode_wanted = True
+        # NB: staging dir must NOT be dot-prefixed -- the VS Code CLI fails
+        # extension signature verification under a `.`-leading path component.
+        vscode_ok = build_vscode(vendor / "vscode", output / "vscode-staging")
 
     # 7. Corporate CA certs (optional, user-supplied).
     step(7, "Corporate CA certificates (optional)")
@@ -531,12 +654,21 @@ def main(argv=None) -> int:
     print(colors.header("Done. Bundle assembled at:"))
     print(f"  {output}")
     print()
+    def layout(rel: str, note: str, state: str = "") -> None:
+        """One aligned `<path>  <- <what it is>  <state>` row."""
+        print(f"  {output}{os.sep}{rel.ljust(24)}<- {note}"
+              + (f"  {state}" if state else ""))
+
     print("Layout:")
-    print(f"  {output}{os.sep}seedling{os.sep}        <- users run install.cmd from here")
-    print(f"  {output}{os.sep}python-builds{os.sep}   <- SEEDLING_PYTHON_MIRROR  "
-          + ("(populated)" if mirror_ok else colors.warn("(empty -- redo step 3)")))
-    print(f"  {output}{os.sep}wheels{os.sep}          <- SEEDLING_PACKAGE_INDEX  "
-          + ("(populated)" if wheels_ok else colors.warn("(empty -- redo step 4)")))
+    layout(f"seedling{os.sep}", "users run install.cmd from here")
+    layout(f"python-builds{os.sep}", "SEEDLING_PYTHON_MIRROR",
+           "(populated)" if mirror_ok else colors.warn("(empty -- redo step 3)"))
+    layout(f"wheels{os.sep}", "SEEDLING_PACKAGE_INDEX",
+           "(populated)" if wheels_ok else colors.warn("(empty -- redo step 4)"))
+    if vscode_wanted:
+        layout(f"seedling{os.sep}vendor{os.sep}vscode{os.sep}", "pre-seeded VS Code",
+               "(populated)" if vscode_ok
+               else colors.warn("(missing -- redo step 6)"))
     print()
     print("Next steps:")
     print(f"  1. Copy the whole {output.name}{os.sep} folder to {deploy_root} on "

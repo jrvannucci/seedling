@@ -8,8 +8,8 @@ import subprocess
 
 import pytest
 
-from conftest import GIT, REPO_ROOT, needs_git
-from seedling import config, download, paths
+from conftest import GIT, needs_git, windows_only
+from seedling import config, download
 
 
 @pytest.fixture
@@ -157,9 +157,6 @@ def test_from_branch_ignored_when_no_source(run_cli, home, src_installed):
 # (and uv gets partway, bricking the install). update-commands renames the
 # live copies aside first; these tests pin that behavior.
 
-from conftest import windows_only
-import subprocess as _sp
-
 
 def _plant_live_cli(home):
     tool = home / "system" / "tool" / "seedling" / "Scripts"
@@ -188,7 +185,7 @@ def test_self_update_rolls_back_when_reinstall_fails(run_cli, home, src_installe
     tooldir, shim = _plant_live_cli(home)
 
     def boom(args, **kw):
-        raise _sp.CalledProcessError(2, ["uv", *args])
+        raise subprocess.CalledProcessError(2, ["uv", *args])
     monkeypatch.setattr(uv_tool, "run", boom)
 
     code, out = run_cli("update-commands")
@@ -334,3 +331,56 @@ def test_fetch_without_checksum_warns_but_proceeds(home, tmp_path, capsys):
     download.fetch(url, dest, expected_sha256=None, label="payload")
     assert dest.exists()
     assert "no published checksum" in capsys.readouterr().out
+
+
+# --- tar extraction ----------------------------------------------------------
+# extract_tar pins the 'data' filter explicitly rather than inheriting whatever
+# the running interpreter defaults to (3.14 flips that default; 3.12/3.13 warn).
+
+def _tar_with(tmp_path, members):
+    """Build a tarball from {arcname: bytes}."""
+    import io
+    import tarfile
+    archive = tmp_path / "payload.tar.gz"
+    with tarfile.open(archive, "w:gz") as t:
+        for arcname, data in members.items():
+            ti = tarfile.TarInfo(arcname)
+            ti.size = len(data)
+            t.addfile(ti, io.BytesIO(data))
+    return archive
+
+
+def test_extract_tar_extracts_normal_members(tmp_path):
+    archive = _tar_with(tmp_path, {"uv": b"binary", "nested/uvx": b"binary"})
+    dest = tmp_path / "out"
+    download.extract_tar(archive, dest)
+    assert (dest / "uv").read_bytes() == b"binary"
+    assert (dest / "nested" / "uvx").read_bytes() == b"binary"
+
+
+def test_extract_tar_creates_dest(tmp_path):
+    archive = _tar_with(tmp_path, {"uv": b"x"})
+    dest = tmp_path / "deep" / "not" / "there"
+    download.extract_tar(archive, dest)
+    assert (dest / "uv").exists()
+
+
+def test_extract_tar_refuses_path_traversal(tmp_path):
+    """A member escaping the destination must be refused outright, not written
+    (the whole point of pinning the filter)."""
+    import tarfile
+    if not hasattr(tarfile, "data_filter"):
+        pytest.skip("interpreter predates the tarfile filter backport")
+    archive = _tar_with(tmp_path, {"../escaped.txt": b"pwned"})
+    dest = tmp_path / "out"
+    with pytest.raises(tarfile.OutsideDestinationError):
+        download.extract_tar(archive, dest)
+    assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_extract_tar_does_not_warn_on_modern_pythons(tmp_path, recwarn):
+    """No DeprecationWarning about the coming default change, because the
+    filter is now explicit."""
+    archive = _tar_with(tmp_path, {"uv": b"x"})
+    download.extract_tar(archive, tmp_path / "out")
+    assert not [w for w in recwarn if issubclass(w.category, DeprecationWarning)]

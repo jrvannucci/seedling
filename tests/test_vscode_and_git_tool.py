@@ -3,12 +3,9 @@ git_tool (lookup order, streamed tagging)."""
 
 from __future__ import annotations
 
-import io
 import os
-import subprocess
 import urllib.error
 
-import pytest
 
 from conftest import needs_git, windows_only
 from seedling import git_tool, paths
@@ -39,6 +36,24 @@ def test_install_short_circuits_when_preseeded(home, monkeypatch):
     assert cli[-1].endswith("code.cmd" if os.name == "nt" else "code")
 
 
+def test_install_extensions_flag_gates_extension_step(home, monkeypatch):
+    """install_extensions=False (used by the offline builder) downloads/extracts
+    VS Code but skips the extension install; the default still runs it."""
+    _preseed_vscode(home)  # so _find_cli returns a cli after the stubbed extract
+    monkeypatch.setattr(vscode_cmd, "_resolve_download",
+                        lambda os_id: ("file:///x", None))
+    monkeypatch.setattr(vscode_cmd.download, "fetch", lambda *a, **k: None)
+    monkeypatch.setattr(vscode_cmd, "_extract", lambda *a, **k: None)
+    monkeypatch.setattr(vscode_cmd, "_write_default_settings", lambda: None)
+    called = []
+    monkeypatch.setattr(vscode_cmd, "_install_extensions", lambda cli: called.append(cli))
+
+    vscode_cmd.install(force=True, install_extensions=False)
+    assert called == []
+    vscode_cmd.install(force=True, install_extensions=True)
+    assert len(called) == 1
+
+
 def test_no_open_installs_without_window(run_cli, home, monkeypatch):
     _preseed_vscode(home)
     opened = []
@@ -62,7 +77,6 @@ def test_write_status_single_parseable_line(home):
     # The installers poll this file for their status bar: one line,
     # "<phase> <done> <total>", overwritten in place.
     vscode_cmd._write_status("downloading", 1234, 5678)
-    from seedling import paths
     status = (paths.VSCODE_DIR / "setup-status").read_text().strip()
     assert status == "downloading 1234 5678"
     vscode_cmd._write_status("done")
@@ -70,7 +84,6 @@ def test_write_status_single_parseable_line(home):
 
 
 def test_download_progress_reporter_throttles_by_percent(home):
-    from seedling import paths
     report = vscode_cmd._download_progress_reporter()
     # 1000 calls inside the same percent must not produce 1000 writes; the
     # status file only reflects whole-percent transitions.

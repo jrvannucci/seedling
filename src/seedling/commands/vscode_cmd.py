@@ -4,7 +4,6 @@ import json
 import os
 import platform
 import subprocess
-import tarfile
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -120,8 +119,7 @@ def _extract(archive: Path, dest: Path, kind: str) -> None:
         with zipfile.ZipFile(archive) as z:
             z.extractall(dest)
     else:
-        with tarfile.open(archive) as t:
-            t.extractall(dest)
+        download.extract_tar(archive, dest)
 
 
 def _find_cli(app_dir: Path) -> list[str] | None:
@@ -202,11 +200,16 @@ def _chmod_executables(app_dir: Path) -> None:
             candidate.chmod(candidate.stat().st_mode | 0o111)
 
 
-def install(force: bool = False) -> list[str] | None:
+def install(force: bool = False, install_extensions: bool = True) -> list[str] | None:
     """Ensure VS Code is installed, returning the CLI argv prefix to use for
     opening it (or None on failure). Only re-downloads if `force` is set or
     nothing is installed yet -- this is what makes plain `seed vscode` calls
-    idempotent instead of re-downloading/reinstalling every single time."""
+    idempotent instead of re-downloading/reinstalling every single time.
+
+    `install_extensions=False` downloads/extracts VS Code but skips the default
+    extension install -- used by the offline bundle builder, which installs the
+    extensions itself with a longer retry window (a freshly-extracted tree isn't
+    immediately ready for the CLI while the OS finishes scanning it)."""
     paths.ensure_layout()
 
     cli = _find_cli(paths.VSCODE_APP_DIR)
@@ -257,9 +260,10 @@ def install(force: bool = False) -> list[str] | None:
 
     _write_default_settings()
 
-    print("Installing default extensions (Python, Jupyter, linting)...")
-    _write_status("extensions")
-    _install_extensions(cli)
+    if install_extensions:
+        print("Installing default extensions (Python, Jupyter, linting)...")
+        _write_status("extensions")
+        _install_extensions(cli)
 
     print(f"VS Code installed at {paths.VSCODE_APP_DIR}")
     _write_status("done")

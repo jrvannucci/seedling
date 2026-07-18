@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import shutil
+import tarfile
 import urllib.request
 from pathlib import Path
 
@@ -26,6 +27,31 @@ from . import colors
 
 class ChecksumMismatch(RuntimeError):
     pass
+
+
+def extract_tar(archive: Path, dest: Path) -> None:
+    """Extract a tarball into `dest` with an explicit member filter.
+
+    Python 3.14 makes the 'data' filter the default for extractall(), and
+    3.12/3.13 emit a DeprecationWarning about that change. Passing it
+    explicitly pins ONE behavior across every interpreter seedling supports,
+    on our schedule rather than an interpreter upgrade's -- and it refuses
+    members that would write outside `dest` (absolute paths, `..`, links
+    escaping the tree).
+
+    The `filter=` argument was backported to 3.9.17 / 3.10.12 / 3.11.4, so on
+    an older patch release of those lines it isn't accepted; `tarfile.data_filter`
+    is the feature probe. There we fall back to the unfiltered call, which is
+    exactly what those interpreters do today.
+
+    (Zip archives need no equivalent: ZipFile.extractall already sanitizes
+    member paths, stripping drive letters, leading separators and `..`.)"""
+    dest.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(archive) as t:
+        if hasattr(tarfile, "data_filter"):
+            t.extractall(dest, filter="data")
+        else:  # pragma: no cover -- pre-backport 3.9/3.10/3.11 patch releases
+            t.extractall(dest)
 
 
 def sha256_of(path: Path) -> str:
