@@ -13,6 +13,35 @@ what a release involves.
 
 Nothing yet.
 
+## [0.3.0] — 2026-07-18
+
+### Removed
+
+- **Breaking: dropped support for Python 3.9, 3.10, and 3.11.** seedling now
+  requires **Python 3.12 or newer**. `uv` refuses the install outright on an
+  older interpreter, with a clear resolver error, rather than failing
+  halfway. This is about the interpreter `seed-cli` itself runs on — seedling
+  can still install and manage any Python version for you, so `seed python 3.9`
+  and 3.9 venvs are unaffected.
+- `build-offline.cmd` now also needs Python 3.12+ on the machine you build the
+  bundle on (it imports seedling's own modules).
+
+### Added
+
+- `build-offline.cmd` now validates `--python` against seedling's own
+  `requires-python` **before downloading anything**, and refuses to build a
+  bundle where no mirrored interpreter could run `seed-cli`. That combination
+  previously built cleanly and only failed after the bundle reached the
+  air-gapped machine. Mirroring older interpreters alongside a supported one is
+  still fine — they're what your users' venvs are built from.
+
+### Changed
+
+- CI now tests **every supported Python from the floor upward** — 3.12, 3.13,
+  and 3.14 — on both Windows and Linux, instead of only the ends of the range.
+- Tar extraction dropped its compatibility branch for interpreters predating
+  the `filter=` backport; it now always passes `filter="data"`.
+
 ## [0.2.0] — 2026-07-18
 
 The version string sat at `0.1.0` through all of early development, so this
