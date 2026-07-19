@@ -130,6 +130,13 @@ def test_parse_version(text, expected):
     assert build_offline.parse_version(text) == expected
 
 
+def test_builder_min_python_matches_seedling_floor():
+    """The builder runs on the DEPLOYER's system Python, so its floor is a
+    separate decision from seedling's -- they're just deliberately equal today.
+    If you relax one, this failing is the prompt to think about the other."""
+    assert build_offline.MIN_PYTHON == build_offline.seedling_python_floor()
+
+
 def test_seedling_python_floor_reads_the_real_pyproject():
     """Reads the actual src/pyproject.toml, so raising requires-python without
     touching the builder still moves the check."""

@@ -33,6 +33,37 @@ import zipfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Deliberately kept equal to seedling's own requires-python; a test asserts they
+# match, so relaxing one is a conscious decision rather than drift.
+MIN_PYTHON = (3, 12)
+
+# The floor is enforced HERE, not just in the launchers. build-offline.cmd runs
+# `py -3` with no version check at all, and this file can also be run directly
+# (`python installers/build_offline.py`), so a launcher-only probe left the
+# declared floor untrue on Windows -- seedling's primary platform. One check
+# covers every entry point.
+#
+# It sits above the `seedling` import on purpose: those modules track seedling's
+# requires-python, so importing them on an older interpreter is the failure this
+# is meant to replace with a readable message. Everything above is stdlib that
+# parses on far older Pythons, so an old interpreter reaches this check rather
+# than dying on a SyntaxError first.
+if sys.version_info < MIN_PYTHON:
+    _want = ".".join(str(part) for part in MIN_PYTHON)
+    _have = ".".join(str(part) for part in sys.version_info[:3])
+    sys.stderr.write(
+        "Python {0}+ is required to build the offline bundle, but this is "
+        "Python {1}\n  ({2}).\n\n"
+        "Install a newer Python and re-run, or point one at this file "
+        "explicitly:\n"
+        "  py -{0} installers\\build_offline.py    (Windows)\n"
+        "  python{0} installers/build_offline.py  (macOS/Linux)\n\n"
+        "This is the interpreter that BUILDS the bundle. It is unrelated to "
+        "the\nPython versions the bundle ships for your users -- mirror "
+        "whichever you\nlike with --python.\n".format(_want, _have, sys.executable))
+    raise SystemExit(1)
+
 # Reuse seedling's own checksum-verifying downloader and color helpers rather
 # than reimplementing them -- both are import-only, no install required.
 sys.path.insert(0, str(REPO_ROOT / "src"))
