@@ -353,6 +353,8 @@ the three paths. Useful flags:
 | `--packages pandas,polars` | Extra wheels to stock beyond the defaults |
 | `--no-vscode` | Skip the VS Code + extensions download (the ~300MB step) |
 | `--mingit` | Also bundle portable MinGit (Windows; off by default) |
+| `--verify-only` | Don't build — just run the preflight check against the bundle at `-o` and exit (0 = it installs). Use it on the copy that reached your share |
+| `--no-verify` | Skip the preflight check at the end of a build |
 | `--deploy-root S:\tools` | Bake the final share path into `seedling.conf` |
 | `--dry-run` | Show the plan and exit without downloading |
 
@@ -366,6 +368,41 @@ Two things are opt-in: **MinGit** is off unless you pass `--mingit` (most fleets
 already have git — see [#5](#5-git-optional)), and **corporate CA
 certs** are yours to supply (see the CA section). Note that under `--yes` every
 step takes its default, so MinGit is skipped unless you pass `--mingit` too.
+
+### Proving the bundle works, before it leaves
+
+Every download step reports whether it *succeeded*. That is not the same
+question as **would this bundle install with no internet** — and the gap is
+expensive, because it's normally discovered in the air-gapped room, after
+sign-off.
+
+So the builder finishes by installing from the bundle it just made, on the
+build machine, with the network refused:
+
+```
+[9] Verify the bundle installs offline
+    Python 3.12: interpreter + 4 package(s) install offline.
+    seed-cli builds offline on Python 3.12 (hatchling resolved from the bundle).
+    Preflight passed: this bundle installs with no internet.
+```
+
+It installs each mirrored interpreter from `python-builds/`, creates a venv on
+each and installs the default packages from `wheels/`, then builds `seed-cli`
+from the bundled source — the step that needs `hatchling` and that actually
+blocks an install. Two details make it a real test rather than a formality: it
+uses a **cold uv cache** (the build just warmed the normal one, which would
+happily satisfy an install from a wheel the bundle is *missing*), and it scrubs
+inherited `UV_*`/`PIP_*` variables so nothing can quietly reach the internet.
+
+Run it any time against an existing bundle — **including the copy on your
+share**, which is the only way to prove the transfer was complete:
+
+```
+build-offline.cmd --verify-only -o S:\tools\offline-bundle
+```
+
+It exits 0 when the bundle installs, non-zero otherwise, so it drops into a
+deployment pipeline as a gate. `--no-verify` skips the check during a build.
 
 ### By hand
 

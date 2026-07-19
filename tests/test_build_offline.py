@@ -116,6 +116,176 @@ def test_dry_run_returns_zero(tmp_path):
     assert code == 0
 
 
+# --- preflight --------------------------------------------------------------
+# The real check runs uv against a real bundle; these cover the logic around it
+# without network. The end-to-end behaviour (a deliberately broken bundle being
+# rejected) is exercised by hand -- see the build-offline notes in OFFLINE.md.
+
+
+def _fake_bundle(tmp_path, versions=("3.12",), floor='">=3.12"'):
+    out = tmp_path / "bundle"
+    (out / "seedling" / "src").mkdir(parents=True)
+    (out / "seedling" / "src" / "pyproject.toml").write_text(
+        f'[project]\nname = "seedling"\nrequires-python = {floor}\n',
+        encoding="utf-8")
+    (out / "wheels").mkdir()
+    for v in versions:
+        tag = out / "python-builds" / "20260623"
+        tag.mkdir(parents=True, exist_ok=True)
+        (tag / f"cpython-{v}.9+20260623-x86_64-pc-windows-msvc-"
+               "install_only_stripped.tar.gz").write_text("archive")
+    return out
+
+
+def test_discover_mirrored_versions(tmp_path):
+    out = _fake_bundle(tmp_path, versions=("3.12", "3.13"))
+    assert build_offline.discover_mirrored_versions(
+        out / "python-builds") == ["3.12", "3.13"]
+
+
+def test_discover_mirrored_versions_empty_when_no_mirror(tmp_path):
+    assert build_offline.discover_mirrored_versions(tmp_path / "nope") == []
+
+
+def test_offline_index_config_declares_a_flat_default_index(tmp_path):
+    """Must match the shape seedling generates at runtime, or preflight stops
+    testing what users actually get (see uv_tool._offline_index_config)."""
+    wheels = tmp_path / "wheels"
+    wheels.mkdir()
+    cfg = build_offline.write_offline_index_config(tmp_path / "uv.toml", wheels)
+    text = cfg.read_text(encoding="utf-8")
+    assert 'format = "flat"' in text
+    assert "default = true" in text
+    assert wheels.resolve().as_uri() in text
+
+
+def test_preflight_env_is_isolated(tmp_path, monkeypatch):
+    """A warm cache or an inherited UV_* var could make a BROKEN bundle pass."""
+    monkeypatch.setenv("UV_INDEX_URL", "https://pypi.org/simple")
+    monkeypatch.setenv("PIP_INDEX_URL", "https://pypi.org/simple")
+    monkeypatch.setenv("SEEDLING_HOME", str(tmp_path / "real-home"))
+    env = build_offline._preflight_env(
+        tmp_path / "cache", tmp_path / "mirror", tmp_path / "uv.toml",
+        tmp_path / "pythons")
+    assert "UV_INDEX_URL" not in env
+    assert "PIP_INDEX_URL" not in env
+    assert "SEEDLING_HOME" not in env
+    assert env["UV_CACHE_DIR"] == str(tmp_path / "cache")       # cold cache
+    assert env["UV_PYTHON_INSTALL_DIR"] == str(tmp_path / "pythons")
+
+
+def test_run_offline_always_passes_the_offline_flag(tmp_path, monkeypatch):
+    seen = []
+
+    def fake_run(cmd, **kw):
+        seen.append(cmd)
+        return types.SimpleNamespace(returncode=0, stdout="fine")
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    ok_, tail = build_offline._run_offline(Path("uv"), ["pip", "install", "x"], {})
+    assert ok_ is True and tail == "fine"
+    assert seen[0][-1] == "--offline"
+
+
+def _stub_offline(monkeypatch, failing_prefix=None):
+    """Make every uv call succeed, except ones whose args start with a prefix."""
+    def fake(uv_exe, args, env):
+        if failing_prefix and args[:len(failing_prefix)] == failing_prefix:
+            return False, "boom"
+        return True, "ok"
+    monkeypatch.setattr(build_offline, "_run_offline", fake)
+
+
+def test_verify_bundle_passes_a_complete_bundle(tmp_path, monkeypatch, capsys):
+    out = _fake_bundle(tmp_path)
+    _stub_offline(monkeypatch)
+    uv = tmp_path / "uv.exe"
+    uv.write_text("x")
+    assert build_offline.verify_bundle(
+        out, out / "seedling", uv, ["hatchling", "ipython"]) is True
+    assert "Preflight passed" in capsys.readouterr().out
+
+
+def test_verify_bundle_fails_when_venv_packages_are_missing(tmp_path, monkeypatch,
+                                                            capsys):
+    out = _fake_bundle(tmp_path)
+    _stub_offline(monkeypatch, failing_prefix=["pip", "install"])
+    uv = tmp_path / "uv.exe"
+    uv.write_text("x")
+    assert build_offline.verify_bundle(
+        out, out / "seedling", uv, ["hatchling", "ipython"]) is False
+    out_text = capsys.readouterr().out
+    assert "Preflight FAILED" in out_text
+    assert "seed venv --python 3.12" in out_text
+
+
+def test_verify_bundle_fails_when_the_interpreter_wont_install(tmp_path, monkeypatch,
+                                                               capsys):
+    out = _fake_bundle(tmp_path)
+    _stub_offline(monkeypatch, failing_prefix=["python", "install"])
+    uv = tmp_path / "uv.exe"
+    uv.write_text("x")
+    assert build_offline.verify_bundle(
+        out, out / "seedling", uv, ["hatchling"]) is False
+    assert "won't install from the mirror" in capsys.readouterr().out
+
+
+def test_verify_bundle_needs_an_interpreter_meeting_the_floor(tmp_path, monkeypatch,
+                                                              capsys):
+    """Mirroring only 3.9 against a >=3.12 floor can't build seed-cli."""
+    out = _fake_bundle(tmp_path, versions=("3.9",))
+    _stub_offline(monkeypatch)
+    uv = tmp_path / "uv.exe"
+    uv.write_text("x")
+    assert build_offline.verify_bundle(
+        out, out / "seedling", uv, ["hatchling"]) is False
+    assert "requires-python" in capsys.readouterr().out
+
+
+def test_verify_bundle_reports_a_missing_uv(tmp_path, capsys):
+    out = _fake_bundle(tmp_path)
+    assert build_offline.verify_bundle(
+        out, out / "seedling", tmp_path / "absent-uv", ["hatchling"]) is False
+    assert "nothing to verify with" in capsys.readouterr().out
+
+
+def test_verify_only_rejects_a_missing_bundle(tmp_path, capsys):
+    code = build_offline.main(["--verify-only", "-o", str(tmp_path / "nope")])
+    assert code == 2
+    assert "No bundle found" in capsys.readouterr().out
+
+
+def test_verify_only_runs_the_check_and_returns_its_verdict(tmp_path, monkeypatch,
+                                                            capsys):
+    out = _fake_bundle(tmp_path)
+    (out / "seedling" / "vendor" / "uv").mkdir(parents=True)
+    monkeypatch.setattr(build_offline, "verify_bundle",
+                        lambda *a, **kw: False)
+    assert build_offline.main(["--verify-only", "-o", str(out)]) == 1
+    monkeypatch.setattr(build_offline, "verify_bundle", lambda *a, **kw: True)
+    assert build_offline.main(["--verify-only", "-o", str(out)]) == 0
+
+
+def test_build_skips_preflight_with_no_verify(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    monkeypatch.setattr(build_offline, "verify_bundle",
+                        lambda *a, **kw: pytest.fail("must not verify"))
+    build_offline.main(["--yes", "--no-vscode", "--no-verify",
+                        "-o", str(tmp_path / "b")])
+    assert "Skipped (--no-verify)" in capsys.readouterr().out
+
+
+def test_summary_warns_when_the_bundle_was_never_verified(tmp_path, monkeypatch,
+                                                          capsys):
+    """An unverified bundle must not read as a confirmed one."""
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    build_offline.main(["--yes", "--no-vscode", "--no-verify",
+                        "-o", str(tmp_path / "b")])
+    out = capsys.readouterr().out
+    assert "nothing has confirmed this bundle installs" in out
+    assert "--verify-only" in out
+
+
 # --- wheel index ------------------------------------------------------------
 # The wheelhouse is flat and holds every tag, so multiple interpreters just
 # means multiple `pip download` passes into the same folder.
