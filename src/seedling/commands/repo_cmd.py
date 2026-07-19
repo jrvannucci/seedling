@@ -5,7 +5,7 @@ import platform
 import subprocess
 
 from .. import confirm, paths, uv_tool, git_tool, fsutil
-from . import kill_cmd, vscode_cmd
+from . import vscode_cmd
 
 
 def _derive_name(url: str) -> str:
@@ -90,17 +90,16 @@ def remove(args) -> int:
         print(f"No repo named '{name}' found in {paths.REPO_DIR}")
         return 1
 
-    # Checked BEFORE the confirm prompt (and before the process kill below,
-    # which closes VS Code and would take unsaved buffers with it) so the
-    # answer is in front of the user at the moment they decide.
+    # Checked BEFORE the confirm prompt so the answer is in front of the user
+    # at the moment they decide -- and before any process is closed, since a
+    # blocked delete can escalate to closing the editor holding those buffers.
     risk = git_tool.unsaved_work(target)
 
     if confirm.preview_requested(args):
         confirm.print_preview(
             f"delete repo '{name}'",
             [str(target)],
-            notes=["any running Python/VS Code processes will be force-closed "
-                   "first (not just seedling's) so nothing blocks deletion"],
+            notes=[fsutil.ESCALATION_NOTE],
         )
         git_tool.warn_unsaved_work([(name, risk)] if risk else [])
         return 0
@@ -109,17 +108,12 @@ def remove(args) -> int:
 
     if not confirm.confirm(
         args,
-        f"Delete repo '{name}' at {target}? This will also force-close "
-        "any running Python/VS Code processes first (not just seedling's).",
+        f"Delete repo '{name}' at {target}?",
     ):
         print("Aborted. Nothing was deleted.")
         return 1
 
-    print("Closing Python and VS Code processes so nothing is left in use...")
-    killed = kill_cmd.kill_python_and_vscode()
-    print(f"Closed {len(killed)} process(es)." if killed else "Nothing matching was running.")
-
-    failures = fsutil.robust_rmtree(target)
+    failures = fsutil.remove_tree(target, label=name)
     if failures:
         print(f"Some files in repo '{name}' could not be removed after several attempts:")
         for f in failures:

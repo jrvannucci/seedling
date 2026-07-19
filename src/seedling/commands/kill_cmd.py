@@ -1,10 +1,22 @@
 """
-`seed kill-processes all` -- an escape hatch for when a venv, a runaway
-script, or VS Code itself is stuck and you just want a clean slate.
+`seed kill-processes` -- an escape hatch for when a venv, a runaway script, or
+VS Code itself is stuck and you just want a clean slate.
 
-Deliberately uses only OS-builtin tools (pgrep/kill on macOS+Linux,
-taskkill on Windows) rather than a third-party dependency like psutil, to
-stay consistent with seedling's "nothing pre-installed required" design.
+Scoped by DEFAULT to processes belonging to the seedling tree; `--system` is
+the machine-wide sledgehammer, and a bare process name closes just that name.
+The default is the narrow one because "something of mine is stuck" shouldn't
+close a colleague's editor or an unrelated long-running job.
+
+"Belonging to seedling" is decided by LOCATION -- executable path, command
+line, or working directory under the seedling home -- never by process name.
+Name matching is wrong in both directions: it hits unrelated system Pythons,
+and it misses the processes that matter most, like a PyQt app's
+QtWebEngineProcess.exe or a node/ffmpeg binary bundled inside a venv, which
+are named nothing like Python but live inside the tree.
+
+Deliberately uses only OS-builtin tools (pgrep/kill on macOS+Linux, taskkill
+and WMI on Windows) rather than a third-party dependency like psutil, to stay
+consistent with seedling's "nothing pre-installed required" design.
 
 Always excludes seedling's own running process (and its parent) so it can't
 kill itself mid-cleanup on platforms where seed-cli's own process image is
@@ -34,6 +46,120 @@ VSCODE_PROCESS_NAMES_UNIX = [
 
 WINDOWS_PYTHON_IMAGES = ["python.exe", "pythonw.exe", "py.exe"]
 WINDOWS_VSCODE_IMAGES = ["Code.exe"]
+
+
+def _under(path: str | None, root: str) -> bool:
+    if not path:
+        return False
+    try:
+        return os.path.normcase(os.path.abspath(path)).startswith(
+            os.path.normcase(os.path.abspath(root)).rstrip("\\/") + os.sep)
+    except (OSError, ValueError):
+        return False
+
+
+def _windows_scoped(root: str, exclude: set[int]) -> list[tuple[int, str]]:
+    """Processes whose executable or command line sits under `root`, via WMI.
+
+    This is the FALLBACK for what the Restart Manager can't see -- chiefly a
+    process whose working directory is inside the tree, which blocks directory
+    removal without holding any file handle. It is a heuristic, so it is only
+    ever used after the authoritative check has come up empty."""
+    script = (
+        "Get-CimInstance Win32_Process | "
+        "ForEach-Object { \"$($_.ProcessId)`t$($_.Name)`t$($_.ExecutablePath)`t$($_.CommandLine)\" }"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    found: list[tuple[int, str]] = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 4 or not parts[0].strip().isdigit():
+            continue
+        pid = int(parts[0].strip())
+        name, exe, cmdline = parts[1].strip(), parts[2].strip(), parts[3]
+        if pid in exclude:
+            continue
+        if _under(exe, root) or (root.lower() in (cmdline or "").lower()):
+            found.append((pid, name))
+    return found
+
+
+def _unix_scoped(root: str, exclude: set[int]) -> list[tuple[int, str]]:
+    """Same idea on POSIX, via /proc where available. Only used by
+    `--diagnose`-style reporting: POSIX deletes open files happily, so nothing
+    here is needed to make a removal succeed."""
+    found: list[tuple[int, str]] = []
+    proc = "/proc"
+    if not os.path.isdir(proc):
+        return found
+    for entry in os.listdir(proc):
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        if pid in exclude:
+            continue
+        base = os.path.join(proc, entry)
+        try:
+            exe = os.readlink(os.path.join(base, "exe"))
+        except OSError:
+            exe = None
+        try:
+            cwd = os.readlink(os.path.join(base, "cwd"))
+        except OSError:
+            cwd = None
+        try:
+            with open(os.path.join(base, "cmdline"), "rb") as f:
+                cmdline = f.read().decode("utf-8", "replace").replace("\0", " ")
+        except OSError:
+            cmdline = ""
+        if _under(exe, root) or _under(cwd, root) or root in cmdline:
+            found.append((pid, os.path.basename(exe) if exe else f"pid {pid}"))
+    return found
+
+
+def find_seedling_processes(root: str | None = None) -> list[tuple[int, str]]:
+    """[(pid, name)] for processes tied to the seedling tree -- by executable
+    location, command line, or working directory.
+
+    Scoped on purpose: it does NOT match by process name, so an unrelated
+    system Python or a VS Code window on another project is left alone, while
+    oddly-named children living inside a venv (a PyQt app's
+    QtWebEngineProcess.exe, a bundled node/ffmpeg) ARE caught."""
+    from .. import paths as _paths
+    root = str(root or _paths.HOME)
+    exclude = _self_and_parent()
+    if platform.system() == "Windows":
+        return _windows_scoped(root, exclude)
+    return _unix_scoped(root, exclude)
+
+
+def terminate(pids: list[int]) -> list[int]:
+    """Force-close specific pids. Returns those actually signalled."""
+    killed: list[int] = []
+    exclude = _self_and_parent()
+    for pid in pids:
+        if pid in exclude:
+            continue
+        try:
+            if platform.system() == "Windows":
+                result = subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    capture_output=True, text=True, check=False)
+                if result.returncode == 0:
+                    killed.append(pid)
+            else:
+                os.kill(pid, signal.SIGKILL)
+                killed.append(pid)
+        except (ProcessLookupError, OSError):
+            pass
+        except PermissionError:
+            print(f"  (skipped pid {pid}: permission denied)")
+    return killed
 
 
 def _self_and_parent() -> set[int]:
@@ -135,26 +261,60 @@ def kill_python_and_vscode() -> list:
     return _kill_unix(PYTHON_PROCESS_NAMES_UNIX + VSCODE_PROCESS_NAMES_UNIX, exclude)
 
 
+def kill_seedling_processes() -> list[tuple[int, str]]:
+    """Close only the processes tied to the seedling tree. Returns what was
+    actually closed, as (pid, name)."""
+    found = find_seedling_processes()
+    if not found:
+        return []
+    closed = set(terminate([pid for pid, _ in found]))
+    return [(pid, name) for pid, name in found if pid in closed]
+
+
 def run(args) -> int:
+    """Three modes, narrowest first:
+
+      seed kill-processes            only seedling's own processes  (default)
+      seed kill-processes --system   every python/VS Code on the machine
+      seed kill-processes <name>     every process named <name>
+
+    The default is scoped because that is what an ordinary "something is
+    stuck" actually calls for; closing a colleague's editor and every unrelated
+    python job should take an explicit --system."""
     target = getattr(args, "target", None)
-    if not target:
-        print("Usage: seed kill-processes <all|process_name>")
-        print("  seed kill-processes all          closes python + VS Code processes")
-        print("  seed kill-processes <name>       closes every process named <name>")
+    system_wide = getattr(args, "system", False)
+
+    # `all` was the old spelling of the machine-wide sweep, and it's in
+    # people's fingers and scripts. Keep it working rather than silently
+    # NARROWING what an existing invocation does.
+    if target == "all":
+        system_wide = True
+        target = None
+        print(colors.dim("note: `kill-processes all` is now spelled "
+                         "`kill-processes --system`."))
+
+    if target and system_wide:
+        print("error: give a process name OR --system, not both.")
         return 1
 
-    if target == "all":
-        description = "ALL Python and VS Code processes"
+    if system_wide:
+        description = "ALL Python and VS Code processes on this machine"
+    elif target:
+        description = f"all '{target}' processes on this machine"
     else:
-        names_unix = [target]
-        image = target if target.lower().endswith(".exe") else f"{target}.exe"
-        names_windows = [image]
-        description = f"all '{target}' processes"
+        description = "seedling's own processes"
 
     if confirm.preview_requested(args):
+        if system_wide:
+            items = list_matching("all")
+        elif target:
+            items = list_matching(target)
+        else:
+            items = [f"{name} (pid {pid})"
+                     for pid, name in find_seedling_processes()]
         confirm.print_preview(
             f"force-close {description}",
-            list_matching(target),
+            items,
             notes=["processes are listed as of right now; a real run "
                    "re-matches at execution time"],
         )
@@ -162,38 +322,50 @@ def run(args) -> int:
 
     if not confirm.auto_confirmed(args):
         print()
-        print(colors.warn(f"This force-closes {description} on this machine") + " --")
-        print("not just seedling's -- including any unsaved work.")
+        if system_wide or target:
+            print(colors.warn(f"This force-closes {description}") + " --")
+            print("not just seedling's -- including any unsaved work.")
+            print("Use `seed kill-processes` with no arguments to close only "
+                  "seedling's.")
+        else:
+            print(f"This force-closes {description} " +
+                  colors.warn("(anything running from a seedling venv or repo)") +
+                  ",")
+            print("including any unsaved work. Unrelated Python and editor "
+                  "windows are left alone.")
         print()
     if not confirm.confirm(args):
         print("Aborted.")
         return 1
     print()
 
-    system = platform.system()
-
     print(f"Closing {description}...")
-    if target == "all":
-        killed = kill_python_and_vscode()
-        if system == "Windows":
-            print(colors.ok(f"Closed: {', '.join(killed)}") if killed else "Nothing matching was running.")
+
+    if not system_wide and not target:
+        closed = kill_seedling_processes()
+        if closed:
+            print(colors.ok(f"Closed {len(closed)} process(es): "
+                            + ", ".join(f"{n} (pid {p})" for p, n in closed)))
         else:
-            print(colors.ok(f"Killed {len(killed)} process(es): {', '.join(str(p) for p in killed)}")
-                  if killed else "Nothing matching was running.")
+            print("Nothing of seedling's was running.")
         return 0
 
-    exclude = _self_and_parent()
-    if system == "Windows":
-        killed = _kill_windows(names_windows, exclude)
-        if killed:
-            print(colors.ok(f"Closed: {', '.join(killed)}"))
-        else:
-            print("Nothing matching was running.")
+    plat = platform.system()
+    if system_wide:
+        killed = kill_python_and_vscode()
     else:
-        killed = _kill_unix(names_unix, exclude)
-        if killed:
-            print(colors.ok(f"Killed {len(killed)} process(es): {', '.join(str(p) for p in killed)}"))
+        exclude = _self_and_parent()
+        if plat == "Windows":
+            image = target if target.lower().endswith(".exe") else f"{target}.exe"
+            killed = _kill_windows([image], exclude)
         else:
-            print("Nothing matching was running.")
+            killed = _kill_unix([target], exclude)
 
+    if not killed:
+        print("Nothing matching was running.")
+    elif plat == "Windows":
+        print(colors.ok(f"Closed: {', '.join(killed)}"))
+    else:
+        print(colors.ok(f"Killed {len(killed)} process(es): "
+                        + ", ".join(str(p) for p in killed)))
     return 0

@@ -3,28 +3,19 @@ from __future__ import annotations
 import os
 
 from .. import confirm, fsutil, paths
-from . import kill_cmd
 
-_KILL_NOTE = ("any running Python/VS Code processes will be force-closed "
-              "first (not just seedling's) so nothing blocks deletion")
+_KILL_NOTE = fsutil.ESCALATION_NOTE
 
 
 def _warn_if_active(target) -> None:
     active = os.environ.get("VIRTUAL_ENV")
     if active and os.path.abspath(active) == os.path.abspath(str(target)):
         print(f"Note: '{target.name}' looks like your currently active venv. "
-              "It'll be force-closed along with any other running Python/VS "
-              "Code processes before deletion; your shell deactivates it "
-              "automatically once it's gone.")
+              "Anything still running from it will be closed if it blocks "
+              "deletion; your shell deactivates it automatically once it's "
+              "gone.")
 
 
-def _close_processes() -> None:
-    print("Closing Python and VS Code processes so nothing is left in use...")
-    killed = kill_cmd.kill_python_and_vscode()
-    if killed:
-        print(f"Closed {len(killed)} process(es).")
-    else:
-        print("Nothing matching was running.")
 
 
 def run_all(args) -> int:
@@ -52,18 +43,15 @@ def run_all(args) -> int:
         print(f"This will permanently delete {len(venvs)} venv(s) from {paths.VENVS_DIR}:")
         for v in venvs:
             print(f"  - {v.name}")
-        print("It will also force-close any running Python/VS Code processes "
-              "first (not just seedling's) so nothing blocks deletion.")
+        print(f"({fsutil.ESCALATION_NOTE}.)")
     if not confirm.confirm(args):
         print("Aborted. Nothing was deleted.")
         return 1
 
-    _close_processes()
-
     all_failures: list[str] = []
     removed = 0
     for v in venvs:
-        failures = fsutil.robust_rmtree(v)
+        failures = fsutil.remove_tree(v, label=v.name)
         if failures:
             all_failures.extend(failures)
         else:
@@ -100,16 +88,12 @@ def run_one(args) -> int:
 
     if not confirm.confirm(
         args,
-        f"Delete venv '{args.name}' at {target}? This will also "
-        "force-close any running Python/VS Code processes first (not "
-        "just seedling's).",
+        f"Delete venv '{args.name}' at {target}?",
     ):
         print("Aborted. Nothing was deleted.")
         return 1
 
-    _close_processes()
-
-    failures = fsutil.robust_rmtree(target)
+    failures = fsutil.remove_tree(target, label=args.name)
     if failures:
         print(f"Some files in '{args.name}' could not be removed after several attempts:")
         for f in failures:

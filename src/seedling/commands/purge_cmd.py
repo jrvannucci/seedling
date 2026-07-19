@@ -25,7 +25,6 @@ import tempfile
 from pathlib import Path
 
 from .. import colors, config, confirm, fsutil, git_tool, paths, runlog
-from . import kill_cmd
 
 _BACKUP_NAME_RE = re.compile(r"^seedling-repo-backup(-\d+)?$")
 
@@ -289,8 +288,7 @@ def run(args) -> int:
                   for p in _candidate_profiles() if p.exists()]
         items += [f"{p}  (leftover backup from a previous --keep-repos purge)"
                   for p in old_backups]
-        notes = ["any running Python/VS Code processes will be force-closed "
-                 "first (not just seedling's) so nothing blocks deletion"]
+        notes = [fsutil.ESCALATION_NOTE]
         if reinstall:
             where = reinstall_source or "the public repo (after confirming, since none is recorded)"
             notes.append(f"seedling would then be reinstalled from {where}")
@@ -318,8 +316,8 @@ def run(args) -> int:
         print(f"  - delete {colors.bold('everything')} under {home}")
         print("    (base pythons, venvs, VS Code, uv, and seedling's own source)")
         print("  - remove, then re-add, the `seed` shell hook in your shell profile")
-        print("  - force-close any running Python/VS Code processes first,")
-        print("    not just seedling's, so nothing blocks deletion")
+        print("  - close any process that turns out to be holding a file open,")
+        print("    escalating to all Python/VS Code processes only if needed")
         print(f"  - reinstall seedling from {colors.bold(reinstall_source)}")
         print()
         if _has_repos():
@@ -337,8 +335,8 @@ def run(args) -> int:
         print(f"  - delete {colors.bold('everything')} under {home}")
         print("    (base pythons, venvs, VS Code, cloned repos, uv, and seedling's own source)")
         print("  - remove the `seed` shell hook from your shell profile")
-        print("  - force-close any running Python/VS Code processes first,")
-        print("    not just seedling's, so nothing blocks deletion")
+        print("  - close any process that turns out to be holding a file open,")
+        print("    escalating to all Python/VS Code processes only if needed")
         print()
         print(colors.warn("After this, `seed` stops working entirely -- you'd need to reinstall."))
         print()
@@ -382,11 +380,6 @@ def run(args) -> int:
         return 1
     print()
 
-    print("Closing Python and VS Code processes so nothing is left in use...")
-    killed = kill_cmd.kill_python_and_vscode()
-    print(f"Closed {len(killed)} process(es)." if killed else "Nothing matching was running.")
-    print()
-
     repo_backup = None
     if keep_repos and _has_repos():
         repo_backup = _move_repos_to_safety()
@@ -406,13 +399,13 @@ def run(args) -> int:
     if old_backups:
         print(f"Deleting {len(old_backups)} leftover repo backup folder(s) ...")
         for p in old_backups:
-            failures.extend(fsutil.robust_rmtree(p))
+            failures.extend(fsutil.remove_tree(p, label=p.name))
         print()
 
     if home.exists():
         print(f"Deleting {home} ...")
         runlog.close_before_deleting_home()
-        failures.extend(fsutil.robust_rmtree(home))
+        failures.extend(fsutil.remove_tree(home, label="seedling home"))
 
     print()
     if removed_from:

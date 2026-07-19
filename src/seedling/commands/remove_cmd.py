@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from .. import colors, confirm, fsutil, git_tool, paths, runlog
-from . import kill_cmd
 
 
 def run(args) -> int:
@@ -15,8 +14,7 @@ def run(args) -> int:
         confirm.print_preview(
             f"delete everything under {home}",
             top_level,
-            notes=["any running Python/VS Code processes will be force-closed "
-                   "first (not just seedling's) so nothing blocks deletion",
+            notes=[fsutil.ESCALATION_NOTE,
                    "the `seed` shell hook stays installed (use `seed purge` "
                    "to remove that too)"],
         )
@@ -28,8 +26,7 @@ def run(args) -> int:
         print(colors.danger("This deletes EVERYTHING under") + f" {home}")
         print("(all base pythons, venvs, VS Code, cloned repos, and its extensions/settings).")
         print()
-        print("It will also force-close any running Python and VS Code processes first")
-        print("(not just seedling's) to make sure nothing is left in use.")
+        print(f"({fsutil.ESCALATION_NOTE}.)")
         print()
     # Outside the block above so it is printed under -y too. It reports rather
     # than blocks -- see the same note in purge_cmd.
@@ -39,14 +36,11 @@ def run(args) -> int:
         return 1
     print()
 
-    print("Closing Python and VS Code processes so nothing is left in use...")
-    killed = kill_cmd.kill_python_and_vscode()
-    print(f"Closed {len(killed)} process(es)." if killed else "Nothing matching was running.")
     print()
 
     print(f"Deleting {home} ...")
     runlog.close_before_deleting_home()
-    failures = fsutil.robust_rmtree(home)
+    failures = fsutil.remove_tree(home, label="seedling home")
 
     if failures and fsutil.failures_are_only_running_cli(failures, home):
         # The only survivors are seedling's own running program (the

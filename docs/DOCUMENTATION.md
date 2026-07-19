@@ -395,8 +395,8 @@ permission-denied failures, rather than just calling
    venv folder itself), then run a remove/purge command from right there.
    The fix moves the process out to the user's home directory first, if
    its cwd is inside (or is) the target.
-2. **A process that was just force-killed** (every delete command closes
-   Python/VS Code processes first, see `seed kill-processes`) not having
+2. **A process that was just force-closed** (a blocked delete closes
+   whatever is holding the files, see `seed kill-processes`) not having
    released its file handles instantly. The fix retries deletion a few
    times with a short delay instead of failing on the first pass.
 3. **Read-only files.** Windows refuses to delete them outright, and git
@@ -481,6 +481,57 @@ shared flags:
   (`SEEDLING_NONINTERACTIVE=1` is the environment equivalent.) This is the
   mode for scripts and CI, where a forgotten prompt would otherwise hang
   the job forever.
+
+### How a removal frees locked files
+
+Deleting a file that another process holds open **fails on Windows** and
+**succeeds on POSIX** — unlinking there just removes the directory entry. So
+everything below is a Windows concern; on macOS and Linux a removal simply
+works and none of it runs.
+
+Every remove command (`remove-venv`, `remove-venv-all`, `remove-python`,
+`remove-repo`, `remove-user`, `purge`) escalates only as far as it has to:
+
+1. **Delete.** Usually nothing is holding anything, and **nothing is closed.**
+2. **Find out what's blocking, and close only that.** seedling asks the
+   Windows **Restart Manager** — the API installers use for *"the following
+   applications are using files that need to be updated"* — which names the
+   processes holding the surviving files. It reports them and closes just
+   those:
+   ```
+   Something is holding files (dev): VS Code (pid 4821)
+   Closing just those...
+   ```
+   A directory that is another process's *working directory* also blocks
+   removal without holding any file handle, and the Restart Manager can't see
+   that; a scoped search covers it, matching processes by where they live
+   rather than by name.
+3. **Last resort.** Only if the targeted close didn't free the tree does
+   seedling force-close every Python and VS Code process, which is what it
+   used to do unconditionally.
+
+Earlier versions ran step 3 up front, every time — so removing a throwaway venv
+would close an unrelated editor window before establishing anything was wrong.
+
+Matching by **location rather than process name** matters in both directions.
+An unrelated system Python or an editor window on another project is left
+alone; and a process named nothing like Python — a PyQt/PySide app's
+`QtWebEngineProcess.exe`, or a `node`/`ffmpeg` binary bundled in a venv — is
+still caught, because it lives inside the tree being deleted.
+
+`seed kill-processes` is the manual equivalent, and follows the same
+principle: it closes **only seedling's processes by default**, and needs an
+explicit `--system` for the machine-wide sweep.
+
+```
+seed kill-processes             # only seedling's own processes (default)
+seed kill-processes --system    # every python + VS Code on the machine
+seed kill-processes <name>      # every process with that name
+```
+
+`seed kill-processes all` was the old spelling of `--system` and still works
+that way — it is deliberately *not* re-pointed at the narrow mode, since that
+would silently change what an existing script does.
 
 ### Unsaved work in cloned repos
 
@@ -593,8 +644,9 @@ cascades rather than leaving them broken.
   directory.
 - Lists exactly what it's about to delete (the base, plus each dependent
   venv by name) before asking for confirmation, unless `-y`/`--yes`.
-- Force-closes Python/VS Code processes first — same mechanism as
-  `seed kill-processes all` — so nothing blocks deletion.
+- Closes whatever turns out to be holding files open, escalating only as
+  far as needed (see *How a removal frees locked files*) — so nothing blocks
+  deletion.
 - If the removed base was the default for `seed venv`, automatically
   switches the default to another remaining base (or clears it if none are
   left).

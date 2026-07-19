@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .. import config, confirm, fsutil, paths
-from . import kill_cmd, python_cmd
+from . import python_cmd
 
 
 def _venvs_using_base(base_dir) -> list:
@@ -52,8 +52,7 @@ def run(args) -> int:
         confirm.print_preview(
             f"delete base Python '{tag}' and {len(affected_venvs)} venv(s)",
             items,
-            notes=["any running Python/VS Code processes will be force-closed "
-                   "first (not just seedling's) so nothing blocks deletion"],
+            notes=[fsutil.ESCALATION_NOTE],
         )
         return 0
 
@@ -63,21 +62,16 @@ def run(args) -> int:
             print(f"and the {len(affected_venvs)} venv(s) built from it:")
             for v in affected_venvs:
                 print(f"  - {v.name}")
-        print("It will also force-close any running Python/VS Code processes "
-              "first (not just seedling's) so nothing blocks deletion.")
+        print(f"({fsutil.ESCALATION_NOTE}.)")
     if not confirm.confirm(args):
         print("Aborted. Nothing was deleted.")
         return 1
 
-    print("Closing Python and VS Code processes so nothing is left in use...")
-    killed = kill_cmd.kill_python_and_vscode()
-    print(f"Closed {len(killed)} process(es)." if killed else "Nothing matching was running.")
-
     all_failures: list[str] = []
     for v in affected_venvs:
-        all_failures.extend(fsutil.robust_rmtree(v))
+        all_failures.extend(fsutil.remove_tree(v, label=v.name))
 
-    all_failures.extend(fsutil.robust_rmtree(base_dir))
+    all_failures.extend(fsutil.remove_tree(base_dir, label=tag))
     paths.base_alias_file(tag).unlink(missing_ok=True)
 
     if config.get_default_base() == tag:

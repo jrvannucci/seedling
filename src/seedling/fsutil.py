@@ -73,6 +73,73 @@ def robust_rmtree(path: Path, retries: int = 3, delay: float = 0.75) -> list[str
     return failures
 
 
+# One wording for the escalation, shared by every remove command's prompt and
+# --preview, so the promise made to the user matches remove_tree() below.
+ESCALATION_NOTE = (
+    "nothing is closed up front -- if a file turns out to be locked, seedling "
+    "names the process holding it and closes only that, and falls back to "
+    "force-closing all Python/VS Code processes only if that isn't enough")
+
+
+def remove_tree(path: Path, *, label: str = "", allow_sledgehammer: bool = True,
+                on_message=print) -> list[str]:
+    """Delete `path`, escalating only as far as it has to. Returns the paths
+    that survived everything (empty on success).
+
+    The ladder, quietest rung first:
+
+      1. Just delete it. On POSIX this is the whole story -- unlinking an open
+         file succeeds there, so nothing below ever runs. On Windows it is also
+         the common case: usually nothing is holding anything.
+      2. Ask WHO is blocking, and close exactly those. The Restart Manager
+         names the processes holding the surviving files (authoritative -- see
+         winlocks); a scoped search covers the working-directory case it can't
+         see. Only those pids are closed, and the user is told which.
+      3. Sledgehammer. Every Python/VS Code process on the machine, the old
+         unconditional behaviour, now reached only when the targeted step
+         failed to free the tree.
+
+    The point of the ordering is that the destructive rungs are reached on
+    evidence rather than on suspicion. `seed remove-venv scratch` used to close
+    every editor window on the machine before it had established that anything
+    was wrong; now it closes nothing at all unless a delete actually fails."""
+    from . import winlocks
+    from .commands import kill_cmd
+
+    what = f" ({label})" if label else ""
+
+    failures = robust_rmtree(path)
+    if not failures:
+        return []
+
+    # --- rung 2: identify and close only the actual blockers ---------------
+    holders = winlocks.holders(failures)
+    scoped: list[tuple[int, str]] = []
+    if not holders:
+        # Nothing holds a HANDLE -- so a working directory inside the tree is
+        # the likely blocker, which Restart Manager cannot report.
+        scoped = kill_cmd.find_seedling_processes(str(path))
+
+    blockers = holders or scoped
+    if blockers:
+        on_message(f"Something is holding files{what}: "
+                   f"{winlocks.describe(blockers)}")
+        on_message("Closing just those...")
+        kill_cmd.terminate([pid for pid, _ in blockers])
+        failures = robust_rmtree(path)
+        if not failures:
+            return []
+
+    if not allow_sledgehammer:
+        return failures
+
+    # --- rung 3: last resort ------------------------------------------------
+    on_message("Still blocked. Force-closing all Python and VS Code "
+               "processes as a last resort...")
+    kill_cmd.kill_python_and_vscode()
+    return robust_rmtree(path)
+
+
 def failures_are_only_running_cli(failures: list[str], home: Path) -> bool:
     """True when everything robust_rmtree couldn't delete is seedling's own
     currently-running program -- the seed-cli shim in system/bin and the
