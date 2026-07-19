@@ -116,6 +116,91 @@ def test_dry_run_returns_zero(tmp_path):
     assert code == 0
 
 
+# --- requires-python floor --------------------------------------------------
+# The mirrored interpreters serve two purposes: the one uv installs seed-cli
+# with (must satisfy the floor) and base Pythons for users' own venvs (any
+# version). So the rule is "at least one satisfies", not "all satisfy".
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("3.12", (3, 12)), ("3.12.7", (3, 12, 7)), (" 3.9 ", (3, 9)),
+    ("newest", None), ("", None), ("3.x", None),
+])
+def test_parse_version(text, expected):
+    assert build_offline.parse_version(text) == expected
+
+
+def test_seedling_python_floor_reads_the_real_pyproject():
+    """Reads the actual src/pyproject.toml, so raising requires-python without
+    touching the builder still moves the check."""
+    assert build_offline.seedling_python_floor() == (3, 12)
+
+
+def test_seedling_python_floor_parses_variants(tmp_path):
+    for line, expected in [
+        ('requires-python = ">=3.12"', (3, 12)),
+        ('requires-python = ">= 3.13"', (3, 13)),
+        ('requires-python = ">=3.12.1"', (3, 12, 1)),
+    ]:
+        p = tmp_path / "pyproject.toml"
+        p.write_text(f'[project]\nname = "x"\n{line}\n', encoding="utf-8")
+        assert build_offline.seedling_python_floor(p) == expected
+
+
+def test_seedling_python_floor_is_none_when_unreadable(tmp_path):
+    """An unreadable pyproject must not stop a bundle build."""
+    assert build_offline.seedling_python_floor(tmp_path / "nope.toml") is None
+    bad = tmp_path / "pyproject.toml"
+    bad.write_text('[project]\nname = "x"\n', encoding="utf-8")
+    assert build_offline.seedling_python_floor(bad) is None
+
+
+def test_check_python_versions_accepts_newest_and_supported():
+    floor = (3, 12)
+    assert build_offline.check_python_versions([""], floor) is None
+    assert build_offline.check_python_versions(["3.12"], floor) is None
+    assert build_offline.check_python_versions(["3.13", "3.14"], floor) is None
+
+
+def test_check_python_versions_allows_old_alongside_supported():
+    """--python 3.12,3.9 is legitimate: 3.9 is for users' venvs."""
+    assert build_offline.check_python_versions(["3.12", "3.9"], (3, 12)) is None
+
+
+def test_check_python_versions_rejects_all_below_floor():
+    """The footgun: a bundle that builds here and fails air-gapped."""
+    err = build_offline.check_python_versions(["3.9", "3.11"], (3, 12))
+    assert err is not None
+    assert "3.9, 3.11" in err
+    assert ">=3.12" in err
+    assert "air-gapped" in err
+
+
+def test_check_python_versions_skips_when_floor_unknown():
+    assert build_offline.check_python_versions(["3.9"], None) is None
+
+
+def test_build_aborts_before_downloading_when_no_version_is_supported(tmp_path,
+                                                                      monkeypatch,
+                                                                      capsys):
+    """Exit non-zero from main() with nothing staged -- the check has to land
+    before the repo copy and the first download, not after."""
+    def explode(*a, **kw):
+        raise AssertionError("must not download or stage anything")
+
+    monkeypatch.setattr(build_offline, "stage_repo", explode)
+    monkeypatch.setattr(build_offline, "build_uv", explode)
+    out_dir = tmp_path / "b"
+    assert build_offline.main(["--yes", "--python", "3.9", "-o", str(out_dir)]) == 2
+    assert "air-gapped" in capsys.readouterr().out
+    assert not out_dir.exists()
+
+
+def test_dry_run_plan_shows_the_floor(tmp_path, capsys):
+    build_offline.main(["--dry-run", "-o", str(tmp_path / "a")])
+    assert "seedling itself needs >=3.12" in capsys.readouterr().out
+
+
 # --- VS Code staging -------------------------------------------------------
 # The heavy step (~300MB). Everything below stubs the child process, so what's
 # under test is the retry/cleanup logic around it, never a real download.

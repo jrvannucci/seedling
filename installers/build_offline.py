@@ -50,6 +50,73 @@ GIT_WIN_LATEST_API = "https://api.github.com/repos/git-for-windows/git/releases/
 # Extra packages your users will `seed install` get appended with --packages.
 REQUIRED_PACKAGES = ["hatchling", "ipython", "ruff", "ipykernel", "pip"]
 
+SRC_PYPROJECT = REPO_ROOT / "src" / "pyproject.toml"
+
+
+# --------------------------------------------------------------------------
+# requires-python floor
+# --------------------------------------------------------------------------
+def parse_version(text: str) -> tuple[int, ...] | None:
+    """'3.12' / '3.12.7' -> (3, 12) / (3, 12, 7). None if unparseable."""
+    m = re.match(r"(\d+(?:\.\d+)*)\s*$", text.strip())
+    if not m:
+        return None
+    return tuple(int(p) for p in m.group(1).split("."))
+
+
+def seedling_python_floor(pyproject: Path = SRC_PYPROJECT) -> tuple[int, ...] | None:
+    """seedling's own requires-python floor, read from src/pyproject.toml.
+
+    Deliberately a regex rather than tomllib: this file is the one piece of the
+    project that runs on whatever Python the DEPLOYER's build machine happens to
+    have, so it shouldn't depend on a stdlib module that has its own floor.
+    Returns None if the line can't be read -- an unreadable pyproject must not
+    stop a bundle build, it just means we can't pre-check versions."""
+    try:
+        text = pyproject.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    m = re.search(r'^requires-python\s*=\s*"[^"\d]*(\d+(?:\.\d+)*)',
+                  text, flags=re.M)
+    return parse_version(m.group(1)) if m else None
+
+
+def check_python_versions(versions: list[str],
+                          floor: tuple[int, ...] | None) -> str | None:
+    """Validate the requested --python versions against seedling's floor.
+
+    The mirrored interpreters serve two different purposes, which is why this
+    isn't a blanket rejection:
+      1. the one uv uses to install seed-cli itself -- MUST satisfy the floor,
+      2. base Pythons your users install for their own venvs (`seed python 3.9`)
+         -- any version is legitimate.
+    So the rule is: at least one mirrored version has to satisfy the floor.
+    Mirroring older ones alongside it is fine and supported.
+
+    Returns an error message if the bundle would be unusable, else None.
+    An empty string in `versions` means "newest", which always satisfies."""
+    if floor is None:
+        return None
+    if any(v == "" for v in versions):
+        return None  # 'newest' is mirrored; it satisfies any floor
+    parsed = [(v, parse_version(v)) for v in versions]
+    if any(p is None for _, p in parsed):
+        return None  # can't judge a version we can't parse; let uv decide
+    floor_str = ".".join(str(p) for p in floor)
+    if not any(p >= floor for _, p in parsed):
+        requested = ", ".join(v for v, _ in parsed)
+        return (
+            f"None of the requested interpreter versions ({requested}) satisfy "
+            f"seedling's own requires-python (>={floor_str}).\n"
+            f"    The bundle would build fine here and then FAIL on the "
+            f"air-gapped machine: `uv tool install` needs >={floor_str} to "
+            f"build seed-cli, and the mirror would offer nothing new enough.\n"
+            f"    Add a supported version -- e.g. --python {floor_str},"
+            f"{parsed[0][0]} -- to mirror both. Older interpreters are still "
+            f"useful for your users' own venvs; there just has to be one "
+            f"seedling itself can run on.")
+    return None
+
 
 # --------------------------------------------------------------------------
 # small ui helpers
@@ -524,11 +591,23 @@ def main(argv=None) -> int:
     print(f"  Output      : {output}")
     deploy_root = (args.deploy_root or str(output)).rstrip("/\\")
     print(f"  Deploy path : {deploy_root}  (edit seedling.conf if this changes)")
-    print(f"  Python      : {', '.join(v or 'newest' for v in versions)}")
+    floor = seedling_python_floor()
+    floor_note = (f"  (seedling itself needs >={'.'.join(str(p) for p in floor)})"
+                  if floor else "")
+    print(f"  Python      : {', '.join(v or 'newest' for v in versions)}{floor_note}")
     print(f"  Wheels      : {', '.join(packages)}")
     print(f"  VS Code     : {'skipped (--no-vscode)' if args.no_vscode else 'yes (~300MB, with extensions)'}")
     if system == "Windows":
         print(f"  MinGit      : {'yes (--mingit)' if args.mingit else 'no (pass --mingit to include it)'}")
+
+    # Fail BEFORE downloading anything: an interpreter set that can't run
+    # seedling produces a bundle that builds cleanly here and only breaks on the
+    # air-gapped side, after it's been carried to the share.
+    version_error = check_python_versions(versions, floor)
+    if version_error:
+        print()
+        warn(version_error)
+        return 2
 
     if args.dry_run:
         print()
