@@ -116,6 +116,130 @@ def test_dry_run_returns_zero(tmp_path):
     assert code == 0
 
 
+# --- wheel index ------------------------------------------------------------
+# The wheelhouse is flat and holds every tag, so multiple interpreters just
+# means multiple `pip download` passes into the same folder.
+
+
+def _capture_pip_downloads(monkeypatch, fail_for=()):
+    """Record each `pip download` invocation instead of running it."""
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        version = cmd[cmd.index("--python-version") + 1] \
+            if "--python-version" in cmd else None
+        if version in fail_for:
+            raise build_offline.subprocess.CalledProcessError(1, cmd)
+        return _completed(0)
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    return calls
+
+
+def _pinned_versions(calls):
+    return [c[c.index("--python-version") + 1] for c in calls
+            if "--python-version" in c]
+
+
+def test_build_wheels_runs_a_pass_per_interpreter(tmp_path, monkeypatch):
+    """The bug this fixes: only the FIRST mirrored interpreter got wheels, so
+    compiled deps (pyzmq, tornado, debugpy...) were missing for the others."""
+    calls = _capture_pip_downloads(monkeypatch)
+    assert build_offline.build_wheels(
+        Path("uv"), ["hatchling"], tmp_path / "w", ["3.12", "3.9"], None) is True
+    assert _pinned_versions(calls) == ["3.12", "3.9"]
+    # every pass lands in the same flat wheelhouse
+    dests = {c[c.index("--dest") + 1] for c in calls}
+    assert len(dests) == 1
+
+
+def test_build_wheels_dedupes_interpreters(tmp_path, monkeypatch):
+    calls = _capture_pip_downloads(monkeypatch)
+    build_offline.build_wheels(
+        Path("uv"), ["hatchling"], tmp_path / "w", ["3.12", "3.12"], None)
+    assert _pinned_versions(calls) == ["3.12"]
+
+
+def test_build_wheels_without_versions_does_one_unpinned_pass(tmp_path, monkeypatch):
+    calls = _capture_pip_downloads(monkeypatch)
+    assert build_offline.build_wheels(
+        Path("uv"), ["hatchling"], tmp_path / "w", [], None) is True
+    assert len(calls) == 1
+    assert "--python-version" not in calls[0]
+
+
+def test_build_wheels_reports_failure_naming_the_interpreter(tmp_path, monkeypatch,
+                                                             capsys):
+    """A partial failure must not read as success -- the bundle is unusable for
+    that interpreter even though real wheels landed."""
+    calls = _capture_pip_downloads(monkeypatch, fail_for=("3.9",))
+    assert build_offline.build_wheels(
+        Path("uv"), ["hatchling"], tmp_path / "w", ["3.12", "3.9"], None) is False
+    out = capsys.readouterr().out
+    assert "3.9" in out
+    # the 3.12 pass still ran; one bad interpreter doesn't abort the rest
+    assert _pinned_versions(calls) == ["3.12", "3.9"]
+
+
+def test_build_wheels_pins_only_binary_alongside_a_version(tmp_path, monkeypatch):
+    """pip can't build sdists for an interpreter it isn't running."""
+    calls = _capture_pip_downloads(monkeypatch)
+    build_offline.build_wheels(
+        Path("uv"), ["hatchling"], tmp_path / "w", ["3.12"], None)
+    assert "--only-binary=:all:" in calls[0]
+
+
+# --- repo staging -----------------------------------------------------------
+
+
+def _fake_repo(tmp_path, marker):
+    root = tmp_path / "repo"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "marker.txt").write_text(marker)
+    (root / ".git").mkdir()
+    (root / ".git" / "junk").write_text("history")
+    return root
+
+
+def test_stage_repo_copies_and_excludes_history(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_offline, "REPO_ROOT", _fake_repo(tmp_path, "v1"))
+    out = tmp_path / "bundle"
+    copy = build_offline.stage_repo(out)
+    assert (copy / "src" / "marker.txt").read_text() == "v1"
+    assert not (copy / ".git").exists()
+
+
+def test_stage_repo_refreshes_stale_source(tmp_path, monkeypatch):
+    """Re-running the builder after editing the repo must ship the NEW source.
+    Reusing the existing copy silently bundled the first build's code."""
+    repo = _fake_repo(tmp_path, "v1")
+    monkeypatch.setattr(build_offline, "REPO_ROOT", repo)
+    out = tmp_path / "bundle"
+    build_offline.stage_repo(out)
+
+    (repo / "src" / "marker.txt").write_text("v2")
+    copy = build_offline.stage_repo(out)
+    assert (copy / "src" / "marker.txt").read_text() == "v2"
+
+
+def test_stage_repo_refresh_keeps_vendor_payloads(tmp_path, monkeypatch):
+    """vendor/ holds the expensive downloads and is gitignored, so a refresh
+    must not throw them away -- that would re-download ~300MB every run."""
+    repo = _fake_repo(tmp_path, "v1")
+    monkeypatch.setattr(build_offline, "REPO_ROOT", repo)
+    out = tmp_path / "bundle"
+    copy = build_offline.stage_repo(out)
+    (copy / "vendor" / "uv").mkdir(parents=True)
+    (copy / "vendor" / "uv" / "uv.exe").write_text("expensive binary")
+
+    (repo / "src" / "marker.txt").write_text("v2")
+    copy = build_offline.stage_repo(out)
+    assert (copy / "src" / "marker.txt").read_text() == "v2"      # refreshed
+    assert (copy / "vendor" / "uv" / "uv.exe").read_text() == "expensive binary"
+    assert not (out / ".vendor-stash").exists()                    # no leftovers
+
+
 # --- requires-python floor --------------------------------------------------
 # The mirrored interpreters serve two purposes: the one uv installs seed-cli
 # with (must satisfy the floor) and base Pythons for users' own venvs (any

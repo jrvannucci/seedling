@@ -358,11 +358,9 @@ def _minor_version(pbs_filename: str) -> str | None:
     return m.group(1) if m else None
 
 
-def build_wheels(uv_exe: Path, packages: list[str], wheels_dir: Path,
-                 py_version: str | None, cache: Path) -> bool:
-    """Download every wheel (and its dependencies) the offline index needs, via
-    `uvx pip download` -- the same mechanism as `seed download-whl`."""
-    wheels_dir.mkdir(parents=True, exist_ok=True)
+def _download_wheels_for(uv_exe: Path, packages: list[str], wheels_dir: Path,
+                         py_version: str | None, cache: Path) -> bool:
+    """One `pip download` pass into the flat wheelhouse, for one interpreter."""
     cmd = [str(uv_exe), "tool", "run", "--from", "pip", "pip", "download",
            "--dest", str(wheels_dir), *packages]
     if py_version:
@@ -371,16 +369,59 @@ def build_wheels(uv_exe: Path, packages: list[str], wheels_dir: Path,
         # build sdists for a Python it isn't running) -- which is what we want
         # anyway: an offline machine has no toolchain to build sdists.
         cmd += ["--python-version", py_version, "--only-binary=:all:"]
-    info("Resolving and downloading wheels (hatchling + default packages"
-         + (" + extras" if len(packages) > len(REQUIRED_PACKAGES) else "") + ") ...")
-    info("Packages: " + ", ".join(packages))
     try:
         subprocess.run(cmd, env=_uv_env(cache=cache), check=True)
     except subprocess.CalledProcessError as e:
-        warn(f"`pip download` failed (exit {e.returncode}). See the output above.")
+        label = f"Python {py_version}" if py_version else "this interpreter"
+        warn(f"`pip download` failed for {label} (exit {e.returncode}). "
+             "See the output above.")
         return False
+    return True
+
+
+def build_wheels(uv_exe: Path, packages: list[str], wheels_dir: Path,
+                 py_versions: list[str], cache: Path) -> bool:
+    """Download every wheel (and its dependencies) the offline index needs, via
+    `uvx pip download` -- the same mechanism as `seed download-whl`.
+
+    Runs once PER mirrored interpreter into the same flat wheelhouse. That
+    matters whenever more than one version is mirrored: `--python-version`
+    selects version-specific wheels, and while the headline packages are
+    version-agnostic (`py3-none-any`, or `py3-none-<platform>` for ruff), their
+    compiled dependencies are not -- ipykernel alone pulls pyzmq, tornado,
+    debugpy and psutil, all of which ship cp3XX-tagged wheels. Resolving for
+    only the first interpreter produced a bundle where `seed venv --python 3.9`
+    failed offline even though 3.9 had been mirrored. A flat wheelhouse holds
+    every tag happily, so the fix is just to loop.
+
+    An empty `py_versions` means "don't pin" -- one pass with whatever the
+    shipped uv resolves."""
+    wheels_dir.mkdir(parents=True, exist_ok=True)
+    # Dedupe, preserving order: two requested versions can map to one X.Y.
+    targets: list[str] = list(dict.fromkeys(v for v in py_versions if v))
+    info("Resolving and downloading wheels (hatchling + default packages"
+         + (" + extras" if len(packages) > len(REQUIRED_PACKAGES) else "") + ") ...")
+    info("Packages: " + ", ".join(packages))
+    if targets:
+        info("Interpreters: " + ", ".join(targets)
+             + (" (one pass each -- compiled dependencies are "
+                "version-specific)" if len(targets) > 1 else ""))
+
+    failed: list[str] = []
+    for version in targets or [None]:
+        if len(targets) > 1:
+            info(f"  -> Python {version} ...")
+        if not _download_wheels_for(uv_exe, packages, wheels_dir, version, cache):
+            failed.append(version or "default")
+
     count = len(list(wheels_dir.glob("*.whl")))
-    ok(f"{count} wheel(s) (plus any source archives) in {wheels_dir}.")
+    if failed:
+        warn(f"{count} wheel(s) downloaded, but resolution FAILED for: "
+             + ", ".join(failed)
+             + ". Venvs on those interpreters won't work offline.")
+        return False
+    ok(f"{count} wheel(s) (plus any source archives) in {wheels_dir}"
+       + (f", covering Python {', '.join(targets)}." if targets else "."))
     return True
 
 
@@ -530,17 +571,43 @@ def build_vscode(vendor_vscode: Path, staging: Path) -> bool:
 # --------------------------------------------------------------------------
 def stage_repo(output: Path) -> Path:
     """Copy the repo into <output>/seedling (the thing users install from),
-    excluding history/caches/tests. Returns the copy's path."""
+    excluding history/caches/tests. Returns the copy's path.
+
+    Always REFRESHES an existing copy. The heavy steps (uv, interpreters,
+    wheels, VS Code) all skip work that's already staged, which is what makes
+    re-running cheap -- but the repo copy is the one thing that changes between
+    runs, and it's seconds to redo. Reusing it silently shipped the source as
+    it was on the FIRST build: you'd edit the repo, re-run, watch step 8 rewrite
+    seedling.conf, and get a bundle that looked freshly built around stale
+    code. The vendor/ payloads are preserved across the refresh, so this costs
+    nothing but the copy."""
     seedling_copy = output / "seedling"
-    if seedling_copy.exists():
-        ok(f"repo copy already staged at {seedling_copy} -- reusing it.")
+    ignore = shutil.ignore_patterns(
+        ".git", "__pycache__", "*.pyc", "offline-bundle", ".pytest_cache",
+        ".claude")
+
+    if not seedling_copy.exists():
+        info(f"Copying the repo into {seedling_copy} ...")
+        shutil.copytree(REPO_ROOT, seedling_copy, ignore=ignore)
         return seedling_copy
-    info(f"Copying the repo into {seedling_copy} ...")
-    shutil.copytree(
-        REPO_ROOT, seedling_copy,
-        ignore=shutil.ignore_patterns(
-            ".git", "__pycache__", "*.pyc", "offline-bundle", ".pytest_cache",
-            ".claude"))
+
+    # Refresh in place: move vendor/ aside (it holds the expensive downloads,
+    # and is gitignored so it never came from REPO_ROOT anyway), replace the
+    # source, then put it back.
+    info(f"Refreshing the repo copy at {seedling_copy} "
+         "(vendor/ payloads are kept) ...")
+    vendor = seedling_copy / "vendor"
+    stash = output / ".vendor-stash"
+    shutil.rmtree(stash, ignore_errors=True)
+    if vendor.exists():
+        shutil.move(str(vendor), str(stash))
+    try:
+        shutil.rmtree(seedling_copy)
+        shutil.copytree(REPO_ROOT, seedling_copy, ignore=ignore)
+    finally:
+        if stash.exists():
+            shutil.rmtree(seedling_copy / "vendor", ignore_errors=True)
+            shutil.move(str(stash), str(seedling_copy / "vendor"))
     return seedling_copy
 
 
@@ -697,10 +764,10 @@ def main(argv=None) -> int:
          "each new venv) resolves from this wheel folder offline.")
     wheels_ok = False
     if uv_exe and ask("Download the wheels now?", default=True, auto=auto):
-        # Target the interpreter we actually mirrored, so abi/platform wheels
-        # match; fall back to an explicit --python if the mirror was skipped.
-        py_for_wheels = (mirrored_versions[0] if mirrored_versions
-                         else next((v for v in versions if v), None))
+        # Target EVERY interpreter we mirrored, so abi/platform wheels match
+        # each of them; fall back to the explicit --python list if the mirror
+        # step was skipped, and to no pin at all if neither is known.
+        py_for_wheels = mirrored_versions or [v for v in versions if v]
         wheels_ok = build_wheels(uv_exe, packages, wheels, py_for_wheels, cache)
     elif not uv_exe:
         warn("Skipped -- needs uv (step 2).")
@@ -774,7 +841,10 @@ def main(argv=None) -> int:
     layout(f"python-builds{os.sep}", "SEEDLING_PYTHON_MIRROR",
            "(populated)" if mirror_ok else colors.warn("(empty -- redo step 3)"))
     layout(f"wheels{os.sep}", "SEEDLING_PACKAGE_INDEX",
-           "(populated)" if wheels_ok else colors.warn("(empty -- redo step 4)"))
+           # "incomplete", not "empty": with several interpreters mirrored, one
+           # failed pass leaves real wheels behind but an unusable bundle.
+           "(populated)" if wheels_ok
+           else colors.warn("(incomplete -- redo step 4)"))
     if vscode_wanted:
         layout(f"seedling{os.sep}vendor{os.sep}vscode{os.sep}", "pre-seeded VS Code",
                "(populated)" if vscode_ok

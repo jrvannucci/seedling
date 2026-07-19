@@ -185,6 +185,13 @@ automatically.
 > builds cleanly on your connected machine and then fails on the air-gapped
 > one, which is the worst place to find out. `build-offline.cmd` checks this
 > before it downloads anything and refuses to build.
+>
+> When you mirror several interpreters, the wheel step (#4) resolves the
+> package set **once per version** into the same flat wheel folder. That's
+> necessary rather than tidy: the headline packages are version-agnostic, but
+> their compiled dependencies aren't — `ipykernel` alone pulls `pyzmq`,
+> `tornado`, `debugpy` and `psutil`, which ship separate `cp312`/`cp39` wheels.
+> A folder holding every tag is exactly what an offline index wants.
 
 ---
 
@@ -330,7 +337,8 @@ folder:
 offline-bundle/
   seedling/          <- repo copy, with vendor/uv + vendor/vscode filled in and seedling.conf written
   python-builds/     <- the exact interpreter archive your shipped uv wants
-  wheels/            <- hatchling + the default venv packages (+ any --packages you add)
+  wheels/            <- hatchling + the default venv packages (+ any --packages you add),
+                        resolved once per mirrored interpreter
 ```
 
 It also pre-seeds portable **VS Code and its default extensions** into
