@@ -11,7 +11,27 @@ what a release involves.
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **The documentation is split into two tracks.** `docs/DOCUMENTATION.md` was
+  a single 1657-line file mixing everyday use, the full command reference,
+  design rationale, and organization deployment. It is now a short map that
+  routes to: `GUIDE.md` (install, layout, updates, uninstalling,
+  troubleshooting), `COMMANDS.md` (every command and flag), `DESIGN.md` (why
+  deletion is defensive, logging, download verification, unattended use),
+  `DEPLOYMENT.md` (`seedling.conf`, shared-machine installs, admin teardown,
+  rollout, security review), and `OFFLINE.md` (unchanged). Existing links to
+  `DOCUMENTATION.md` still resolve.
+- **The README gained a "For organizations" section**, and the docs site's
+  navigation is grouped by track.
+
+### Fixed
+
+- "Known limits" still described `seed kill-processes` as machine-wide by
+  default; it has been seedling-scoped since 0.5.0, with `--system` for the
+  machine-wide sweep.
+- An example path in the admin docs read `C:\seedlinglice` instead of
+  `C:\seedling\alice`.
 
 ## [0.6.0] — 2026-07-19
 

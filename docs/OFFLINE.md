@@ -9,6 +9,13 @@ The audience here is whoever prepares the deployment (a shared drive or a
 self-hosted git server). End users on the offline network never deal with
 any of this — they run `install.cmd` from the share and everything works.
 
+> This is part two of the deployment track. The
+> **[deployment guide](DEPLOYMENT.md)** covers the settings themselves —
+> `seedling.conf`, shared-machine installs, admin teardown, and what a
+> security review will ask. This page covers the one additional problem an
+> isolated network creates: where each downloaded component comes from
+> instead.
+
 ---
 
 ## The short version

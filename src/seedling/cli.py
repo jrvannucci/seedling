@@ -121,7 +121,7 @@ def print_grouped_help(show_admin: bool = False) -> None:
     if show_admin:
         _print_group(*_ADMIN_HELP_GROUP)
         print("These take ownership of other users' files and must run "
-              "elevated. See docs/DOCUMENTATION.md.")
+              "elevated. See docs/DEPLOYMENT.md.")
     elif config.is_multi_user():
         # Only surface the admin family on installs where it actually
         # applies -- a shared multi-user deployment. On a normal per-user

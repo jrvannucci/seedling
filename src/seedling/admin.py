@@ -12,7 +12,7 @@ them from the ordinary per-user commands:
    `takeown` + `icacls` (seize ownership, grant Administrators full
    control), on POSIX by virtue of running as root. This is what makes the
    teardown actually complete despite user-owned, read-only, or
-   runtime-generated files (see docs/DOCUMENTATION.md, "Admin commands").
+   runtime-generated files (see docs/DEPLOYMENT.md, "Admin commands").
 """
 
 from __future__ import annotations

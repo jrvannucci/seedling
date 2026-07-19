@@ -6,7 +6,10 @@ it, so there's no second source of truth to keep in sync:
   * ``docs/index.md`` is GENERATED from the top-level ``README.md`` at build
     time (see ``_generate_home`` below), so everything in the README is on the
     docs site and the two never drift. It's git-ignored -- don't edit it.
-  * ``DOCUMENTATION.md`` and ``OFFLINE.md`` are rendered as-is.
+  * The rest are rendered as-is, in two tracks: ``GUIDE`` / ``COMMANDS`` /
+    ``DESIGN`` for people using seedling, ``DEPLOYMENT`` / ``OFFLINE`` for
+    people deploying it. ``DOCUMENTATION.md`` is the map that routes between
+    them.
 
 Diagrams are pre-rendered SVGs under ``docs/diagrams/`` (each carrying its own
 mermaid source; regenerate with ``docs/diagrams/build.py``), so the build
@@ -69,8 +72,12 @@ def _generate_home(*_args) -> None:
     body = re.sub(r"(!?\[[^\]]*\])\(([^)]+)\)", _fix, readme)
 
     toctree = (
-        "\n\n```{toctree}\n:maxdepth: 2\n:hidden:\n:caption: Reference\n\n"
-        "DOCUMENTATION\nOFFLINE\n```\n"
+        "\n\n```{toctree}\n:maxdepth: 2\n:hidden:\n:caption: Using seedling\n\n"
+        "GUIDE\nCOMMANDS\nDESIGN\n```\n"
+        "\n```{toctree}\n:maxdepth: 2\n:hidden:\n:caption: Deploying seedling\n\n"
+        "DEPLOYMENT\nOFFLINE\n```\n"
+        "\n```{toctree}\n:maxdepth: 1\n:hidden:\n:caption: More\n\n"
+        "DOCUMENTATION\nCONTRIBUTING\n```\n"
     )
     (_HERE / "index.md").write_text(body + toctree, encoding="utf-8")
 

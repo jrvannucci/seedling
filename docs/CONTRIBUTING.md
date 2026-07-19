@@ -5,8 +5,9 @@ orphan: true
 # Contributing to seedling
 
 This guide is for people working on seedling **itself** — changing the `seed`
-commands, the installers, or the shell integration. For using seedling, see the
-[full documentation](DOCUMENTATION.md); for air-gapped deployments, see
+commands, the installers, or the shell integration. For using seedling, see
+[Using seedling](GUIDE.md) and the [command reference](COMMANDS.md); for
+deploying it to other people, see the [deployment guide](DEPLOYMENT.md) and
 [OFFLINE.md](OFFLINE.md).
 
 ---
@@ -15,7 +16,7 @@ commands, the installers, or the shell integration. For using seedling, see the
 
 seedling installs from a private copy of its source at `~/seedling/system/src`
 and never touches that copy except through `seed update-commands` (see
-[The update model](DOCUMENTATION.md#the-update-model)). That would normally make
+[The update model](GUIDE.md#the-update-model)). That would normally make
 iterating awkward — but installing from a **local checkout** wires the loop up
 for you.
 
@@ -77,7 +78,11 @@ installers/
   build_offline.py    the offline bundle builder (downloads uv + interpreters + wheels, writes seedling.conf)
   build_offline.sh    POSIX launcher for build-offline.cmd (finds Python, runs build_offline.py)
 docs/
-  DOCUMENTATION.md    the full documentation
+  DOCUMENTATION.md    the documentation map (routes to the two tracks below)
+  GUIDE.md            using seedling: install, layout, updates, troubleshooting
+  COMMANDS.md         every command and flag
+  DESIGN.md           why deletion is defensive, logging, download verification
+  DEPLOYMENT.md       deploying to others: seedling.conf, shared roots, admin teardown
   OFFLINE.md          fully-offline / air-gapped deployment guide
   CONTRIBUTING.md     this guide
 tests/

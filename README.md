@@ -132,8 +132,8 @@ Command names read predictably: a bare noun is the action (`python` installs,
 | `seed health-check` | Verify the whole install is sound |
 | `seed remove-user` | Wipe everything seedling created |
 
-📖 The **[full command reference](docs/DOCUMENTATION.md#command-reference)**
-documents every command and flag.
+📖 The **[full command reference](docs/COMMANDS.md)** documents every command
+and flag.
 
 ---
 
@@ -154,17 +154,57 @@ reversible.
 
 ---
 
+## For organizations 🏢
+
+Everything above describes a default install from the internet. seedling is
+also built to be **deployed** — by one person, to everyone else, on networks
+where the usual Python setup path doesn't work:
+
+- **No internet required.** Point installs, interpreters, and packages at a
+  self-hosted git server, an internal index, or a plain file share. Run
+  `build-offline.cmd` on a connected machine and it assembles the entire
+  bundle — uv, interpreters, wheels, VS Code — for an air-gapped network.
+- **No admin rights required.** Everything lands in one folder the user
+  already owns. Nothing is written to the registry, `%APPDATA%`, or any
+  system location.
+- **Nothing for your users to configure.** You set the values once in
+  [`seedling.conf`](seedling.conf) in the copy you distribute; everyone who
+  installs from it inherits them. No flags, no environment variables, no
+  setup instructions to get wrong.
+- **One install root, many users.** A `{user}` token gives each person a
+  private, conflict-free folder — with an elevated `admin-*` family for
+  cross-user teardown when a machine is decommissioned.
+- **Auditable and reversible.** Every command is logged in plain text,
+  downloads are checksum-verified, `--preview` shows exactly what a removal
+  would delete, and `seed purge` leaves the machine as it was.
+
+📘 Start with the **[deployment guide](docs/DEPLOYMENT.md)** — it covers
+configuration, rollout, and the questions a security review will ask.
+For a fully disconnected network, see
+**[offline installs](docs/OFFLINE.md)**.
+
+---
+
 ## Documentation
 
-- 📖 **[Full documentation](docs/DOCUMENTATION.md)** — every command,
-  the folder layout, why `seed` is a shell function, the update model,
-  multi‑user/organization deployment, and troubleshooting.
+**Using seedling**
+
+- 📖 **[Using seedling](docs/GUIDE.md)** — installation, the folder layout,
+  why `seed` is a shell function, the update model, uninstalling, and
+  troubleshooting.
+- 📋 **[Command reference](docs/COMMANDS.md)** — every command and flag.
+- 🛡️ **[Design and safety](docs/DESIGN.md)** — why deletion is so defensive,
+  what gets logged, how downloads are verified, unattended use.
+
+**Deploying seedling**
+
+- 📘 **[Deployment guide](docs/DEPLOYMENT.md)** — `seedling.conf`,
+  shared-machine installs, admin teardown, rollout, security review.
 - 📴 **[Offline / air‑gapped installs](docs/OFFLINE.md)** — running with no
   internet at all.
-- 🏢 **Organizations** can point installs and updates at a private git host
-  or a network share (no github.com needed) via
-  [`seedling.conf`](seedling.conf) — see
-  [Deployment configuration](docs/DOCUMENTATION.md#deployment-configuration-seedlingconf).
+
+🗺️ Not sure where to look? The **[documentation map](docs/DOCUMENTATION.md)**
+routes you from what you're trying to do to the right page.
 
 **Contributing:** working on seedling itself? The
 [contributor guide](docs/CONTRIBUTING.md) covers the edit → `seed update-commands`
