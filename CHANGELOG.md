@@ -11,6 +11,10 @@ what a release involves.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.6.0] — 2026-07-19
+
 ### Added
 
 - **`seed summary --json`** — the same facts `seed summary` shows, as
