@@ -13,6 +13,27 @@ what a release involves.
 
 Nothing yet.
 
+## [0.3.2] — 2026-07-18
+
+### Fixed
+
+- **The offline bundle stocked wheels for only one interpreter.** When
+  `build-offline.cmd` mirrored several Python versions, the wheel step resolved
+  the package set for the first one only, so creating a venv on any other
+  mirrored interpreter failed offline — the headline packages are
+  version-agnostic, but their compiled dependencies (`pyzmq`, `tornado`,
+  `debugpy`, `psutil`, and anything from `--packages`) are not. It now resolves
+  once per mirrored interpreter into the same flat wheel folder, and reports
+  which interpreter failed rather than counting a partial result as success.
+  This combination was made more likely by 0.3.0, whose new floor check
+  actively suggests `--python 3.12,3.9`.
+- **Re-running the bundle builder silently shipped stale source.** An existing
+  `offline-bundle/seedling/` was reused verbatim, so editing the repo and
+  rebuilding produced a bundle that looked freshly built — `seedling.conf` was
+  rewritten on top — around the *first* build's code. The repo copy is now
+  refreshed every run; the expensive `vendor/` payloads are preserved, so
+  rebuilds stay cheap.
+
 ## [0.3.1] — 2026-07-18
 
 ### Fixed
