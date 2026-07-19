@@ -13,6 +13,42 @@ what a release involves.
 
 Nothing yet.
 
+## [0.4.0] — 2026-07-19
+
+### Added
+
+- **Destructive commands now warn when a cloned repo holds work that exists
+  nowhere else.** `seed purge`, `seed remove-repo` and `seed remove-user`
+  check each repo for uncommitted changes, untracked files and unpushed
+  commits, and name the repos at risk *before* the confirmation prompt — and
+  before the process kill that closes VS Code. Previously `purge` said only
+  "you have some cloned repos", which can't distinguish a throwaway clone from
+  three days of unsaved work.
+
+  It reports rather than blocks: passing `-y` still proceeds (scripted
+  teardowns keep working), but the warning is printed, so it lands in the
+  terminal and the run log. `--preview` shows it too. `--keep-repos` and
+  `seed purge-and-reinstall` don't warn, because they move repos to safety
+  instead of deleting them. Unsaved editor buffers can't be detected, and a
+  branch with no remote can't be checked for unpushed commits; the warning
+  says so rather than implying deletion is now safe.
+
+- **The offline bundle builder now proves the bundle installs, before it
+  leaves the build machine.** Every step previously reported only whether a
+  download *succeeded*, which is a different question from whether the result
+  would install air-gapped — and the difference normally surfaced in the
+  air-gapped room, after sign-off. A new preflight step installs each mirrored
+  interpreter from the bundle, creates a venv on each and installs the default
+  packages from the bundled wheels, then builds `seed-cli` from the bundled
+  source. It runs with the network refused and a **cold uv cache**, so a wheel
+  the bundle is missing can't be satisfied from the build's own warm cache.
+- `build-offline.cmd --verify-only -o <bundle>` runs that check against an
+  existing bundle without building anything, and exits 0/non-zero so it can
+  gate a deployment pipeline. Run it on the copy that reached your share to
+  prove the transfer was complete. `--no-verify` skips the check during a
+  build; an unverified bundle now says so in the summary rather than reading
+  as confirmed.
+
 ## [0.3.2] — 2026-07-18
 
 ### Fixed
