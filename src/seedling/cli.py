@@ -37,7 +37,7 @@ from .uv_tool import UvNotFound
 # commands. This groups them the way a person actually thinks about them.
 _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
     ("Seedling Status", [
-        ("summary", "[--sizes]", "Show everything seedling has installed"),
+        ("summary", "[--sizes] [--json]", "Show everything seedling has installed"),
         ("health-check", "", "Health-check the whole seedling install"),
         ("logs-viewer", "[--days N]", "Open the command logs in a browser"),
         ("where", "", "Print the seedling home directory"),
@@ -310,6 +310,8 @@ def build_parser() -> argparse.ArgumentParser:
         "summary", help="Show everything seedling has installed, on one screen")
     p_summary.add_argument("--sizes", action="store_true",
                             help="Also compute disk usage per item (slower)")
+    p_summary.add_argument("--json", action="store_true",
+                            help="Emit the summary as JSON, for scripts and tools")
 
     sub.add_parser("health-check", help="Health-check the whole seedling install")
 

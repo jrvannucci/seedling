@@ -4,6 +4,7 @@ summary, python-cmd helpers."""
 
 from __future__ import annotations
 
+from pathlib import Path
 
 import pytest
 
@@ -247,6 +248,56 @@ def test_summary_lists_sections_and_settings(run_cli, home):
     for token in ("Tooling", "Base Pythons", "Venvs", "Repos", "Settings",
                   "312", "dev"):
         assert token in out, token
+
+
+def test_summary_json_reports_paths_and_schema(run_cli, home):
+    import json as _json
+
+    make_base_python(home, "312", "cpython-3.12.5-windows-x86_64-none")
+    make_venv_dirs(home, "dev")
+    code, out = run_cli("summary", "--json")
+    assert code == 0
+    data = _json.loads(out)
+
+    assert data["schema"] == 1
+    assert data["installed"] is True
+    assert data["install_type"] == "single-user"
+
+    py = next(p for p in data["pythons"] if p["tag"] == "312")
+    assert py["present"] is True
+    assert py["target"] == "cpython-3.12.5-windows-x86_64-none"
+
+    venv = next(v for v in data["venvs"] if v["name"] == "dev")
+    assert venv["python_version"] == "3.12.0"
+    # The whole point of the JSON: a runnable interpreter path, not a label.
+    assert venv["python_executable"] and Path(venv["python_executable"]).exists()
+
+    # Sizes are the slow part -- absent unless asked for.
+    assert venv["size_bytes"] is None
+    assert data["total_size_bytes"] is None
+
+
+def test_summary_json_includes_sizes_when_asked(run_cli, home):
+    import json as _json
+
+    make_venv_dirs(home, "dev")
+    code, out = run_cli("summary", "--json", "--sizes")
+    assert code == 0
+    data = _json.loads(out)
+    assert data["total_size_bytes"] is not None
+    assert data["venvs"][0]["size_bytes"] is not None
+
+
+def test_summary_collect_when_home_absent(home):
+    """Going through the CLI would create the home dir, so drive collect()
+    directly to cover the not-installed-yet shape."""
+    from seedling.commands import summary_cmd
+
+    assert not home.exists()
+    data = summary_cmd.collect()
+    assert data["installed"] is False
+    assert data["schema"] == 1
+    assert "venvs" not in data
 
 
 # --- python_cmd helpers -----------------------------------------------------

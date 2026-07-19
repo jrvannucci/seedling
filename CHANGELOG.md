@@ -11,7 +11,16 @@ what a release involves.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **`seed summary --json`** — the same facts `seed summary` shows, as
+  machine-readable data instead of a rendered screen, for scripts, CI, and
+  coding assistants that otherwise have to guess where things live. Every
+  venv reports a `python_executable`: the absolute, platform-resolved path
+  to its own interpreter. The object carries a `schema` number (currently
+  `1`) so readers can tell when a field changes meaning. Size fields stay
+  `null` unless `--sizes` is passed, since walking the tree is the slow
+  part. Text output is unchanged.
 
 ## [0.5.0] — 2026-07-19
 

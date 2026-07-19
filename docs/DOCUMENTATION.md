@@ -1237,7 +1237,7 @@ The version lives in exactly one place, `src/seedling/__init__.py`.
 release is a one-line edit and the built distribution, the CLI, and the
 grouped `seed help` footer can never disagree.
 
-### `seed summary [--sizes]`
+### `seed summary [--sizes] [--json]`
 
 One read-only screen showing everything seedling has installed: uv/git/VS
 Code status, every base Python (and which is default), every venv (its
@@ -1249,6 +1249,55 @@ the whole tree, so it can take a few seconds on big installs).
 ```
 seed summary
 seed summary --sizes
+seed summary --json
+```
+
+`--json` prints the same facts as machine-readable data instead of a
+rendered screen — for scripts, CI, and coding assistants that need to know
+where things are without guessing. It writes nothing but JSON to stdout, so
+it's safe to pipe.
+
+The object carries a `schema` number (currently `1`); it's bumped when a
+field changes meaning or goes away, never for a field that's merely added.
+When seedling isn't installed yet, the object is just `schema`, `home`, and
+`installed: false` — check `installed` before reading anything else.
+
+Each venv reports a `python_executable`: the absolute path to that venv's
+own interpreter, already resolved for the platform (`Scripts\python.exe` on
+Windows, `bin/python` elsewhere). That's the field to use when something
+needs to *run* the interpreter rather than describe it.
+
+Size fields (`size_bytes` per item, `total_size_bytes`) are `null` unless
+you pass `--sizes`, since computing them is the slow part.
+
+```jsonc
+{
+  "schema": 1,
+  "home": "C:\\Users\\alice\\seedling",
+  "installed": true,
+  "install_type": "single-user",     // or "multi-user"
+  "shared_root": null,
+  "tooling": {
+    "uv":     { "version": "uv 0.7.19 (...)", "path": "..." },
+    "git":    { "path": "..." },                    // null if not found
+    "vscode": { "installed": false, "path": null, "size_bytes": null }
+  },
+  "pythons": [
+    { "tag": "312", "target": "cpython-3.12.7-...", "path": "...",
+      "default": true, "present": true, "size_bytes": null }
+  ],
+  "venvs": [
+    { "name": "dev", "path": "...", "python_version": "3.12.7",
+      "python_executable": "...\\python\\venvs\\dev\\Scripts\\python.exe",
+      "active": true, "default": true, "size_bytes": null }
+  ],
+  "repos": [
+    { "name": "myrepo", "path": "...", "remote": "https://...",
+      "size_bytes": null }
+  ],
+  "settings": { "default_venv": "dev", "...": null },
+  "total_size_bytes": null
+}
 ```
 
 ### `seed health-check`
