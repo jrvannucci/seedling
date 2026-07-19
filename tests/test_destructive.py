@@ -284,10 +284,41 @@ def test_purge_and_reinstall_no_source_yes_uses_public(
 # --- kill-processes (list/preview only; never actually kill in tests) --------
 
 def test_kill_processes_preview_lists_matches(run_cli, home):
-    code, out = run_cli("kill-processes", "all", "--preview")
+    code, out = run_cli("kill-processes", "--system", "--preview")
     assert code == 0 and "Preview" in out and "nothing was changed" in out
 
 
-def test_kill_processes_requires_target(run_cli, home):
-    code, out = run_cli("kill-processes")
-    assert code == 1 and "Usage" in out
+def test_kill_processes_defaults_to_seedling_only(run_cli, home):
+    """No arguments = the narrow mode. 'Something of mine is stuck' must not
+    close a colleague's editor or an unrelated long-running job."""
+    code, out = run_cli("kill-processes", "--preview")
+    assert code == 0
+    assert "seedling's own processes" in out
+    assert "ALL Python and VS Code" not in out
+
+
+def test_kill_processes_system_flag_is_machine_wide(run_cli, home):
+    code, out = run_cli("kill-processes", "--system", "--preview")
+    assert code == 0
+    assert "ALL Python and VS Code processes on this machine" in out
+
+
+def test_kill_processes_all_still_means_system_wide(run_cli, home):
+    """`all` was the old spelling. Keep it machine-wide rather than silently
+    NARROWING what an existing script does, and point at the new flag."""
+    code, out = run_cli("kill-processes", "all", "--preview")
+    assert code == 0
+    assert "ALL Python and VS Code processes on this machine" in out
+    assert "--system" in out
+
+
+def test_kill_processes_rejects_name_with_system(run_cli, home):
+    code, out = run_cli("kill-processes", "node", "--system")
+    assert code == 1
+    assert "not both" in out
+
+
+def test_kill_processes_by_name_is_still_supported(run_cli, home):
+    code, out = run_cli("kill-processes", "definitely-not-running", "--preview")
+    assert code == 0
+    assert "definitely-not-running" in out

@@ -73,7 +73,7 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
     ]),
     ("Utilities", [
         ("config", "[get|set|unset]", "View or change seedling settings"),
-        ("kill-processes", "<all|name>", "Force-close python/VS Code (or named) processes"),
+        ("kill-processes", "[name] [--system]", "Force-close seedling's processes (or all, or named)"),
         ("update-commands", "[--from-branch B]", "Update the seed CLI itself"),
     ]),
     ("Danger zone -- these delete things (all support --preview)", [
@@ -288,9 +288,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_kill = sub.add_parser(
         "kill-processes", parents=[danger],
-        help="Force-close processes by name, or 'all' for python + VS Code")
+        help="Force-close seedling's processes (--system for every python/VS Code)")
     p_kill.add_argument("target", nargs="?",
-                         help="'all' for python/VS Code processes, or a specific process name")
+                         help="A specific process name to close. Omit to close "
+                              "only seedling's own processes.")
+    p_kill.add_argument("--system", action="store_true",
+                         help="Close EVERY python and VS Code process on the "
+                              "machine, not just seedling's. The sledgehammer.")
 
     p_update = sub.add_parser("update-commands",
                     help="Update the seed CLI itself from its source in ~/seedling/system/src")
