@@ -122,3 +122,34 @@ first. Design guarantees the suite enforces:
 - Real `git`, `bash`, and `powershell` are used where present (git file
   protocol, installer end-to-end, shell-function behavior) and those
   tests skip cleanly on machines without them.
+
+`uvx ruff check .` must also pass — it runs in CI, config is in `ruff.toml` at
+the repo root (deliberately there, not in `src/pyproject.toml`, so it covers
+`tests/` and `installers/` too).
+
+---
+
+## Releasing
+
+The version lives in **one** place: `__version__` in
+`src/seedling/__init__.py`. `src/pyproject.toml` reads it from there
+(`dynamic = ["version"]`), so the built distribution, `seed --version`, and the
+`seed help` footer can never disagree. A test enforces that pyproject stays
+dynamic — don't add a literal `version =` back.
+
+Keep [`CHANGELOG.md`](https://github.com/cryocliff/seedling/blob/main/CHANGELOG.md)
+current as you go: add a line under
+`## [Unreleased]` in the same commit as the change, while you still remember
+why it mattered. Write for someone deploying seedling, not for someone reading
+the diff.
+
+To cut a release:
+
+1. Bump `__version__` in `src/seedling/__init__.py`.
+2. Rename `## [Unreleased]` to the new version with today's date, and open a
+   fresh empty `## [Unreleased]` above it.
+3. Commit, then tag: `git tag -a v0.2.0 -m "v0.2.0"`.
+
+This matters more than it looks. `seed update-commands` pulls from a share or a
+git URL, so an install can sit at a different version than the source it was
+built from — the changelog is how a user finds out what an update changed.
