@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .. import colors, confirm, fsutil, paths, runlog
+from .. import colors, confirm, fsutil, git_tool, paths, runlog
 from . import kill_cmd
 
 
@@ -20,6 +20,7 @@ def run(args) -> int:
                    "the `seed` shell hook stays installed (use `seed purge` "
                    "to remove that too)"],
         )
+        git_tool.warn_unsaved_work(git_tool.scan_for_unsaved_work(paths.REPO_DIR))
         return 0
 
     if not confirm.auto_confirmed(args):
@@ -30,6 +31,9 @@ def run(args) -> int:
         print("It will also force-close any running Python and VS Code processes first")
         print("(not just seedling's) to make sure nothing is left in use.")
         print()
+    # Outside the block above so it is printed under -y too. It reports rather
+    # than blocks -- see the same note in purge_cmd.
+    git_tool.warn_unsaved_work(git_tool.scan_for_unsaved_work(paths.REPO_DIR))
     if not confirm.confirm(args):
         print("Aborted. Nothing was deleted.")
         return 1

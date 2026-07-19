@@ -24,7 +24,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from .. import colors, config, confirm, fsutil, paths, runlog
+from .. import colors, config, confirm, fsutil, git_tool, paths, runlog
 from . import kill_cmd
 
 _BACKUP_NAME_RE = re.compile(r"^seedling-repo-backup(-\d+)?$")
@@ -304,6 +304,11 @@ def run(args) -> int:
                              "(--keep-repos), not deleted")
         title = "wipe and reinstall seedling" if reinstall else "fully uninstall seedling"
         confirm.print_preview(title, items, notes=notes)
+        # Only when the repos would actually be DELETED -- with --keep-repos
+        # (and always for purge-and-reinstall) they're moved aside and restored,
+        # so there's nothing at risk and a warning would just be noise.
+        if not keep_repos:
+            git_tool.warn_unsaved_work(git_tool.scan_for_unsaved_work(paths.REPO_DIR))
         return 0
 
     if not confirm.auto_confirmed(args) and reinstall:
@@ -360,6 +365,16 @@ def run(args) -> int:
         print()
 
         _print_reinstall(update_source)
+        print()
+
+    # Deliberately OUTSIDE the interactive blocks above, so it is printed under
+    # -y as well. It doesn't block: someone who passed -y asked for no prompts,
+    # and turning that into a hard failure would break scripted teardowns -- but
+    # the record of what was destroyed belongs in the output and the run log.
+    # Only when repos are actually being deleted: --keep-repos and
+    # purge-and-reinstall move them aside, so nothing is at risk there.
+    if not keep_repos and _has_repos():
+        git_tool.warn_unsaved_work(git_tool.scan_for_unsaved_work(paths.REPO_DIR))
         print()
 
     if not confirm.confirm(args):

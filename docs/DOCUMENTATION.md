@@ -482,6 +482,35 @@ shared flags:
   mode for scripts and CI, where a forgotten prompt would otherwise hang
   the job forever.
 
+### Unsaved work in cloned repos
+
+The commands that can delete cloned repos — `seed purge`, `seed remove-repo`
+and `seed remove-user` — check each repo first for work that exists nowhere
+else, and name what's at risk:
+
+```
+2 repo(s) contain work that deleting them would destroy:
+  - analysis: 1 uncommitted change, 1 untracked file
+  - etl: 1 untracked file
+```
+
+That covers uncommitted changes, untracked files, and commits never pushed to
+a remote. It runs **before** the confirmation prompt and before the process
+kill that closes VS Code, so you see it while you can still act on it.
+
+It reports rather than blocks. `-y` still proceeds — scripted teardowns keep
+working — but the warning is printed either way, so it lands in the terminal
+and in seedling's run log. `--preview` shows it too.
+
+`seed purge --keep-repos` and `seed purge-and-reinstall` don't warn: they move
+repos to safety and restore them, so nothing is at risk.
+
+Two things it cannot see, and does not claim to: **unsaved editor buffers**
+(nothing has written them to disk yet, and the process kill closes VS Code),
+and **unpushed commits on a branch with no upstream** (there's no remote to
+compare against). Treat a clean result as "git found nothing", not as
+"verified safe".
+
 ---
 
 ## Download verification

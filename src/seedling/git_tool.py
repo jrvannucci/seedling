@@ -53,6 +53,94 @@ def find_git() -> str | None:
     return str(bundled) if bundled else None
 
 
+def _git_out(git: str, repo: Path, args: list[str]) -> str | None:
+    """Run a read-only git command in `repo`. None if it fails for any reason
+    -- these checks run on the path to a destructive command, so they must
+    never raise, hang, or block the operation they're warning about."""
+    try:
+        result = subprocess.run(
+            [git, "-C", str(repo), *args], stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, text=True,
+            timeout=15, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def unsaved_work(repo: Path, git: str | None = None) -> str | None:
+    """A one-line description of work that would be LOST if `repo` were
+    deleted, or None if there's nothing at risk (or we can't tell).
+
+    Covers the two ways work lives only in a working copy: changes that were
+    never committed, and commits that were never pushed. Deliberately reports
+    nothing rather than guessing when git is unavailable, the directory isn't
+    a repo, or a branch has no upstream to compare against -- a warning that
+    cries wolf on every clean repo trains people to skip it."""
+    git = git or find_git()
+    if git is None or not (repo / ".git").exists():
+        return None
+
+    parts: list[str] = []
+    status = _git_out(git, repo, ["status", "--porcelain"])
+    if status:
+        modified = untracked = 0
+        for line in status.splitlines():
+            if line.startswith("??"):
+                untracked += 1
+            elif line.strip():
+                modified += 1
+        if modified:
+            parts.append(f"{modified} uncommitted change"
+                         f"{'s' if modified != 1 else ''}")
+        if untracked:
+            parts.append(f"{untracked} untracked file"
+                         f"{'s' if untracked != 1 else ''}")
+
+    # Unpushed commits. A branch with no upstream produces a non-zero exit,
+    # which _git_out turns into None -- correct, since "unpushed" is
+    # meaningless without a remote to compare to.
+    ahead = _git_out(git, repo, ["rev-list", "--count", "@{u}..HEAD"])
+    if ahead and ahead.strip().isdigit() and int(ahead.strip()) > 0:
+        count = int(ahead.strip())
+        parts.append(f"{count} unpushed commit{'s' if count != 1 else ''}")
+
+    return ", ".join(parts) if parts else None
+
+
+def scan_for_unsaved_work(repo_dir: Path) -> list[tuple[str, str]]:
+    """[(repo name, what's at risk)] for every repo under `repo_dir` holding
+    work that deletion would destroy. Empty when everything is clean, when
+    git isn't available, or when there are no repos -- callers treat an empty
+    result as "nothing to warn about", never as "verified safe"."""
+    if not repo_dir.is_dir():
+        return []
+    git = find_git()
+    if git is None:
+        return []
+    found: list[tuple[str, str]] = []
+    for child in sorted(repo_dir.iterdir()):
+        if not child.is_dir():
+            continue
+        risk = unsaved_work(child, git)
+        if risk:
+            found.append((child.name, risk))
+    return found
+
+
+def warn_unsaved_work(items: list[tuple[str, str]]) -> None:
+    """Print the standard 'you are about to lose this' block. Shared by every
+    destructive command so the wording is identical wherever it appears."""
+    if not items:
+        return
+    print(colors.danger(
+        f"{len(items)} repo(s) contain work that deleting them would destroy:"))
+    for name, risk in items:
+        print(f"  - {name}: {risk}")
+    print(colors.dim(
+        "  (unsaved editor buffers can't be detected, and a branch with no "
+        "remote can't be checked for unpushed commits)"))
+
+
 def run_streamed(cmd: list[str]) -> int:
     """Run a git command, streaming its combined stdout/stderr live with a
     `[git]` tag on every line -- same convention as uv_tool.run's `[uv]`

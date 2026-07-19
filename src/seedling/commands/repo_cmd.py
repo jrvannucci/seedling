@@ -90,6 +90,11 @@ def remove(args) -> int:
         print(f"No repo named '{name}' found in {paths.REPO_DIR}")
         return 1
 
+    # Checked BEFORE the confirm prompt (and before the process kill below,
+    # which closes VS Code and would take unsaved buffers with it) so the
+    # answer is in front of the user at the moment they decide.
+    risk = git_tool.unsaved_work(target)
+
     if confirm.preview_requested(args):
         confirm.print_preview(
             f"delete repo '{name}'",
@@ -97,7 +102,10 @@ def remove(args) -> int:
             notes=["any running Python/VS Code processes will be force-closed "
                    "first (not just seedling's) so nothing blocks deletion"],
         )
+        git_tool.warn_unsaved_work([(name, risk)] if risk else [])
         return 0
+
+    git_tool.warn_unsaved_work([(name, risk)] if risk else [])
 
     if not confirm.confirm(
         args,
