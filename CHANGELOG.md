@@ -13,6 +13,43 @@ what a release involves.
 
 Nothing yet.
 
+## [0.5.0] — 2026-07-19
+
+### Changed
+
+- **Remove commands no longer force-close your processes up front.** Every
+  removal (`remove-venv`, `remove-venv-all`, `remove-python`, `remove-repo`,
+  `remove-user`, `purge`) now escalates only as far as it must: delete; if
+  something is locked, name the process holding it and close *only* that;
+  fall back to force-closing all Python/VS Code processes only if that wasn't
+  enough. Previously the last step ran unconditionally and first, so removing
+  a throwaway venv would close an unrelated editor window — with unsaved work
+  in it — before establishing that anything was wrong. In the common case
+  nothing is closed at all.
+
+  Blockers are identified with the Windows **Restart Manager**, the API
+  installers use to report which applications are using a file. That's
+  authoritative rather than a guess, and it fixes matching in both directions:
+  an unrelated system Python is left alone, while a process named nothing like
+  Python — a PyQt/PySide app's `QtWebEngineProcess.exe`, or a bundled
+  `node`/`ffmpeg` — is caught, because it lives inside the tree being deleted.
+  A working-directory blocker, which the Restart Manager cannot see, falls back
+  to a scoped search. Reached through stdlib `ctypes`, so no new dependency.
+
+  None of this runs on macOS or Linux, where deleting a file with open handles
+  succeeds anyway — those platforms were being made to force-close user
+  processes for no benefit at all.
+
+- **`seed kill-processes` is now scoped by default too.** With no arguments it
+  closes only seedling's own processes; `--system` is the machine-wide sweep,
+  and a bare process name still targets that name. "Something of mine is stuck"
+  shouldn't close a colleague's editor or an unrelated long-running job.
+
+  `seed kill-processes all` was the previous spelling of the machine-wide
+  sweep and **still means machine-wide**, with a note pointing at `--system`.
+  It is deliberately not re-pointed at the new narrow mode, since that would
+  silently change what an existing script does.
+
 ## [0.4.0] — 2026-07-19
 
 ### Added
