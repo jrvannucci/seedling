@@ -13,6 +13,19 @@ what a release involves.
 
 Nothing yet.
 
+## [0.3.1] — 2026-07-18
+
+### Fixed
+
+- `build-offline.cmd` now actually enforces its Python 3.12+ requirement on
+  Windows. The requirement was only probed by the POSIX launcher; the Windows
+  batch path ran `py -3` with no version check, so an older interpreter got an
+  obscure failure instead of the documented message. The check now lives in
+  `build_offline.py` itself, so it covers both launchers and direct
+  `python installers/build_offline.py` invocation, and it makes clear that this
+  is the interpreter that *builds* the bundle — unrelated to the Python
+  versions the bundle ships for your users.
+
 ## [0.3.0] — 2026-07-18
 
 ### Removed
