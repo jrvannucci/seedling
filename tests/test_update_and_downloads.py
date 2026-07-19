@@ -369,8 +369,6 @@ def test_extract_tar_refuses_path_traversal(tmp_path):
     """A member escaping the destination must be refused outright, not written
     (the whole point of pinning the filter)."""
     import tarfile
-    if not hasattr(tarfile, "data_filter"):
-        pytest.skip("interpreter predates the tarfile filter backport")
     archive = _tar_with(tmp_path, {"../escaped.txt": b"pwned"})
     dest = tmp_path / "out"
     with pytest.raises(tarfile.OutsideDestinationError):

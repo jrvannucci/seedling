@@ -39,19 +39,11 @@ def extract_tar(archive: Path, dest: Path) -> None:
     members that would write outside `dest` (absolute paths, `..`, links
     escaping the tree).
 
-    The `filter=` argument was backported to 3.9.17 / 3.10.12 / 3.11.4, so on
-    an older patch release of those lines it isn't accepted; `tarfile.data_filter`
-    is the feature probe. There we fall back to the unfiltered call, which is
-    exactly what those interpreters do today.
-
     (Zip archives need no equivalent: ZipFile.extractall already sanitizes
     member paths, stripping drive letters, leading separators and `..`.)"""
     dest.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive) as t:
-        if hasattr(tarfile, "data_filter"):
-            t.extractall(dest, filter="data")
-        else:  # pragma: no cover -- pre-backport 3.9/3.10/3.11 patch releases
-            t.extractall(dest)
+        t.extractall(dest, filter="data")
 
 
 def sha256_of(path: Path) -> str:

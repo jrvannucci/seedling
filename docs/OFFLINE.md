@@ -176,6 +176,16 @@ The installer applies it to its own default-environment setup and records
 it as the `python_mirror` setting, which every later `seed python` applies
 automatically.
 
+> **At least one mirrored interpreter must satisfy seedling's own
+> `requires-python`** (see `src/pyproject.toml`). The mirror serves two
+> different jobs: it supplies the interpreter `uv tool install` uses to build
+> `seed-cli` itself, *and* the base Pythons your users install for their own
+> venvs. Older versions are perfectly fine for the second job — mirror as many
+> as you like — but if *none* of them is new enough for the first, the bundle
+> builds cleanly on your connected machine and then fails on the air-gapped
+> one, which is the worst place to find out. `build-offline.cmd` checks this
+> before it downloads anything and refuses to build.
+
 ---
 
 ## 4. Python packages
@@ -331,7 +341,7 @@ the three paths. Useful flags:
 | Flag | Purpose |
 |---|---|
 | `--yes` | Build unattended, taking the default answer for every step |
-| `--python 3.12,3.11` | Which interpreter version(s) to mirror (default: newest) |
+| `--python 3.12,3.11` | Which interpreter version(s) to mirror (default: newest). At least one must satisfy seedling's own `requires-python`; older ones alongside it are fine, and are there for your users' venvs |
 | `--packages pandas,polars` | Extra wheels to stock beyond the defaults |
 | `--no-vscode` | Skip the VS Code + extensions download (the ~300MB step) |
 | `--mingit` | Also bundle portable MinGit (Windows; off by default) |
@@ -339,7 +349,7 @@ the three paths. Useful flags:
 | `--dry-run` | Show the plan and exit without downloading |
 
 It is **not** a `seed` command — it prepares the distribution, so it runs from
-the checkout before seedling is installed anywhere. It needs Python 3.9+ and
+the checkout before seedling is installed anywhere. It needs Python 3.12+ and
 internet on the build machine, and targets the platform you run it on (build on
 the same OS/arch as your offline machines).
 

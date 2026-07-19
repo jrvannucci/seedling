@@ -7,7 +7,7 @@
 # Lives at the repo root rather than in src/pyproject.toml so it also covers
 # tests/ and installers/, which sit outside the package.
 
-target-version = "py39"  # matches requires-python in src/pyproject.toml
+target-version = "py312"  # matches requires-python in src/pyproject.toml
 
 # Distribution artifacts and vendored payloads, never seedling's own source.
 exclude = ["offline-bundle", "vendor", "docs/_build"]

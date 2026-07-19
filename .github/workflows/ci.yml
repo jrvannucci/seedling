@@ -35,12 +35,16 @@ jobs:
       fail-fast: false
       matrix:
         # Windows is the primary target; Linux proves the cross-platform
-        # (bash installer, POSIX paths) code paths. 3.9 is the requires-python
-        # floor; 3.12 is what development happens on; 3.13 is the newest, so
-        # stdlib deprecations land here before they reach users (the tarfile
-        # extraction-filter change is the case that prompted adding it).
+        # (bash installer, POSIX paths) code paths.
+        #
+        # EVERY currently-supported Python from the requires-python floor (3.12)
+        # upward -- not just the ends -- so a stdlib change lands here before it
+        # reaches users (the tarfile extraction-filter change is the case that
+        # prompted this). Betas are deliberately excluded: add the next version
+        # here when it reaches its first stable release, and raise the floor in
+        # src/pyproject.toml + ruff.toml when one goes end-of-life.
         os: [windows-latest, ubuntu-latest]
-        python: ["3.9", "3.12", "3.13"]
+        python: ["3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
