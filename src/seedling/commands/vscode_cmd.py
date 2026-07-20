@@ -8,7 +8,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from .. import download, paths
+from .. import config, download, paths
 
 # A minimal, opinionated starter kit: Python debugging, Jupyter, and linting.
 DEFAULT_EXTENSIONS = [
@@ -22,6 +22,40 @@ DEFAULT_EXTENSIONS = [
     "editorconfig.editorconfig",
     "mechatroner.rainbow-csv",  # color-codes CSV/TSV columns, adds a query feature
 ]
+
+# The same kit minus the extensions that only the Microsoft Marketplace
+# serves. Pylance is proprietary and licensed to run only in official
+# Microsoft products, so it is absent from Open VSX by design rather than by
+# oversight -- ms-python.python falls back to its bundled Jedi language
+# server without it. The Microsoft-published Jupyter extensions are mirrored
+# to Open VSX under the same identifiers.
+OPEN_VSX_EXTENSIONS = [
+    "ms-python.python",
+    "ms-python.debugpy",
+    "ms-toolsai.jupyter",
+    "ms-toolsai.jupyter-keymap",
+    "ms-toolsai.jupyter-renderers",
+    "charliermarsh.ruff",
+    "editorconfig.editorconfig",
+    "mechatroner.rainbow-csv",
+]
+
+# Extension registries, as VS Code's product.json spells them.
+GALLERIES = {
+    "microsoft": {
+        "serviceUrl": "https://marketplace.visualstudio.com/_apis/public/gallery",
+        "itemUrl": "https://marketplace.visualstudio.com/items",
+    },
+    "openvsx": {
+        "serviceUrl": "https://open-vsx.org/vscode/gallery",
+        "itemUrl": "https://open-vsx.org/vscode/item",
+    },
+}
+
+FLAVORS = ("microsoft", "vscodium")
+
+_VSCODIUM_RELEASE_API = (
+    "https://api.github.com/repos/VSCodium/vscodium/releases/latest")
 
 DEFAULT_SETTINGS = {
     "python.terminal.activateEnvironment": True,
@@ -94,11 +128,99 @@ def _os_build() -> tuple[str, str]:
     return arch, "tar"
 
 
-def _resolve_download(os_id: str) -> tuple[str, str | None]:
-    """Ask VS Code's update API for the latest stable build's direct URL and
-    its published SHA-256, so the archive can be verified after download.
-    Falls back to the plain redirect URL (no checksum) if the API is
-    unreachable -- e.g. on locked-down networks."""
+def flavor() -> str:
+    """Which editor build to install. Unknown values fall back to the default
+    rather than failing: a typo in a distributed seedling.conf should not
+    leave a whole fleet without an editor."""
+    value = str(config.get("vscode_flavor") or "microsoft").strip().lower()
+    if value not in FLAVORS:
+        print(f"warning: unknown vscode_flavor {value!r}; using \"microsoft\". "
+              f"Valid values: {', '.join(FLAVORS)}.")
+        return "microsoft"
+    return value
+
+
+def gallery_for(name: str) -> dict[str, str] | None:
+    """The extensionsGallery block to force into product.json, or None to
+    leave the build's own default alone.
+
+    `extension_gallery` accepts a base URL and derives the two endpoints from
+    it, since they differ only by suffix on every registry that implements
+    this protocol -- so an internal Open VSX mirror is one setting, not two."""
+    configured = config.get("extension_gallery")
+    if configured:
+        base = str(configured).rstrip("/")
+        # Accept a bare host, the base, or a full serviceUrl.
+        base = base.removesuffix("/gallery")
+        return {"serviceUrl": f"{base}/gallery", "itemUrl": f"{base}/item"}
+    # No override: Microsoft builds already point at the Marketplace and
+    # VSCodium builds at Open VSX, so there is nothing to patch.
+    return None
+
+
+def extensions_for(name: str) -> list[str]:
+    """The extension set to install. An explicitly configured list always
+    wins -- including an empty one, which means "install nothing"."""
+    configured = config.get("vscode_extensions")
+    if isinstance(configured, list):
+        return [str(e) for e in configured]
+    if isinstance(configured, str):
+        # PowerShell 5.1's ConvertTo-Json renders a one-element array as a
+        # bare string, so a conf naming a single extension arrives as one.
+        # Hand-edited settings.json files hit this too.
+        return [e.strip() for e in configured.split(",") if e.strip()]
+    gallery = config.get("extension_gallery")
+    if name == "vscodium" or gallery:
+        # Anything not served by the Marketplace can't offer Pylance.
+        return list(OPEN_VSX_EXTENSIONS)
+    return list(DEFAULT_EXTENSIONS)
+
+
+def _vscodium_asset_id() -> str:
+    """VSCodium's release-asset platform tag (its own naming, not VS Code's)."""
+    system = platform.system()
+    machine = platform.machine().lower()
+    arm = machine in ("arm64", "aarch64")
+    if system == "Windows":
+        return "win32-arm64" if arm else "win32-x64"
+    if system == "Darwin":
+        return "darwin-arm64" if arm else "darwin-x64"
+    return "linux-arm64" if arm else "linux-x64"
+
+
+def _resolve_vscodium() -> tuple[str, str | None]:
+    """Latest VSCodium release asset for this platform, from the GitHub
+    releases API. Returns (url, sha256) -- GitHub publishes a per-asset
+    digest, which download.fetch accepts in its 'sha256:<hex>' form.
+
+    Both halves of the asset name come from _vscodium_asset_id() rather than
+    from _os_build()'s archive kind: those are VS Code's platform names, not
+    VSCodium's, and letting the two drift apart yields a lookup for an asset
+    that was never published."""
+    asset_id = _vscodium_asset_id()
+    suffix = ".tar.gz" if asset_id.startswith("linux-") else ".zip"
+    req = urllib.request.Request(
+        _VSCODIUM_RELEASE_API, headers={"User-Agent": "seedling"})
+    with urllib.request.urlopen(req) as resp:
+        data = json.loads(resp.read())
+    for asset in data.get("assets", []):
+        name = asset.get("name", "")
+        # Match VSCodium-<platform>-<version><suffix>, and nothing else --
+        # the release also carries REH server tarballs and .deb/.rpm
+        # packages whose names share the platform tag.
+        if (name.startswith(f"VSCodium-{asset_id}-")
+                and name.endswith(suffix)):
+            return asset["browser_download_url"], asset.get("digest")
+    raise OSError(f"no VSCodium asset for {asset_id}{suffix} in the latest release")
+
+
+def _resolve_download(os_id: str, kind: str, name: str) -> tuple[str, str | None]:
+    """Resolve the editor archive's direct URL and its published SHA-256, so
+    the download can be verified. Falls back to an unverified URL only for
+    Microsoft builds, whose plain redirect endpoint needs no API call --
+    useful on locked-down networks where the update API is blocked."""
+    if name == "vscodium":
+        return _resolve_vscodium()
     api = f"https://update.code.visualstudio.com/api/update/{os_id}/stable/latest"
     try:
         req = urllib.request.Request(api, headers={"User-Agent": "seedling"})
@@ -187,6 +309,45 @@ def _write_default_settings() -> None:
         settings_file.write_text(json.dumps(DEFAULT_SETTINGS, indent=2))
 
 
+def _product_json(app_dir: Path) -> Path | None:
+    """The extracted build's product.json, which is where the editor records
+    which extension registry it talks to."""
+    if platform.system() == "Darwin":
+        bundle = next(app_dir.glob("*.app"), None)
+        if bundle is None:
+            return None
+        candidate = bundle / "Contents" / "Resources" / "app" / "product.json"
+    else:
+        candidate = app_dir / "resources" / "app" / "product.json"
+    return candidate if candidate.exists() else None
+
+
+def _apply_gallery(app_dir: Path, gallery: dict[str, str] | None) -> None:
+    """Point the editor at a specific extension registry by rewriting the
+    extensionsGallery block in product.json.
+
+    Note this MODIFIES the extracted build. On the Microsoft flavor that
+    means modifying a proprietary binary distribution, which is a licensing
+    question of its own -- which is why nothing here happens unless a
+    deployer explicitly sets `extension_gallery`. VSCodium already ships
+    pointing at Open VSX, so the common case patches nothing."""
+    if gallery is None:
+        return
+    target = _product_json(app_dir)
+    if target is None:
+        print("  warning: product.json not found; the extension gallery "
+              "setting could not be applied.")
+        return
+    try:
+        data = json.loads(target.read_text(encoding="utf-8-sig"))
+        data["extensionsGallery"] = gallery
+        target.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except (OSError, ValueError) as e:
+        print(f"  warning: could not set the extension gallery ({e}).")
+        return
+    print(f"  extensions will install from {gallery['serviceUrl']}")
+
+
 def _chmod_executables(app_dir: Path) -> None:
     if os.name == "nt":
         return
@@ -216,15 +377,22 @@ def install(force: bool = False, install_extensions: bool = True) -> list[str] |
     if cli and not force:
         return cli
 
+    name = flavor()
+    label = "VSCodium" if name == "vscodium" else "VS Code"
     os_id, kind = _os_build()
     _write_status("resolving")
-    url, sha256 = _resolve_download(os_id)
+    try:
+        url, sha256 = _resolve_download(os_id, kind, name)
+    except OSError as e:
+        print(f"error: {label} could not be resolved ({e}).")
+        _write_status("failed")
+        return None
     tmp_archive = paths.VSCODE_DIR / f"vscode-download.{'zip' if kind == 'zip' else 'tar.gz'}"
 
     paths.VSCODE_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"Downloading VS Code from {url} ...")
+    print(f"Downloading {label} from {url} ...")
     try:
-        download.fetch(url, tmp_archive, expected_sha256=sha256, label="VS Code",
+        download.fetch(url, tmp_archive, expected_sha256=sha256, label=label,
                        on_progress=_download_progress_reporter())
     except download.ChecksumMismatch as e:
         print(f"error: {e}")
@@ -234,13 +402,14 @@ def install(force: bool = False, install_extensions: bool = True) -> list[str] |
         # Clean failure instead of a traceback -- e.g. an offline network.
         # (On offline deployments, pre-seed extensions/vscode instead; see
         # docs/OFFLINE.md.)
-        print(f"error: VS Code could not be downloaded ({e}).")
+        print(f"error: {label} could not be downloaded ({e}).")
         tmp_archive.unlink(missing_ok=True)
         _write_status("failed")
         return None
     _write_status("extracting")
     _extract(tmp_archive, paths.VSCODE_APP_DIR, kind)
     tmp_archive.unlink(missing_ok=True)
+    _apply_gallery(paths.VSCODE_APP_DIR, gallery_for(name))
 
     # Portable mode: a `data` folder next to the executable keeps *everything*
     # (settings, extensions, workspace state) inside extensions/vscode/app,
@@ -251,9 +420,9 @@ def install(force: bool = False, install_extensions: bool = True) -> list[str] |
 
     cli = _find_cli(paths.VSCODE_APP_DIR)
     if cli is None:
-        print("VS Code was downloaded but its CLI script could not be located "
+        print(f"{label} was downloaded but its CLI script could not be located "
               "-- extensions won't be installed automatically. You can still "
-              "install them by hand from within VS Code.")
+              f"install them by hand from within {label}.")
         _write_status("failed")
         gui = _find_gui_executable(paths.VSCODE_APP_DIR)
         return [str(gui)] if gui else None
@@ -261,16 +430,18 @@ def install(force: bool = False, install_extensions: bool = True) -> list[str] |
     _write_default_settings()
 
     if install_extensions:
-        print("Installing default extensions (Python, Jupyter, linting)...")
-        _write_status("extensions")
-        _install_extensions(cli)
+        wanted = extensions_for(name)
+        if wanted:
+            print(f"Installing default extensions ({len(wanted)})...")
+            _write_status("extensions")
+            _install_extensions(cli, wanted)
 
-    print(f"VS Code installed at {paths.VSCODE_APP_DIR}")
+    print(f"{label} installed at {paths.VSCODE_APP_DIR}")
     _write_status("done")
     return cli
 
 
-def _install_extensions(cli: list[str]) -> None:
+def _install_extensions(cli: list[str], wanted: list[str] | None = None) -> None:
     """Install the default extensions in ONE CLI invocation (the
     --install-extension flag repeats) instead of nine separate processes --
     saves ~8 process boots of the Node CLI, measured at roughly a second
@@ -278,14 +449,16 @@ def _install_extensions(cli: list[str]) -> None:
     corrupts installs (ms-python.python races the parallel installs of its
     own dependency extensions, pylance/debugpy, and fails). On failure, fall
     back to one-at-a-time so a single bad extension can't sink the others."""
+    if wanted is None:
+        wanted = extensions_for(flavor())
     args = []
-    for ext in DEFAULT_EXTENSIONS:
+    for ext in wanted:
         args += ["--install-extension", ext]
     result = subprocess.run([*cli, *args, "--force"], **_QUIET, check=False)
     if result.returncode == 0:
         return
     print("  batch install failed; retrying extensions one at a time...")
-    for ext in DEFAULT_EXTENSIONS:
+    for ext in wanted:
         result = subprocess.run(
             [*cli, "--install-extension", ext, "--force"],
             **_QUIET, check=False,

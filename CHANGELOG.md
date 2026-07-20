@@ -11,6 +11,26 @@ what a release involves.
 
 ## [Unreleased]
 
+### Added
+
+- **The editor build and its extension registry are now configurable** —
+  three new `seedling.conf` settings, seeded into `settings.json` at install
+  time like the rest:
+  - `SEEDLING_VSCODE_FLAVOR` — `microsoft` (default, unchanged behavior) or
+    `vscodium`, the MIT-licensed community build, which points at Open VSX.
+    This matters most for offline bundles: staging the official VS Code and
+    Marketplace extensions onto a share is redistribution, and both carry
+    terms that restrict it. The tradeoff is Pylance, which is licensed to
+    official Microsoft products only and so is absent from Open VSX.
+  - `SEEDLING_EXTENSION_GALLERY` — a registry base URL, for an internal Open
+    VSX mirror. The gallery and item endpoints are derived from it.
+  - `SEEDLING_VSCODE_EXTENSIONS` — the extensions a fresh editor gets, or
+    `none` for no extensions. Previously the list was hardcoded, so a team
+    standardizing its editor setup had to edit source.
+
+  `build-offline.cmd` reads all three, so an offline bundle stages the
+  editor and extension set the deployment will actually install.
+
 ### Changed
 
 - **The documentation is split into two tracks.** `docs/DOCUMENTATION.md` was

@@ -47,6 +47,23 @@ KNOWN_KEYS: dict[str, str] = {
         "The directory holding per-user seedling homes, recorded at install "
         "time when SEEDLING_HOME_DIR used a {user} token. Only set for "
         "shared multi-user installs; enables the admin-* commands."),
+    "vscode_flavor": (
+        "Which editor build `seed vscode` installs: \"microsoft\" (the "
+        "official VS Code build, Microsoft's proprietary licence) or "
+        "\"vscodium\" (the MIT-licensed community build, freely "
+        "redistributable and preconfigured for the Open VSX registry). "
+        "Changing this only affects the NEXT install -- rerun "
+        "`seed vscode --reinstall` to switch an existing one."),
+    "extension_gallery": (
+        "Where the editor installs extensions from, instead of its build's "
+        "default registry: a base URL (e.g. \"https://open-vsx.org/vscode\", "
+        "or an internal Open VSX mirror). Empty/null means the flavor's own "
+        "default -- Microsoft Marketplace for \"microsoft\", Open VSX for "
+        "\"vscodium\"."),
+    "vscode_extensions": (
+        "Extensions installed into a fresh editor (list). Empty/null means "
+        "the built-in starter kit for the configured flavor. Set to an empty "
+        "list to install none at all."),
 }
 
 _DEFAULTS: dict[str, Any] = {
@@ -59,6 +76,9 @@ _DEFAULTS: dict[str, Any] = {
     "native_tls": None,
     "ca_cert": None,
     "shared_root": None,
+    "vscode_flavor": "microsoft",
+    "extension_gallery": None,
+    "vscode_extensions": None,
 }
 
 

@@ -696,7 +696,7 @@ needs to *run* the interpreter rather than describe it.
 Size fields (`size_bytes` per item, `total_size_bytes`) are `null` unless
 you pass `--sizes`, since computing them is the slow part.
 
-```jsonc
+```json5
 {
   "schema": 1,
   "home": "C:\\Users\\alice\\seedling",
@@ -835,6 +835,18 @@ setting with its current value and an explanation. The keys:
   the OS trust store, or a PEM bundle (normally installed automatically
   from `vendor/certs/`). Applied to uv, git, and seedling's own downloads
   on every command.
+- `vscode_flavor` — which editor build `seed vscode` installs:
+  `microsoft` (default) or `vscodium`. Affects the **next** install; use
+  `seed vscode --reinstall` to switch an existing one.
+- `extension_gallery` — the extension registry base URL, when it shouldn't
+  be the flavor's own default (e.g. an internal Open VSX mirror).
+- `vscode_extensions` — the extensions installed into a fresh editor.
+  Takes comma-separated input; an empty list installs none. Unset means
+  the starter kit for the configured flavor.
+
+The three editor settings are usually deployment-wide rather than personal;
+see [the deployment guide](DEPLOYMENT.md#choosing-an-editor-build-and-registry)
+for what they're for and the licensing tradeoff they encode.
 
 `seed config get <key>` prints just the value (nothing at all when unset),
 so it's script-friendly. `unset` resets a key to its built-in default.
@@ -845,8 +857,7 @@ seed config set default_venv myproject
 seed config set update_source https://github.mycompany.com/tools/seedling.git
 seed config set update_source "S:\shared\seedling"
 seed config set venv_default_packages "ipython,ruff,requests"
+seed config set vscode_flavor vscodium
+seed config set vscode_extensions "ms-python.python,charliermarsh.ruff"
 seed config unset default_venv
 ```
-
----
-

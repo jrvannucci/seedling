@@ -360,6 +360,26 @@ if (-not (Test-Path $SettingsFile)) {
     }
     if ($CertBundle) { $seed["ca_cert"] = "$CertBundle" }
     if ($SeedlingSharedRoot) { $seed["shared_root"] = "$SeedlingSharedRoot" }
+    # Editor flavor/gallery/extensions. Only seeded when actually changed --
+    # the conf ships with the built-in defaults written out, same as the
+    # package list above.
+    if ($Conf["SEEDLING_VSCODE_FLAVOR"]) {
+        $flavor = $Conf["SEEDLING_VSCODE_FLAVOR"].Trim().ToLower()
+        if ($flavor -and $flavor -ne "microsoft") { $seed["vscode_flavor"] = $flavor }
+    }
+    if ($Conf["SEEDLING_EXTENSION_GALLERY"]) {
+        $seed["extension_gallery"] = $Conf["SEEDLING_EXTENSION_GALLERY"]
+    }
+    if ($Conf["SEEDLING_VSCODE_EXTENSIONS"]) {
+        $extsRaw = $Conf["SEEDLING_VSCODE_EXTENSIONS"].Trim()
+        if ($extsRaw.ToLower() -eq "none") {
+            # A deliberate "install nothing", distinct from "unset".
+            $seed["vscode_extensions"] = @()
+        } else {
+            $exts = @($extsRaw.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            if ($exts.Count -gt 0) { $seed["vscode_extensions"] = $exts }
+        }
+    }
     if ($seed.Count -gt 0) {
         $seed | ConvertTo-Json | Set-Content -Path $SettingsFile -Encoding UTF8
         Info "Seeded seedling settings from seedling.conf"

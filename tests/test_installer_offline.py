@@ -174,6 +174,61 @@ class TestOrgConf:
         assert "UV_NATIVE_TLS" not in (env_log.read_text() if env_log.exists() else "")
 
 
+class TestEditorConf:
+    """SEEDLING_VSCODE_FLAVOR / _EXTENSION_GALLERY / _VSCODE_EXTENSIONS reach
+    settings.json intact, and a pristine conf seeds none of them."""
+
+    def test_pristine_editor_conf_seeds_nothing(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        _write_conf(copy, SEEDLING_AUTO_SETUP="false")
+        run_install()
+        s = _settings(home) or {}
+        # The conf ships "microsoft" written out for discoverability; that is
+        # the built-in default, so it must not be recorded as an override.
+        assert "vscode_flavor" not in s
+        assert "extension_gallery" not in s
+        assert "vscode_extensions" not in s
+
+    def test_vscodium_flavor_is_recorded(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        _write_conf(copy, SEEDLING_VSCODE_FLAVOR="vscodium",
+                    SEEDLING_AUTO_SETUP="false")
+        run_install()
+        assert _settings(home)["vscode_flavor"] == "vscodium"
+
+    def test_flavor_is_normalized_to_lowercase(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        _write_conf(copy, SEEDLING_VSCODE_FLAVOR="VSCodium",
+                    SEEDLING_AUTO_SETUP="false")
+        run_install()
+        assert _settings(home)["vscode_flavor"] == "vscodium"
+
+    def test_gallery_url_survives_verbatim(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        _write_conf(copy, SEEDLING_EXTENSION_GALLERY="https://openvsx.corp/vscode",
+                    SEEDLING_AUTO_SETUP="false")
+        run_install()
+        assert _settings(home)["extension_gallery"] == "https://openvsx.corp/vscode"
+
+    def test_extension_list_becomes_a_json_array(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        _write_conf(copy,
+                    SEEDLING_VSCODE_EXTENSIONS="ms-python.python, charliermarsh.ruff",
+                    SEEDLING_AUTO_SETUP="false")
+        run_install()
+        assert _settings(home)["vscode_extensions"] == [
+            "ms-python.python", "charliermarsh.ruff"]
+
+    def test_extensions_none_means_an_empty_list_not_an_unset(self, install_env):
+        """"none" is a deliberate 'install nothing', which must survive as []
+        -- an absent key would silently restore the starter kit instead."""
+        copy, fake_home, home, run_install = install_env
+        _write_conf(copy, SEEDLING_VSCODE_EXTENSIONS="none",
+                    SEEDLING_AUTO_SETUP="false")
+        run_install()
+        assert _settings(home)["vscode_extensions"] == []
+
+
 class TestBoolSettings:
     """The AUTO_* toggles are booleans: true runs, false skips. No yes/no."""
 

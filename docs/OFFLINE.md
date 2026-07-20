@@ -286,7 +286,19 @@ If neither applies, skip this component entirely.
 ## 6. VS Code (optional)
 
 `seed vscode` downloads VS Code from Microsoft's update API and extensions
-from the marketplace — neither has a supported mirror. Three options:
+from the marketplace — neither has a supported mirror.
+
+> **Check the licensing before you stage this one.** Bundling the editor
+> onto a share is redistribution, and the official VS Code binaries and
+> Marketplace extensions both carry terms that restrict it. Setting
+> `SEEDLING_VSCODE_FLAVOR="vscodium"` switches to the MIT-licensed build and
+> the openly-licensed Open VSX registry, which carry no such restriction —
+> at the cost of Pylance. See
+> [Choosing an editor build and registry](DEPLOYMENT.md#choosing-an-editor-build-and-registry).
+> Everything below applies to whichever flavor you pick; `build-offline.cmd`
+> reads the setting and stages the matching editor and extension set.
+
+Three options:
 
 - **Let the builder do it** (easiest): [`build-offline.cmd`](#putting-it-together-preparing-the-share)
   downloads VS Code + the default extensions and drops them into `vendor/vscode/`

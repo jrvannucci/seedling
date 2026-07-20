@@ -185,5 +185,3 @@ the download and aborts with an explanation. If no checksum could be
 obtained (e.g. the metadata endpoint is blocked on your network), the
 download proceeds but says so explicitly. uv and Python interpreters are
 installed by uv's own tooling, which does its own verification.
-
----

@@ -16,6 +16,7 @@ This page is the deployment track. It assumes you are setting seedling up
 - [Who this is for](#who-this-is-for)
 - [Deployment configuration: `seedling.conf`](#deployment-configuration-seedlingconf)
 - [Shared-machine (multi-user) installs](#shared-machine-multi-user-installs)
+- [Choosing an editor build and registry](#choosing-an-editor-build-and-registry)
 - [Rolling out](#rolling-out)
 - [Admin commands (shared-root teardown)](#admin-commands-shared-root-teardown)
 - [What a security review will ask](#what-a-security-review-will-ask)
@@ -101,6 +102,17 @@ or environment variables:
   HTTPS hosts signed by a machine-installed corporate CA (seeds the
   `native_tls` setting). Alternatively, ship the CA itself in
   `vendor/certs/` — see [OFFLINE.md](OFFLINE.md).
+- `SEEDLING_VSCODE_FLAVOR` (default: `microsoft`) — which editor build
+  `seed vscode` installs: the official Visual Studio Code, or `vscodium`,
+  the MIT-licensed community build. Seeds the `vscode_flavor` setting. See
+  [Choosing an editor build and registry](#choosing-an-editor-build-and-registry)
+  — this is a licensing choice as much as a technical one.
+- `SEEDLING_EXTENSION_GALLERY` (default: empty = the flavor's own registry)
+  — base URL of the extension registry, for an internal Open VSX mirror.
+  Seeds the `extension_gallery` setting.
+- `SEEDLING_VSCODE_EXTENSIONS` (default: empty = the flavor's starter kit)
+  — comma-separated extensions installed into a fresh editor, or `none` for
+  no extensions at all. Seeds the `vscode_extensions` setting.
 
 How it's applied: both installers read `seedling.conf` at the repo root
 (a piped install reads the copy inside the repo it just cloned). The
@@ -144,6 +156,68 @@ targets their own folder, and `seed purge` only ever touches theirs.
 Without the token, everyone would share one `C:\seedling` and collide;
 with it, the shared root just holds one subfolder per user. (The default
 `~/seedling` needs no token — a home directory is already per-user.)
+
+---
+
+## Choosing an editor build and registry
+
+`seed vscode` installs the official Microsoft build of Visual Studio Code by
+default, and its extensions come from the Microsoft Marketplace. For most
+teams that is the right choice and needs no configuration.
+
+It is worth a second look if you are **staging an offline bundle onto a
+share**, because that means redistributing whatever you pick:
+
+- The official VS Code binaries are distributed under Microsoft's
+  proprietary licence — the MIT licence on `microsoft/vscode` covers the
+  source, not the branded builds.
+- Marketplace extensions carry their own separate Terms of Use.
+
+Both restrict redistribution in ways an internal file share may not satisfy.
+If that matters to your organization, switch to the openly-licensed stack:
+
+```
+SEEDLING_VSCODE_FLAVOR="vscodium"
+```
+
+VSCodium is the same source built without Microsoft's branding and
+telemetry, under the MIT licence, and it already points at
+[Open VSX](https://open-vsx.org) — an Eclipse Foundation registry whose
+content is openly licensed. Nothing else needs setting: seedling picks the
+matching extension set automatically.
+
+**The tradeoff is Pylance.** It is proprietary, licensed to run only in
+official Microsoft products, and therefore absent from Open VSX by design.
+Without it the Python extension falls back to its bundled Jedi language
+server, and completions and type checking are noticeably weaker. That is a
+real cost to weigh, not a footnote — for many teams it is the deciding
+factor in the other direction.
+
+### Pointing at an internal registry
+
+On an isolated network, mirror Open VSX internally and give seedling the
+base URL — the gallery and item endpoints are derived from it:
+
+```
+SEEDLING_EXTENSION_GALLERY="https://openvsx.mycompany.com/vscode"
+```
+
+Setting this on the **`microsoft` flavor** rewrites `product.json` inside
+the official build — that is, it modifies a proprietary binary, which is a
+licensing question of its own. Prefer `vscodium`, which needs no patching.
+
+### Standardizing the extension set
+
+```
+SEEDLING_VSCODE_EXTENSIONS="ms-python.python,charliermarsh.ruff"
+```
+
+Empty means the starter kit for the chosen flavor. `"none"` installs
+nothing at all — useful when your users get their editor from somewhere else
+and only want seedling's Python management.
+
+All three are ordinary settings, so a user can override them locally with
+`seed config set` unless you have reason to re-deploy instead.
 
 ---
 
@@ -233,13 +307,10 @@ seed admin-purge-all-users            # take ownership + remove everyone, confir
 Or cleaning up after one departed user:
 
 ```
-seed admin-remove-user alice          # removes C:\seedlinglice entirely
+seed admin-remove-user alice          # removes C:\seedling\alice entirely
 ```
 
 ---
-
----
-
 ## What a security review will ask
 
 The questions that come up in a review, and where the answer is documented:

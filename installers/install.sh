@@ -55,6 +55,9 @@ SEEDLING_AUTO_VSCODE=""
 SEEDLING_PYTHON_MIRROR=""
 SEEDLING_PACKAGE_INDEX=""
 SEEDLING_NATIVE_TLS=""
+SEEDLING_VSCODE_FLAVOR=""
+SEEDLING_EXTENSION_GALLERY=""
+SEEDLING_VSCODE_EXTENSIONS=""
 CONF_FILE=""
 if [ -f "$REPO_ROOT/seedling.conf" ]; then
     CONF_FILE="$REPO_ROOT/seedling.conf"
@@ -310,6 +313,41 @@ if [ ! -f "$SETTINGS_FILE" ]; then
         [ -n "$entries" ] && entries="$entries,
 "
         entries="$entries  \"native_tls\": true"
+    fi
+    # Editor flavor/gallery/extensions. Only seeded when actually changed --
+    # the conf ships with the built-in defaults written out, same as the
+    # package list above.
+    flavor_norm=$(printf '%s' "$SEEDLING_VSCODE_FLAVOR" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+    if [ -n "$flavor_norm" ] && [ "$flavor_norm" != "microsoft" ]; then
+        [ -n "$entries" ] && entries="$entries,
+"
+        entries="$entries  \"vscode_flavor\": \"$(json_escape "$flavor_norm")\""
+    fi
+    if [ -n "$SEEDLING_EXTENSION_GALLERY" ]; then
+        [ -n "$entries" ] && entries="$entries,
+"
+        entries="$entries  \"extension_gallery\": \"$(json_escape "$SEEDLING_EXTENSION_GALLERY")\""
+    fi
+    exts_norm=$(printf '%s' "$SEEDLING_VSCODE_EXTENSIONS" | tr -d ' ')
+    if [ "$exts_norm" = "none" ]; then
+        [ -n "$entries" ] && entries="$entries,
+"
+        entries="$entries  \"vscode_extensions\": []"
+    elif [ -n "$exts_norm" ]; then
+        exts=""
+        OLD_IFS=$IFS; IFS=,
+        for e in $SEEDLING_VSCODE_EXTENSIONS; do
+            e=$(printf '%s' "$e" | sed -e 's/^ *//' -e 's/ *$//')
+            [ -z "$e" ] && continue
+            [ -n "$exts" ] && exts="$exts, "
+            exts="$exts\"$(json_escape "$e")\""
+        done
+        IFS=$OLD_IFS
+        if [ -n "$exts" ]; then
+            [ -n "$entries" ] && entries="$entries,
+"
+            entries="$entries  \"vscode_extensions\": [$exts]"
+        fi
     fi
     if [ -n "$CERT_BUNDLE" ]; then
         [ -n "$entries" ] && entries="$entries,

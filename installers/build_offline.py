@@ -486,8 +486,15 @@ def _install_extensions(app_dir: Path) -> bool:
     if not cli:
         warn("VS Code CLI not found; extensions were not installed.")
         return False
+    # The configured set, not the built-in one: a bundle built for a
+    # vscodium/Open VSX deployment must stage the extensions that deployment
+    # will actually install, or the offline machines get nothing.
+    wanted = vscode_cmd.extensions_for(vscode_cmd.flavor())
+    if not wanted:
+        info("No extensions configured; skipping.")
+        return True
     ext_args: list[str] = []
-    for ext in vscode_cmd.DEFAULT_EXTENSIONS:
+    for ext in wanted:
         ext_args += ["--install-extension", ext]
     # Cumulative wait across the retries: ~150s.
     delays = [5, 10, 15, 20, 25, 25, 25, 25]
@@ -498,7 +505,7 @@ def _install_extensions(app_dir: Path) -> bool:
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
             check=False)
         if result.returncode == 0:
-            ok(f"Installed {len(vscode_cmd.DEFAULT_EXTENSIONS)} extensions.")
+            ok(f"Installed {len(wanted)} extensions.")
             return True
         lines = (result.stdout or "").strip().splitlines()
         last = lines[-1] if lines else "unknown"
