@@ -411,6 +411,11 @@ def _invoke(handler, args) -> int:
     except UvNotFound as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+    except vscode_cmd.UnknownFlavor as e:
+        # A misconfigured editor build is fatal on purpose (see flavor()),
+        # but it should read as a config mistake, not a crash.
+        print(f"error: {e}", file=sys.stderr)
+        return 1
     except subprocess.CalledProcessError as e:
         print(f"error: `{' '.join(str(a) for a in e.cmd)}` failed "
               f"(exit code {e.returncode})", file=sys.stderr)

@@ -10,6 +10,7 @@ exercised by hand on a connected machine."""
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import types
 from pathlib import Path
@@ -682,10 +683,14 @@ def test_mingit_is_opt_in_under_yes(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(build_offline, "build_mingit",
                         lambda d: fetched.append(d) or True)
 
-    build_offline.main(["--yes", "-o", str(tmp_path / "a")])
+    # A bundle including VS Code now also needs the third-party
+    # acknowledgement -- --yes alone deliberately does not cover it.
+    build_offline.main(["--yes", "--accept-third-party-terms",
+                        "-o", str(tmp_path / "a")])
     assert fetched == []
 
-    build_offline.main(["--yes", "--mingit", "-o", str(tmp_path / "b")])
+    build_offline.main(["--yes", "--accept-third-party-terms", "--mingit",
+                        "-o", str(tmp_path / "b")])
     assert len(fetched) == 1
     assert fetched[0].name == "git"
 
@@ -694,7 +699,8 @@ def test_summary_flags_a_failed_vscode_step(tmp_path, monkeypatch, capsys):
     """A failed 300MB step must not read as a clean build in the summary."""
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
     monkeypatch.setattr(build_offline, "build_vscode", lambda vendor, staging: False)
-    assert build_offline.main(["--yes", "-o", str(tmp_path / "b")]) == 0
+    assert build_offline.main(["--yes", "--accept-third-party-terms",
+                               "-o", str(tmp_path / "b")]) == 0
     out = capsys.readouterr().out
     assert "redo step 6" in out
 
@@ -705,3 +711,142 @@ def test_summary_omits_the_vscode_row_when_not_requested(tmp_path, monkeypatch, 
     out = capsys.readouterr().out
     assert "redo step 6" not in out
     assert "pre-seeded VS Code" not in out
+
+
+# --------------------------------------------------------------------------
+# Licensing posture: seedling ships nothing, gates what restricts
+# redistribution, and records what it staged. See docs/LICENSING.md.
+# --------------------------------------------------------------------------
+
+def test_repo_ships_no_third_party_binaries():
+    """The whole licensing posture rests on this: seedling redistributes
+    nothing. If a binary is ever committed, that stops being true silently --
+    so assert it rather than trusting .gitignore."""
+    import subprocess as sp
+    tracked = sp.run(["git", "ls-files"], cwd=str(REPO_ROOT),
+                     capture_output=True, text=True, check=True).stdout.split()
+    binary_suffixes = (".exe", ".dll", ".so", ".dylib", ".zip", ".gz", ".xz",
+                       ".7z", ".vsix", ".deb", ".rpm", ".msi", ".pkg", ".bin")
+    offenders = [f for f in tracked
+                 if f.lower().endswith(binary_suffixes)
+                 or f.startswith(("vendor/", "offline-bundle/"))]
+    assert not offenders, f"third-party payloads must never be committed: {offenders}"
+
+
+def test_permissive_only_bundle_is_not_gated(capsys):
+    names = build_offline.planned_components(
+        vscode=False, mingit=False, flavor="microsoft", gallery_overridden=False)
+    assert build_offline.restricted_among(names) == []
+    # accepted=False and no input available: a permissive bundle must still
+    # proceed, or --no-vscode CI builds would hang on a prompt.
+    assert build_offline.third_party_gate(names, accepted=False) is True
+
+
+def test_vscodium_bundle_is_not_gated():
+    names = build_offline.planned_components(
+        vscode=True, mingit=False, flavor="vscodium", gallery_overridden=False)
+    assert "vscodium" in names and "openvsx-extensions" in names
+    assert build_offline.restricted_among(names) == []
+    assert build_offline.third_party_gate(names, accepted=False) is True
+
+
+def test_microsoft_vscode_bundle_is_gated():
+    names = build_offline.planned_components(
+        vscode=True, mingit=False, flavor="microsoft", gallery_overridden=False)
+    assert build_offline.restricted_among(names) == ["vscode", "vscode-extensions"]
+
+
+def test_gallery_override_swaps_the_extension_source():
+    """A Microsoft build pointed elsewhere pulls extensions from there, so the
+    Marketplace terms no longer apply to them."""
+    names = build_offline.planned_components(
+        vscode=True, mingit=False, flavor="microsoft", gallery_overridden=True)
+    assert "openvsx-extensions" in names
+    assert "vscode-extensions" not in names
+    assert build_offline.restricted_among(names) == ["vscode"]  # the binary still is
+
+
+def test_mingit_is_recorded_as_copyleft_but_does_not_gate():
+    names = build_offline.planned_components(
+        vscode=False, mingit=True, flavor="microsoft", gallery_overridden=False)
+    assert build_offline.COMPONENTS["mingit"]["redistribution"] == "copyleft"
+    assert build_offline.restricted_among(names) == []
+    assert build_offline.third_party_gate(names, accepted=False) is True
+
+
+def test_gate_refuses_without_acknowledgement(monkeypatch, capsys):
+    monkeypatch.setattr("builtins.input", lambda *a: "no")
+    names = build_offline.planned_components(
+        vscode=True, mingit=False, flavor="microsoft", gallery_overridden=False)
+    assert build_offline.third_party_gate(names, accepted=False) is False
+    assert "NOT staged" in capsys.readouterr().out
+
+
+def test_gate_accepts_explicit_yes(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda *a: "YES")
+    names = build_offline.planned_components(
+        vscode=True, mingit=False, flavor="microsoft", gallery_overridden=False)
+    assert build_offline.third_party_gate(names, accepted=False) is True
+
+
+def test_gate_is_not_satisfied_by_a_bare_enter(monkeypatch):
+    """Acknowledging someone else's licence terms must be deliberate; the
+    default must never be 'accepted'."""
+    monkeypatch.setattr("builtins.input", lambda *a: "")
+    names = build_offline.planned_components(
+        vscode=True, mingit=False, flavor="microsoft", gallery_overridden=False)
+    assert build_offline.third_party_gate(names, accepted=False) is False
+
+
+def test_gate_flag_bypasses_the_prompt(monkeypatch):
+    def boom(*a):
+        raise AssertionError("prompted despite --accept-third-party-terms")
+    monkeypatch.setattr("builtins.input", boom)
+    names = build_offline.planned_components(
+        vscode=True, mingit=False, flavor="microsoft", gallery_overridden=False)
+    assert build_offline.third_party_gate(names, accepted=True) is True
+
+
+def test_manifest_records_components_and_staging(tmp_path):
+    names = build_offline.planned_components(
+        vscode=True, mingit=False, flavor="microsoft", gallery_overridden=False)
+    path = build_offline.write_manifest(
+        tmp_path, names, staged={"uv": True, "vscode": False})
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    assert path.name == "MANIFEST.json"
+    assert doc["schema"] == 1
+    by_name = {c["component"]: c for c in doc["components"]}
+    assert by_name["uv"]["staged"] is True
+    assert by_name["uv"]["license"] == "Apache-2.0 OR MIT"
+    # A partial build must be recorded honestly, not as intended.
+    assert by_name["vscode"]["staged"] is False
+    assert by_name["vscode"]["redistribution"] == "restricted"
+    assert "seedling ships no third-party software" in doc["notice"]
+
+
+def test_every_component_declares_a_redistribution_category():
+    valid = {"permissive", "copyleft", "restricted"}
+    for name, meta in build_offline.COMPONENTS.items():
+        assert meta["redistribution"] in valid, name
+        assert meta["license"] and meta["source"], name
+
+
+def test_yes_alone_will_not_stage_restricted_components(tmp_path, monkeypatch, capsys):
+    """--yes is for routine confirmations. Acknowledging someone else's
+    licence terms is not routine, so an unattended build that would stage
+    VS Code stops rather than proceeding silently."""
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    def boom(*a):
+        raise AssertionError("built despite no acknowledgement")
+    monkeypatch.setattr(build_offline, "build_vscode", boom)
+    monkeypatch.setattr("builtins.input", lambda *a: "")
+    rc = build_offline.main(["--yes", "-o", str(tmp_path / "b")])
+    assert rc == 2
+    assert "NOT staged" in capsys.readouterr().out
+
+
+def test_no_vscode_still_builds_unattended_with_just_yes(tmp_path, monkeypatch):
+    """The permissive-only path must not have gained any new friction."""
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    assert build_offline.main(["--yes", "--no-vscode", "--no-verify",
+                               "-o", str(tmp_path / "b")]) == 0

@@ -103,9 +103,6 @@ seed kill-processes --system    # every python + VS Code on the machine
 seed kill-processes <name>      # every process with that name
 ```
 
-`seed kill-processes all` was the old spelling of `--system` and still works
-that way — it is deliberately *not* re-pointed at the narrow mode, since that
-would silently change what an existing script does.
 
 ### Unsaved work in cloned repos
 

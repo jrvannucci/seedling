@@ -84,6 +84,7 @@ docs/
   DESIGN.md           why deletion is defensive, logging, download verification
   DEPLOYMENT.md       deploying to others: seedling.conf, shared roots, admin teardown
   OFFLINE.md          fully-offline / air-gapped deployment guide
+  LICENSING.md        redistribution posture; what is downloaded, under what terms
   CONTRIBUTING.md     this guide
 tests/
   conftest.py         sandbox fixtures (throwaway home, stub uv, env isolation)

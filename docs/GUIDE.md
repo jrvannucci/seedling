@@ -450,9 +450,9 @@ into.
   three platforms.
 - `seed python` version resolution assumes CPython (uv's default); PyPy and
   other implementations aren't wired up.
-- `seed kill-processes --system` (and `seed kill-processes all`, its older
-  spelling) is machine-wide rather than seedling-scoped, by design — see
-  [the command reference](COMMANDS.md#seed-kill-processes-allname--y).
+- `seed kill-processes --system` is machine-wide rather than
+  seedling-scoped, by design — see
+  [the command reference](COMMANDS.md#seed-kill-processes-name---system--y).
 - `seed repo-clone`/`repo-install` need git; only Windows is auto-bootstrapped
   (via portable MinGit) — macOS/Linux still need system git already present,
   since neither has an equivalent official portable build.

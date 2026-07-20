@@ -11,7 +11,54 @@ what a release involves.
 
 ## [Unreleased]
 
+### Removed (breaking)
+
+- **`seed kill-processes all` is gone.** `--system` is the only spelling for
+  the machine-wide sweep. `all` is now an ordinary process name, so an old
+  invocation closes processes literally named `all` — i.e. nothing — rather
+  than sweeping the machine. Update any script that used it.
+
+  The internal sentinel behind this was the literal string `"all"`, which
+  meant the machine-wide branch stayed reachable by typing that name even
+  after the alias was removed. It is now a private object that no CLI input
+  can produce.
+
+### Changed (breaking)
+
+- **An unrecognized `vscode_flavor` is now a hard error** instead of falling
+  back to `microsoft`. A deployer who typoed `vscodium` would previously
+  receive the Microsoft build and silently stage proprietary binaries they
+  had deliberately chosen to avoid. A stopped install is recoverable; an
+  unnoticed licensing problem on a share is not.
+
+### Changed (action required for some unattended builds)
+
+- **`build-offline` now requires an explicit acknowledgement before staging
+  components whose terms restrict redistribution** (the official VS Code
+  build and Marketplace extensions). `--yes` deliberately does *not* cover
+  this: it exists to skip routine confirmations, and acknowledging someone
+  else's licence terms is not routine.
+
+  If you build bundles unattended **and** include VS Code, add
+  `--accept-third-party-terms`. Builds passing `--no-vscode`, or using
+  `SEEDLING_VSCODE_FLAVOR="vscodium"`, are unaffected — a bundle whose
+  contents are all permissively licensed is never gated.
+
 ### Added
+
+- **`docs/LICENSING.md`** — seedling's position, stated plainly: it ships no
+  third-party software, downloads from each publisher at your direction, and
+  grants you no rights to any of it. Staging a bundle for a share is
+  redistribution performed by *you*. Includes what each component's licence
+  is and which ones restrict redistribution.
+- **Every offline bundle now carries a `MANIFEST.json`** recording what was
+  staged: component, source URL, licence, and redistribution category. It is
+  written even for a partial build, so it describes the folder as it is
+  rather than as it was intended — for security review, internal compliance,
+  or an SBOM pipeline.
+- A test asserting **no third-party binaries are ever committed** to the
+  repo. The whole posture rests on that being true, so it is now enforced
+  rather than left to `.gitignore`.
 
 - **The editor build and its extension registry are now configurable** —
   three new `seedling.conf` settings, seeded into `settings.json` at install

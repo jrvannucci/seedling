@@ -290,7 +290,9 @@ from the marketplace — neither has a supported mirror.
 
 > **Check the licensing before you stage this one.** Bundling the editor
 > onto a share is redistribution, and the official VS Code binaries and
-> Marketplace extensions both carry terms that restrict it. Setting
+> Marketplace extensions both carry terms that restrict it —
+> `build-offline.cmd` will ask you to acknowledge this before staging them
+> (see [LICENSING.md](LICENSING.md)). Setting
 > `SEEDLING_VSCODE_FLAVOR="vscodium"` switches to the MIT-licensed build and
 > the openly-licensed Open VSX registry, which carry no such restriction —
 > at the cost of Pylance. See

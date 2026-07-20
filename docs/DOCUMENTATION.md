@@ -32,6 +32,7 @@ lab, a restricted network.
 |---|---|
 | **[Deployment guide](DEPLOYMENT.md)** | `seedling.conf`, shared-machine installs, the elevated `admin-*` teardown family, a rollout checklist, and the answers to a security review. |
 | **[Offline / air-gapped networks](OFFLINE.md)** | Running with no internet at all: mirrors, vendored binaries, wheel directories, corporate CAs, and `build-offline.cmd`. |
+| **[Licensing and redistribution](LICENSING.md)** | seedling ships no third-party software. What it downloads, under what terms, and what changes when you stage a bundle for a share. |
 
 ---
 
@@ -58,4 +59,5 @@ layout, and running the tests.
 | Put many users on one machine | [Deployment guide → Shared-machine installs](DEPLOYMENT.md#shared-machine-multi-user-installs) |
 | Tear down another user's install | [Deployment guide → Admin commands](DEPLOYMENT.md#admin-commands-shared-root-teardown) |
 | Answer a security questionnaire | [Deployment guide → What a security review will ask](DEPLOYMENT.md#what-a-security-review-will-ask) |
+| Know what I'm allowed to redistribute | [Licensing and redistribution](LICENSING.md) |
 | Know what seedling can't do | [Using seedling → Known limits](GUIDE.md#known-limits) |

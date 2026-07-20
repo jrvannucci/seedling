@@ -447,13 +447,13 @@ prompt (skippable with `-y`).
 seed remove-repo some-project
 ```
 
-## `seed kill-processes <all|name> [-y]`
+## `seed kill-processes [name] [--system] [-y]`
 
 An escape hatch for stuck scripts or a frozen VS Code window. Always
 prompts for confirmation first (skippable with `-y`), since it's
 machine-wide and destructive (unsaved work included).
 
-- `seed kill-processes all` — force-closes every process matching common
+- `seed kill-processes --system` — force-closes every process matching common
   Python interpreter names (`python`, `python3`, `python3.8`-`3.14`,
   `pythonw`) and VS Code/Electron process names (`code`, `Code`,
   `Code Helper*`, `Electron`).
@@ -476,7 +476,7 @@ Implementation notes:
   preceded by this same sweep, to avoid "file in use" failures.
 
 ```
-seed kill-processes all
+seed kill-processes --system
 seed kill-processes node -y
 ```
 
@@ -527,7 +527,7 @@ everything. Prompts for confirmation (`yes` typed exactly) unless
 `-y`/`--yes` is passed.
 
 Before deleting, it first force-closes every Python and VS Code process on
-the machine (the same sweep as `seed kill-processes all`, with the same
+the machine (the same sweep as `seed kill-processes --system`, with the same
 self-exclusion so it can't kill `seed-cli`'s own process mid-run). This
 avoids the classic "file is in use" failure on Windows, and stray file
 handles on any OS, from a running venv interpreter or an open VS Code

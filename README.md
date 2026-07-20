@@ -177,6 +177,10 @@ where the usual Python setup path doesn't work:
 - **Auditable and reversible.** Every command is logged in plain text,
   downloads are checksum-verified, `--preview` shows exactly what a removal
   would delete, and `seed purge` leaves the machine as it was.
+- **Nothing third-party is vendored.** seedling downloads from each
+  publisher at your direction and ships none of it, so what you may
+  redistribute stays your call — every bundle carries a `MANIFEST.json`
+  listing each component, its source, and its licence.
 
 📘 Start with the **[deployment guide](docs/DEPLOYMENT.md)** — it covers
 configuration, rollout, and the questions a security review will ask.
@@ -202,6 +206,8 @@ For a fully disconnected network, see
   shared-machine installs, admin teardown, rollout, security review.
 - 📴 **[Offline / air‑gapped installs](docs/OFFLINE.md)** — running with no
   internet at all.
+- ⚖️ **[Licensing and redistribution](docs/LICENSING.md)** — seedling ships no
+  third‑party software; what it downloads and under what terms.
 
 🗺️ Not sure where to look? The **[documentation map](docs/DOCUMENTATION.md)**
 routes you from what you're trying to do to the right page.

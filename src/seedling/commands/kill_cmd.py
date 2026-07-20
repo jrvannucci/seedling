@@ -237,23 +237,32 @@ def _list_unix(names: list[str], exclude: set[int]) -> list[str]:
     return found
 
 
-def list_matching(target: str) -> list[str]:
-    """Human-readable list of the processes a kill would hit right now."""
+# Sentinel for "the machine-wide sweep" -- deliberately not a string, so
+# it can never be confused with a process NAME a user passed in. It used
+# to be the literal "all", which meant `kill-processes all` reached the
+# machine-wide branch even after that spelling was removed.
+SYSTEM_WIDE = object()
+
+
+def list_matching(target) -> list[str]:
+    """Human-readable list of the processes a kill would hit right now.
+
+    `target` is a process name, or SYSTEM_WIDE for the whole machine."""
     exclude = _self_and_parent()
     if platform.system() == "Windows":
-        if target == "all":
+        if target is SYSTEM_WIDE:
             images = WINDOWS_PYTHON_IMAGES + WINDOWS_VSCODE_IMAGES
         else:
             images = [target if target.lower().endswith(".exe") else f"{target}.exe"]
         return _list_windows(images, exclude)
     names = (PYTHON_PROCESS_NAMES_UNIX + VSCODE_PROCESS_NAMES_UNIX
-             if target == "all" else [target])
+             if target is SYSTEM_WIDE else [target])
     return _list_unix(names, exclude)
 
 
 def kill_python_and_vscode() -> list:
     """Force-closes every Python/VS Code process, sparing seedling's own.
-    Shared by `seed kill-processes all` and `seed remove-user` (which uses
+    Shared by `seed kill-processes --system` and `seed remove-user` (which uses
     this to release any file locks before deleting ~/seedling)."""
     exclude = _self_and_parent()
     if platform.system() == "Windows":
@@ -284,15 +293,6 @@ def run(args) -> int:
     target = getattr(args, "target", None)
     system_wide = getattr(args, "system", False)
 
-    # `all` was the old spelling of the machine-wide sweep, and it's in
-    # people's fingers and scripts. Keep it working rather than silently
-    # NARROWING what an existing invocation does.
-    if target == "all":
-        system_wide = True
-        target = None
-        print(colors.dim("note: `kill-processes all` is now spelled "
-                         "`kill-processes --system`."))
-
     if target and system_wide:
         print("error: give a process name OR --system, not both.")
         return 1
@@ -306,7 +306,7 @@ def run(args) -> int:
 
     if confirm.preview_requested(args):
         if system_wide:
-            items = list_matching("all")
+            items = list_matching(SYSTEM_WIDE)
         elif target:
             items = list_matching(target)
         else:

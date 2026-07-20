@@ -128,15 +128,24 @@ def _os_build() -> tuple[str, str]:
     return arch, "tar"
 
 
+class UnknownFlavor(ValueError):
+    """Raised when vscode_flavor names a build seedling doesn't know."""
+
+
 def flavor() -> str:
-    """Which editor build to install. Unknown values fall back to the default
-    rather than failing: a typo in a distributed seedling.conf should not
-    leave a whole fleet without an editor."""
+    """Which editor build to install.
+
+    An unrecognized value is fatal rather than falling back. A deployer who
+    typoed "vscodium" would otherwise silently receive the Microsoft build --
+    staging proprietary binaries they had deliberately chosen to avoid. A
+    stopped install is recoverable; an unnoticed licensing problem on a share
+    is not."""
     value = str(config.get("vscode_flavor") or "microsoft").strip().lower()
     if value not in FLAVORS:
-        print(f"warning: unknown vscode_flavor {value!r}; using \"microsoft\". "
-              f"Valid values: {', '.join(FLAVORS)}.")
-        return "microsoft"
+        raise UnknownFlavor(
+            f"unknown vscode_flavor {value!r}. Valid values: "
+            f"{', '.join(FLAVORS)}. Fix it with "
+            f"`seed config set vscode_flavor <value>`.")
     return value
 
 
@@ -441,7 +450,7 @@ def install(force: bool = False, install_extensions: bool = True) -> list[str] |
     return cli
 
 
-def _install_extensions(cli: list[str], wanted: list[str] | None = None) -> None:
+def _install_extensions(cli: list[str], wanted: list[str]) -> None:
     """Install the default extensions in ONE CLI invocation (the
     --install-extension flag repeats) instead of nine separate processes --
     saves ~8 process boots of the Node CLI, measured at roughly a second
@@ -449,8 +458,6 @@ def _install_extensions(cli: list[str], wanted: list[str] | None = None) -> None
     corrupts installs (ms-python.python races the parallel installs of its
     own dependency extensions, pylance/debugpy, and fails). On failure, fall
     back to one-at-a-time so a single bad extension can't sink the others."""
-    if wanted is None:
-        wanted = extensions_for(flavor())
     args = []
     for ext in wanted:
         args += ["--install-extension", ext]

@@ -303,13 +303,13 @@ def test_kill_processes_system_flag_is_machine_wide(run_cli, home):
     assert "ALL Python and VS Code processes on this machine" in out
 
 
-def test_kill_processes_all_still_means_system_wide(run_cli, home):
-    """`all` was the old spelling. Keep it machine-wide rather than silently
-    NARROWING what an existing script does, and point at the new flag."""
+def test_kill_processes_all_is_just_a_process_name(run_cli, home):
+    """`all` used to be the machine-wide spelling. That alias is gone, so it
+    is now an ordinary process name and must NOT trigger the sweep -- the
+    machine-wide branch is reachable only via --system."""
     code, out = run_cli("kill-processes", "all", "--preview")
     assert code == 0
-    assert "ALL Python and VS Code processes on this machine" in out
-    assert "--system" in out
+    assert "ALL Python and VS Code processes on this machine" not in out
 
 
 def test_kill_processes_rejects_name_with_system(run_cli, home):

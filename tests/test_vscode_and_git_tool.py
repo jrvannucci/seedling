@@ -7,6 +7,7 @@ import json
 import os
 import urllib.error
 
+import pytest
 
 from conftest import needs_git, windows_only
 from seedling import config, git_tool, paths
@@ -180,12 +181,16 @@ def test_flavor_reads_config(home):
     assert vscode_cmd.flavor() == "vscodium"
 
 
-def test_unknown_flavor_falls_back_rather_than_failing(home, capsys):
-    """A typo in a distributed seedling.conf must not leave a fleet without
-    an editor -- it warns and uses the default."""
+def test_unknown_flavor_is_fatal(home):
+    """A typo must NOT silently fall back to microsoft: a deployer who meant
+    "vscodium" would then stage proprietary binaries they had deliberately
+    chosen to avoid. A stopped install is recoverable; an unnoticed licensing
+    problem on a share is not."""
     config.set_value("vscode_flavor", "vscoduim")
-    assert vscode_cmd.flavor() == "microsoft"
-    assert "unknown vscode_flavor" in capsys.readouterr().out
+    with pytest.raises(vscode_cmd.UnknownFlavor) as excinfo:
+        vscode_cmd.flavor()
+    assert "vscoduim" in str(excinfo.value)
+    assert "microsoft, vscodium" in str(excinfo.value)
 
 
 def test_no_gallery_override_leaves_the_build_alone(home):

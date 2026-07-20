@@ -20,6 +20,8 @@ anywhere.
 from __future__ import annotations
 
 import argparse
+import datetime
+import json
 import os
 import platform
 import re
@@ -27,6 +29,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import urllib.parse
 import urllib.request
 import zipfile
@@ -67,7 +70,10 @@ if sys.version_info < MIN_PYTHON:
 # Reuse seedling's own checksum-verifying downloader and color helpers rather
 # than reimplementing them -- both are import-only, no install required.
 sys.path.insert(0, str(REPO_ROOT / "src"))
+import seedling  # noqa: E402
 from seedling import colors, download  # noqa: E402
+
+SEEDLING_VERSION = seedling.__version__
 
 UV_LATEST_URL = "https://github.com/astral-sh/uv/releases/latest/download/{asset}"
 PBS_RELEASE_BASE = ("https://github.com/astral-sh/python-build-standalone"
@@ -82,6 +88,67 @@ GIT_WIN_LATEST_API = "https://api.github.com/repos/git-for-windows/git/releases/
 REQUIRED_PACKAGES = ["hatchling", "ipython", "ruff", "ipykernel", "pip"]
 
 SRC_PYPROJECT = REPO_ROOT / "src" / "pyproject.toml"
+
+# Every third-party component a bundle can contain, with the licence it
+# arrives under. seedling ships none of these -- it downloads them from their
+# publisher at the builder's direction -- but assembling them into a bundle
+# that is copied to a share IS redistribution, performed by whoever runs this
+# tool. See docs/LICENSING.md for the full position.
+#
+# "restricted" gates the build behind an explicit acknowledgement;
+# "permissive" and "copyleft" are recorded in the manifest but never gate.
+# Copyleft is not gated because it permits redistribution -- it just carries
+# obligations (a source offer) that the manifest surfaces.
+COMPONENTS = {
+    "uv": {
+        "source": "https://github.com/astral-sh/uv/releases",
+        "license": "Apache-2.0 OR MIT",
+        "redistribution": "permissive",
+    },
+    "python-build-standalone": {
+        "source": PBS_RELEASE_BASE,
+        "license": "PSF-2.0 and assorted upstream",
+        "redistribution": "permissive",
+    },
+    "python-packages": {
+        "source": "PyPI (or the configured index)",
+        "license": "per package -- see the wheel set",
+        "redistribution": "permissive",
+        "note": "Licences vary per package; review your own --packages set.",
+    },
+    "mingit": {
+        "source": GIT_WIN_LATEST_API,
+        "license": "GPL-2.0",
+        "redistribution": "copyleft",
+        "note": ("Redistributing binaries carries a source-offer obligation "
+                 "under GPL-2.0 section 3."),
+    },
+    "vscode": {
+        "source": "https://update.code.visualstudio.com",
+        "license": "Microsoft Software License (proprietary)",
+        "redistribution": "restricted",
+        "note": ("The MIT licence on microsoft/vscode covers the SOURCE, not "
+                 "these branded builds. Staging them on a share is "
+                 "redistribution under Microsoft's terms."),
+    },
+    "vscode-extensions": {
+        "source": "https://marketplace.visualstudio.com",
+        "license": "per extension, under the Marketplace Terms of Use",
+        "redistribution": "restricted",
+        "note": ("Marketplace content is governed by its own Terms of Use, "
+                 "separate from each extension's licence."),
+    },
+    "vscodium": {
+        "source": "https://github.com/VSCodium/vscodium/releases",
+        "license": "MIT",
+        "redistribution": "permissive",
+    },
+    "openvsx-extensions": {
+        "source": "https://open-vsx.org",
+        "license": "per extension, openly licensed",
+        "redistribution": "permissive",
+    },
+}
 
 
 # --------------------------------------------------------------------------
@@ -187,6 +254,142 @@ def ask(question: str, *, default: bool, auto: bool) -> bool:
             return True
         if reply in ("n", "no"):
             return False
+
+
+def planned_components(*, vscode: bool, mingit: bool, flavor: str,
+                       gallery_overridden: bool) -> list[str]:
+    """Which COMPONENTS keys this build will actually stage.
+
+    uv, the interpreters and the wheels are unconditional. The editor
+    resolves to the vscodium/openvsx pair or the vscode/marketplace pair
+    depending on configuration -- which is exactly what decides whether this
+    bundle contains anything restricted."""
+    names = ["uv", "python-build-standalone", "python-packages"]
+    if mingit:
+        names.append("mingit")
+    if vscode:
+        if flavor == "vscodium":
+            names += ["vscodium", "openvsx-extensions"]
+        else:
+            names.append("vscode")
+            # A Microsoft build pointed at another registry pulls its
+            # extensions from there, not from the Marketplace.
+            names.append("openvsx-extensions" if gallery_overridden
+                         else "vscode-extensions")
+    return names
+
+
+def restricted_among(names: list[str]) -> list[str]:
+    return [n for n in names
+            if COMPONENTS[n]["redistribution"] == "restricted"]
+
+
+def third_party_gate(names: list[str], *, accepted: bool,
+                     informational: bool = False) -> bool:
+    """Show what this bundle will contain and, when any of it is restricted,
+    require an explicit acknowledgement before staging it.
+
+    Deliberately NOT satisfied by --yes: that flag skips routine
+    confirmations, and acknowledging someone else's licence terms is not
+    routine. Returns True if the build may proceed."""
+    print()
+    print(colors.header("Third-party components in this bundle"))
+    for name in names:
+        meta = COMPONENTS[name]
+        tag = {"restricted": colors.warn("RESTRICTED"),
+               "copyleft": colors.warn("copyleft"),
+               "permissive": "permissive"}[meta["redistribution"]]
+        print(f"  {name.ljust(24)} {meta['license']}  [{tag}]")
+        if meta.get("note"):
+            for line in textwrap.wrap(meta["note"], 68):
+                print(f"    {colors.dim(line)}")
+
+    restricted = restricted_among(names)
+    if not restricted:
+        info("All permissively licensed -- nothing here restricts "
+             "redistribution. (Copyleft components, if any, permit it with "
+             "obligations; see docs/LICENSING.md.)")
+        return True
+
+    print()
+    print(colors.warn(
+        "This bundle will contain components whose terms RESTRICT "
+        "redistribution."))
+    print("  seedling ships none of these; it downloads them from their "
+          "publisher")
+    print("  at your direction. Copying the bundle to a share is "
+          "redistribution")
+    print("  performed by YOU, and it is your responsibility to hold the "
+          "rights")
+    print("  to do it. seedling grants you no such rights. See "
+          "docs/LICENSING.md.")
+    print()
+    print("  Avoid this entirely with SEEDLING_VSCODE_FLAVOR=\"vscodium\" "
+          "(MIT + Open VSX).")
+    print()
+
+    if informational:
+        # --dry-run: show what the real build would ask about, without
+        # claiming an acknowledgement the caller never gave.
+        print("    A real build stops here for acknowledgement "
+              "(or --accept-third-party-terms).")
+        return True
+    if accepted:
+        print("    Acknowledged via --accept-third-party-terms.")
+        return True
+    try:
+        reply = input("    Type 'yes' to confirm you hold the necessary "
+                      "rights: ").strip().lower()
+    except EOFError:
+        reply = ""
+    if reply == "yes":
+        return True
+    print()
+    warn("Not acknowledged; the restricted components were NOT staged.")
+    info("Re-run with --no-vscode to build without them, set "
+         "SEEDLING_VSCODE_FLAVOR=\"vscodium\" for an openly-licensed editor, "
+         "or pass --accept-third-party-terms for unattended builds.")
+    return False
+
+
+def write_manifest(output: Path, names: list[str], *, staged: dict) -> Path:
+    """Record what actually landed in the bundle, so an organization can
+    answer "what is in this, and under what terms" without re-deriving it.
+
+    Written even for a partial build -- it describes the folder as it is,
+    not as it was meant to be."""
+    entries = []
+    for name in names:
+        meta = COMPONENTS[name]
+        entry = {
+            "component": name,
+            "source": meta["source"],
+            "license": meta["license"],
+            "redistribution": meta["redistribution"],
+            "staged": bool(staged.get(name, False)),
+        }
+        if meta.get("note"):
+            entry["note"] = meta["note"]
+        if staged.get(f"{name}:version"):
+            entry["version"] = staged[f"{name}:version"]
+        entries.append(entry)
+
+    doc = {
+        "schema": 1,
+        "generated": datetime.datetime.now(datetime.UTC).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"),
+        "generated_by": f"seedling build-offline {SEEDLING_VERSION}",
+        "platform": f"{platform.system()}/{normalized_arch(platform.machine())}",
+        "notice": (
+            "seedling ships no third-party software. Each component below was "
+            "downloaded from its publisher at the builder's direction. "
+            "Distributing this bundle is an act of whoever distributes it, "
+            "under that component's terms. See docs/LICENSING.md."),
+        "components": entries,
+    }
+    path = output / "MANIFEST.json"
+    path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    return path
 
 
 def _progress(done: int, total: int) -> None:
@@ -840,6 +1043,13 @@ def main(argv=None) -> int:
         "--dry-run", action="store_true",
         help="Show the plan (platform, versions, destinations) and exit "
              "without downloading anything.")
+    parser.add_argument(
+        "--accept-third-party-terms", action="store_true",
+        help="Acknowledge that you hold the rights to redistribute the "
+             "restricted components this bundle will contain (VS Code and "
+             "Marketplace extensions). Required for unattended builds that "
+             "include them; --yes deliberately does NOT cover this. See "
+             "docs/LICENSING.md.")
     args = parser.parse_args(argv)
 
     auto = args.yes
@@ -896,11 +1106,36 @@ def main(argv=None) -> int:
         warn(version_error)
         return 2
 
+    # What this bundle will contain, licence-wise. Computed from the same
+    # settings the editor steps below actually use, so the notice can't drift
+    # from what gets staged.
+    from seedling.commands import vscode_cmd
+    try:
+        editor_flavor = vscode_cmd.flavor()
+    except vscode_cmd.UnknownFlavor as e:
+        print()
+        warn(str(e))
+        info("Refusing to guess: picking the wrong build here decides what "
+             "licence terms this bundle carries.")
+        return 2
+    components = planned_components(
+        vscode=not args.no_vscode,
+        mingit=(system == "Windows" and args.mingit),
+        flavor=editor_flavor,
+        gallery_overridden=bool(vscode_cmd.gallery_for(editor_flavor)),
+    )
+
     if args.dry_run:
+        third_party_gate(components, accepted=args.accept_third_party_terms,
+                         informational=True)
         print()
         print(colors.header("Dry run -- nothing downloaded. Re-run without "
                             "--dry-run to build."))
         return 0
+
+    if not third_party_gate(components,
+                            accepted=args.accept_third_party_terms):
+        return 2
 
     print()
     if not ask("Ready to build the bundle here?", default=True, auto=auto):
@@ -1028,6 +1263,26 @@ def main(argv=None) -> int:
     elif ask("Run the preflight check now?", default=True, auto=auto):
         verified = verify_bundle(output, seedling_copy, uv_exe, packages)
 
+    # 10. Manifest: what actually landed, and under what terms. Written from
+    # the real outcomes above, so a partial build produces an honest record
+    # rather than a description of what was intended.
+    step(10, "Record what was staged (MANIFEST.json)")
+    staged = {
+        "uv": uv_exe is not None,
+        "python-build-standalone": mirror_ok,
+        "python-packages": wheels_ok,
+        "mingit": (vendor / "git").exists(),
+        "vscode": vscode_ok and editor_flavor != "vscodium",
+        "vscode-extensions": vscode_ok and editor_flavor != "vscodium",
+        "vscodium": vscode_ok and editor_flavor == "vscodium",
+        "openvsx-extensions": vscode_ok and editor_flavor == "vscodium",
+        "python-build-standalone:version": ", ".join(mirrored_versions) or None,
+    }
+    manifest_path = write_manifest(output, components, staged=staged)
+    ok(f"Wrote {manifest_path}")
+    info("Hand this to whoever asks what the bundle contains -- it lists "
+         "every component, its source, and its licence.")
+
     # Summary.
     print()
     print(colors.header("Done. Bundle assembled at:"))
@@ -1039,6 +1294,7 @@ def main(argv=None) -> int:
               + (f"  {state}" if state else ""))
 
     print("Layout:")
+    layout("MANIFEST.json", "what was staged, and under what licence")
     layout(f"seedling{os.sep}", "users run install.cmd from here")
     layout(f"python-builds{os.sep}", "SEEDLING_PYTHON_MIRROR",
            "(populated)" if mirror_ok else colors.warn("(empty -- redo step 3)"))
