@@ -20,7 +20,7 @@ ALL_COMMANDS = [
     "repo-clone", "repo-list", "repo-cd", "repo-vscode", "repo-open",
     "repo-install", "remove-repo",
     "vscode", "summary", "health-check", "logs-viewer", "config", "where",
-    "kill-processes", "update-commands", "remove-user", "purge",
+    "apply", "kill-processes", "update-commands", "remove-user", "purge",
     "purge-and-reinstall",
 ]
 

@@ -64,6 +64,12 @@ KNOWN_KEYS: dict[str, str] = {
         "Extensions installed into a fresh editor (list). Empty/null means "
         "the built-in starter kit for the configured flavor. Set to an empty "
         "list to install none at all."),
+    "profile": (
+        "Path to the deployment profile `seed apply` uses by default -- the "
+        "TOML file describing the interpreters, venvs, packages and repos "
+        "this deployment expects. Recorded at install time from "
+        "SEEDLING_PROFILE. Empty/null means `seed apply` looks for "
+        "seedling-profile.toml in the current directory instead."),
 }
 
 _DEFAULTS: dict[str, Any] = {
@@ -79,6 +85,7 @@ _DEFAULTS: dict[str, Any] = {
     "vscode_flavor": "microsoft",
     "extension_gallery": None,
     "vscode_extensions": None,
+    "profile": None,
 }
 
 

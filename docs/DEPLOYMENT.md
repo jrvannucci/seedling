@@ -17,6 +17,7 @@ This page is the deployment track. It assumes you are setting seedling up
 - [Deployment configuration: `seedling.conf`](#deployment-configuration-seedlingconf)
 - [Shared-machine (multi-user) installs](#shared-machine-multi-user-installs)
 - [Choosing an editor build and registry](#choosing-an-editor-build-and-registry)
+- Defining the environment itself → **[PROFILES.md](PROFILES.md)**
 - [Rolling out](#rolling-out)
 - [Admin commands (shared-root teardown)](#admin-commands-shared-root-teardown)
 - [What a security review will ask](#what-a-security-review-will-ask)
@@ -114,6 +115,10 @@ or environment variables:
 - `SEEDLING_VSCODE_EXTENSIONS` (default: empty = the flavor's starter kit)
   — comma-separated extensions installed into a fresh editor, or `none` for
   no extensions at all. Seeds the `vscode_extensions` setting.
+- `SEEDLING_PROFILE` (default: empty) — path (relative to this repo copy, or
+  absolute) of a [deployment profile](PROFILES.md): the interpreters, named
+  venvs, packages and repos your users should end up with. When set, the
+  installer applies it instead of creating the built-in single `dev` venv.
 
 How it's applied: both installers read `seedling.conf` at the repo root
 (a piped install reads the copy inside the repo it just cloned). The
@@ -237,10 +242,13 @@ A workable order for a first deployment:
    `SEEDLING_PYTHON_MIRROR`. On a fully disconnected network, run
    `build-offline.cmd` to assemble the whole bundle in one step; see
    [OFFLINE.md](OFFLINE.md).
-4. **Set the default environment.** `SEEDLING_VENV_DEFAULT_PACKAGES` decides
-   what every new venv starts with — this is where you standardize a team's
-   toolchain. `SEEDLING_AUTO_VSCODE` decides whether the portable editor is
-   staged during install rather than downloaded on first use.
+4. **Define the environment.** For a single venv, `SEEDLING_VENV_DEFAULT_PACKAGES`
+   decides what every new venv starts with, and `SEEDLING_AUTO_VSCODE` whether
+   the portable editor is staged during install. For anything richer — several
+   named venvs, per-venv packages, repos to clone — write a
+   [deployment profile](PROFILES.md) and point `SEEDLING_PROFILE` at it. The
+   profile is also how you keep a fleet converged later: publish an updated
+   one and users run `seed apply`.
 5. **Prove it on a clean machine** that matches your users' — same OS, same
    lack of admin rights, same network restrictions. The offline guide has a
    [verification procedure](OFFLINE.md#proving-the-bundle-works-before-it-leaves)

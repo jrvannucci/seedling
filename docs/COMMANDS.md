@@ -809,6 +809,36 @@ seed logs-viewer
 seed logs-viewer --days 7
 ```
 
+## `seed apply [profile] [--preview] [--force]`
+
+Brings this machine in line with a [deployment profile](PROFILES.md) — the
+interpreters, named venvs and their packages, repos, and settings an
+organization has standardized on.
+
+- With no path, uses the profile recorded at install time (the `profile`
+  setting), else `seedling-profile.toml` in the current directory.
+- **Idempotent.** Applying twice changes nothing the second time, which is
+  what makes it usable both as the install-time provisioning step and as the
+  way a fleet picks up later changes to the standard.
+- **Never destroys.** An existing venv is left exactly as it is. `--force`
+  installs the profile's *missing* packages into it; nothing is ever removed
+  or recreated. Deleting is `seed remove-venv`, run on purpose.
+- `--preview` prints the plan and exits without changing anything.
+- Exit codes: `0` applied or already current, `1` a step failed (it names
+  which), `2` the profile itself is invalid.
+
+Every step is an ordinary `seed` command underneath (`python`, `venv`,
+`install`, `repo-clone`, `repo-install`, `config set`), so a profile can only
+do what you could have done by hand.
+
+```
+seed apply --preview
+seed apply
+seed apply ./team-profile.toml --force
+```
+
+---
+
 ## `seed config [get <key> | set <key> <value> | unset <key>]`
 
 Views and changes seedling's own settings, stored in
@@ -835,6 +865,8 @@ setting with its current value and an explanation. The keys:
   the OS trust store, or a PEM bundle (normally installed automatically
   from `vendor/certs/`). Applied to uv, git, and seedling's own downloads
   on every command.
+- `profile` — the [deployment profile](PROFILES.md) `seed apply` uses when
+  given no path. Recorded at install time from `SEEDLING_PROFILE`.
 - `vscode_flavor` — which editor build `seed vscode` installs:
   `microsoft` (default) or `vscodium`. Affects the **next** install; use
   `seed vscode --reinstall` to switch an existing one.

@@ -31,6 +31,7 @@ lab, a restricted network.
 | | |
 |---|---|
 | **[Deployment guide](DEPLOYMENT.md)** | `seedling.conf`, shared-machine installs, the elevated `admin-*` teardown family, a rollout checklist, and the answers to a security review. |
+| **[Deployment profiles](PROFILES.md)** | One file describing the environment your users should end up with — interpreters, named venvs and their packages, repos — applied at install and re-applied with `seed apply`. |
 | **[Offline / air-gapped networks](OFFLINE.md)** | Running with no internet at all: mirrors, vendored binaries, wheel directories, corporate CAs, and `build-offline.cmd`. |
 | **[Licensing and redistribution](LICENSING.md)** | seedling ships no third-party software. What it downloads, under what terms, and what changes when you stage a bundle for a share. |
 
@@ -54,7 +55,9 @@ layout, and running the tests.
 | Update or repair an install | [Using seedling → The update model](GUIDE.md#the-update-model) |
 | Remove seedling completely | [Using seedling → Uninstalling](GUIDE.md#uninstalling) |
 | Fix something that broke | [Using seedling → Troubleshooting](GUIDE.md#troubleshooting) |
-| Standardize a team's setup | [Deployment guide → `seedling.conf`](DEPLOYMENT.md#deployment-configuration-seedlingconf) |
+| Standardize a team's setup | [Deployment profiles](PROFILES.md) |
+| Give everyone the same venvs and packages | [Deployment profiles](PROFILES.md) |
+| Point installs at an internal source | [Deployment guide → `seedling.conf`](DEPLOYMENT.md#deployment-configuration-seedlingconf) |
 | Install with no internet | [Offline networks](OFFLINE.md) |
 | Put many users on one machine | [Deployment guide → Shared-machine installs](DEPLOYMENT.md#shared-machine-multi-user-installs) |
 | Tear down another user's install | [Deployment guide → Admin commands](DEPLOYMENT.md#admin-commands-shared-root-teardown) |

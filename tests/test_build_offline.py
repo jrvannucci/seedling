@@ -824,6 +824,50 @@ def test_manifest_records_components_and_staging(tmp_path):
     assert "seedling ships no third-party software" in doc["notice"]
 
 
+def test_profile_packages_are_added_to_the_wheel_set(tmp_path, capsys):
+    """The wheel set must be DERIVED from the profile, not maintained
+    alongside it -- drift between the two only surfaces as a failed install
+    in the air-gapped room, after the bundle has been carried there."""
+    prof = tmp_path / "p.toml"
+    prof.write_text('[[venv]]\nname = "a"\npackages = ["pandas", "numpy"]\n',
+                    encoding="utf-8")
+    build_offline.main(["--dry-run", "--no-vscode", "--profile", str(prof),
+                        "-o", str(tmp_path / "b")])
+    out = capsys.readouterr().out
+    wheels = [ln for ln in out.splitlines() if "Wheels" in ln][0]
+    assert "pandas" in wheels and "numpy" in wheels
+    for required in build_offline.REQUIRED_PACKAGES:
+        assert required in wheels, "the required set must survive"
+
+
+def test_profile_and_packages_flag_are_deduplicated(tmp_path, capsys):
+    prof = tmp_path / "p.toml"
+    prof.write_text('[[venv]]\nname = "a"\npackages = ["pandas"]\n',
+                    encoding="utf-8")
+    build_offline.main(["--dry-run", "--no-vscode", "--profile", str(prof),
+                        "--packages", "pandas", "-o", str(tmp_path / "b")])
+    wheels = [ln for ln in capsys.readouterr().out.splitlines()
+              if "Wheels" in ln][0]
+    assert wheels.count("pandas") == 1
+
+
+def test_an_invalid_profile_stops_the_build(tmp_path, capsys):
+    prof = tmp_path / "p.toml"
+    prof.write_text('[[venv]]\nname = ""\n', encoding="utf-8")
+    rc = build_offline.main(["--dry-run", "--no-vscode", "--profile", str(prof),
+                            "-o", str(tmp_path / "b")])
+    assert rc == 2
+    assert "non-empty name" in capsys.readouterr().out
+
+
+def test_empty_profile_flag_ignores_a_present_profile(tmp_path, capsys):
+    """--profile= is the escape hatch for building a bundle that
+    deliberately doesn't match the repo's profile."""
+    build_offline.main(["--dry-run", "--no-vscode", "--profile", "",
+                        "-o", str(tmp_path / "b")])
+    assert "Profile     :" not in capsys.readouterr().out
+
+
 def test_every_component_declares_a_redistribution_category():
     valid = {"permissive", "copyleft", "restricted"}
     for name, meta in build_offline.COMPONENTS.items():

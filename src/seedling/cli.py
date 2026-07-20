@@ -8,6 +8,7 @@ from . import __version__, colors, config, paths, runlog
 from .commands import (
     activate_cmd,
     admin_cmd,
+    apply_cmd,
     config_cmd,
     deactivate_cmd,
     default_venv_cmd,
@@ -72,6 +73,7 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("vscode", "[path] [--reinstall]", "Install (once) and open VS Code"),
     ]),
     ("Utilities", [
+        ("apply", "[profile] [--preview]", "Apply a deployment profile (venvs, packages, repos)"),
         ("config", "[get|set|unset]", "View or change seedling settings"),
         ("kill-processes", "[name] [--system]", "Force-close seedling's processes (or all, or named)"),
         ("update-commands", "[--from-branch B]", "Update the seed CLI itself"),
@@ -296,6 +298,19 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Close EVERY python and VS Code process on the "
                               "machine, not just seedling's. The sledgehammer.")
 
+    p_apply = sub.add_parser(
+        "apply", parents=[danger],
+        help="Bring this machine in line with a deployment profile "
+             "(interpreters, venvs, packages, repos)")
+    p_apply.add_argument("path", nargs="?",
+                         help="Profile file to apply. Omit to use the one "
+                              "recorded at install time, else "
+                              "seedling-profile.toml in this directory.")
+    p_apply.add_argument("--force", action="store_true",
+                         help="Also install the profile's missing packages "
+                              "into venvs that already exist. Never deletes "
+                              "or recreates anything.")
+
     p_update = sub.add_parser("update-commands",
                     help="Update the seed CLI itself from its source in ~/seedling/system/src")
     p_update.add_argument(
@@ -487,6 +502,7 @@ def _dispatch_main(argv: list[str]) -> int:
         "remove-venv": venv_remove_cmd.run_one,
         "purge": purge_cmd.run,
         "purge-and-reinstall": purge_cmd.run,
+        "apply": apply_cmd.run,
         "kill-processes": kill_cmd.run,
         "update-commands": update_cmd.run,
         "summary": summary_cmd.run,

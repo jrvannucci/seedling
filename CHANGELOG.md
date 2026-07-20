@@ -46,6 +46,28 @@ what a release involves.
 
 ### Added
 
+- **Deployment profiles and `seed apply`** — one TOML file describing the
+  environment an organization wants its users to end up with: interpreters,
+  named venvs and their packages, repos to clone, and settings. Point
+  `SEEDLING_PROFILE` at it in `seedling.conf` and the installer applies it as
+  part of the normal one-command setup, instead of creating the built-in
+  single `dev` venv.
+
+  This closes the main gap in the existing deployment story: previously an
+  organization could standardize *one* venv with *one* package list. A
+  profile expresses several named venvs with per-venv Python and packages.
+
+  `seed apply` is idempotent and re-runnable, so the same file is both the
+  install-time provisioning step and the way a fleet picks up later changes:
+  publish an updated profile, users run `seed apply`, and only the difference
+  is acted on. It never deletes or recreates anything — an existing venv is
+  left alone, and `--force` only adds the profile's missing packages.
+  `--preview` shows the plan first.
+
+  `build-offline` reads the profile too, so the wheel set is derived from the
+  venvs it declares rather than maintained by hand alongside them — drift
+  between the two previously surfaced as a failed install in the air-gapped
+  room. See [docs/PROFILES.md](docs/PROFILES.md).
 - **`docs/LICENSING.md`** — seedling's position, stated plainly: it ships no
   third-party software, downloads from each publisher at your direction, and
   grants you no rights to any of it. Staging a bundle for a share is

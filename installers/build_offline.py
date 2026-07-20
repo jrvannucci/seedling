@@ -1044,6 +1044,11 @@ def main(argv=None) -> int:
         help="Show the plan (platform, versions, destinations) and exit "
              "without downloading anything.")
     parser.add_argument(
+        "--profile", metavar="PATH",
+        help="Deployment profile whose venv packages must be in the bundle. "
+             "Defaults to seedling-profile.toml next to seedling.conf if it "
+             "exists. Pass --profile= (empty) to ignore it.")
+    parser.add_argument(
         "--accept-third-party-terms", action="store_true",
         help="Acknowledge that you hold the rights to redistribute the "
              "restricted components this bundle will contain (VS Code and "
@@ -1058,8 +1063,34 @@ def main(argv=None) -> int:
     arch = normalized_arch(platform.machine())
     versions = [v.strip() for v in args.pythons.split(",") if v.strip()] or [""]
     extra_packages = [p.strip() for p in args.packages.split(",") if p.strip()]
-    packages = REQUIRED_PACKAGES + [p for p in extra_packages
-                                    if p not in REQUIRED_PACKAGES]
+
+    # A profile declares which venvs its users get and what goes in them, so
+    # it -- not a hand-maintained --packages list -- is the authority on what
+    # the wheel set must contain. Keeping the two in sync by hand is exactly
+    # the drift that shows up as a failed install in the air-gapped room,
+    # long after the bundle left.
+    profile_packages: list[str] = []
+    profile_path = None
+    if args.profile is None:
+        candidate = REPO_ROOT / "seedling-profile.toml"
+        profile_path = candidate if candidate.is_file() else None
+    elif args.profile:
+        profile_path = Path(args.profile).expanduser()
+    if profile_path is not None:
+        from seedling import profile as profile_mod
+        try:
+            profile_packages = profile_mod.load(profile_path).package_set()
+        except profile_mod.ProfileError as e:
+            warn(f"{profile_path}: {e}")
+            info("Fix the profile, or pass --profile= to build without it.")
+            return 2
+
+    packages = REQUIRED_PACKAGES + [
+        p for p in extra_packages + profile_packages
+        if p not in REQUIRED_PACKAGES]
+    # De-duplicate while preserving order (a profile and --packages may
+    # legitimately name the same thing).
+    packages = list(dict.fromkeys(packages))
 
     # --verify-only: check a bundle that already exists (typically one already
     # copied to its share) and exit. Nothing is downloaded or written.
@@ -1093,6 +1124,10 @@ def main(argv=None) -> int:
                   if floor else "")
     print(f"  Python      : {', '.join(v or 'newest' for v in versions)}{floor_note}")
     print(f"  Wheels      : {', '.join(packages)}")
+    if profile_path is not None:
+        print(f"  Profile     : {profile_path}"
+              + (f"  (contributed {len(profile_packages)} package(s))"
+                 if profile_packages else ""))
     print(f"  VS Code     : {'skipped (--no-vscode)' if args.no_vscode else 'yes (~300MB, with extensions)'}")
     if system == "Windows":
         print(f"  MinGit      : {'yes (--mingit)' if args.mingit else 'no (pass --mingit to include it)'}")

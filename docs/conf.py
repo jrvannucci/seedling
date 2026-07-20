@@ -75,7 +75,7 @@ def _generate_home(*_args) -> None:
         "\n\n```{toctree}\n:maxdepth: 2\n:hidden:\n:caption: Using seedling\n\n"
         "GUIDE\nCOMMANDS\nDESIGN\n```\n"
         "\n```{toctree}\n:maxdepth: 2\n:hidden:\n:caption: Deploying seedling\n\n"
-        "DEPLOYMENT\nOFFLINE\nLICENSING\n```\n"
+        "DEPLOYMENT\nPROFILES\nOFFLINE\nLICENSING\n```\n"
         "\n```{toctree}\n:maxdepth: 1\n:hidden:\n:caption: More\n\n"
         "DOCUMENTATION\nCONTRIBUTING\n```\n"
     )

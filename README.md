@@ -171,6 +171,10 @@ where the usual Python setup path doesn't work:
   [`seedling.conf`](seedling.conf) in the copy you distribute; everyone who
   installs from it inherits them. No flags, no environment variables, no
   setup instructions to get wrong.
+- **One file defines the environment.** A
+  [deployment profile](docs/PROFILES.md) lists the interpreters, named venvs,
+  packages and repos your users should end up with — applied automatically at
+  install, and re-applied with `seed apply` when the standard changes.
 - **One install root, many users.** A `{user}` token gives each person a
   private, conflict-free folder — with an elevated `admin-*` family for
   cross-user teardown when a machine is decommissioned.
@@ -204,6 +208,8 @@ For a fully disconnected network, see
 
 - 📘 **[Deployment guide](docs/DEPLOYMENT.md)** — `seedling.conf`,
   shared-machine installs, admin teardown, rollout, security review.
+- 🧩 **[Deployment profiles](docs/PROFILES.md)** — one file describing the
+  venvs, packages and repos your users should end up with.
 - 📴 **[Offline / air‑gapped installs](docs/OFFLINE.md)** — running with no
   internet at all.
 - ⚖️ **[Licensing and redistribution](docs/LICENSING.md)** — seedling ships no
