@@ -64,6 +64,21 @@ what a release involves.
   left alone, and `--force` only adds the profile's missing packages.
   `--preview` shows the plan first.
 
+  A user can also point the ordinary one-line installer at a profile without
+  any distributed copy of the repo, via the `SEEDLING_PROFILE` **environment
+  variable** — so an admin can email or publish a single `.toml` and people
+  install from the public one-liner:
+
+  ```sh
+  curl -fsSL .../install.sh | SEEDLING_PROFILE=./team.toml sh
+  ```
+
+  The file is copied into `~/seedling/system/config/profile.toml` so
+  `seed apply` keeps working after the original goes away. A path given this
+  way must exist: the install stops rather than quietly falling back to the
+  default environment, unlike a `seedling.conf` entry (which warns and falls
+  back, so a fleet is never bricked by a profile that wasn't distributed).
+
   `build-offline` reads the profile too, so the wheel set is derived from the
   venvs it declares rather than maintained by hand alongside them — drift
   between the two previously surfaced as a failed install in the air-gapped

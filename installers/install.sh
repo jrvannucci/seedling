@@ -24,6 +24,14 @@ SEEDLING_REPO_FROM_ENV="${SEEDLING_REPO:-}"
 SEEDLING_HOME_FROM_ENV="${SEEDLING_HOME:-}"
 SEEDLING_AUTO_SETUP_FROM_ENV="${SEEDLING_AUTO_SETUP:-}"
 SEEDLING_AUTO_VSCODE_FROM_ENV="${SEEDLING_AUTO_VSCODE:-}"
+# Captured before seedling.conf is sourced (which would overwrite it). This
+# is what lets a user point the PIPED one-liner at their own profile, where
+# there is no local conf to edit:
+#   curl -fsSL .../install.sh | SEEDLING_PROFILE=./team.toml sh
+SEEDLING_PROFILE_FROM_ENV="${SEEDLING_PROFILE:-}"
+# The directory the user invoked from, captured before any `cd`, so a
+# relative profile path resolves against where they actually are.
+SEEDLING_INVOKED_FROM="$(pwd)"
 
 info()  { printf '\033[1;32m==>\033[0m %s\n' "$1"; }
 warn()  { printf '\033[1;33m!!\033[0m %s\n' "$1"; }
@@ -58,6 +66,7 @@ SEEDLING_NATIVE_TLS=""
 SEEDLING_VSCODE_FLAVOR=""
 SEEDLING_EXTENSION_GALLERY=""
 SEEDLING_VSCODE_EXTENSIONS=""
+SEEDLING_PROFILE=""
 CONF_FILE=""
 if [ -f "$REPO_ROOT/seedling.conf" ]; then
     CONF_FILE="$REPO_ROOT/seedling.conf"
@@ -169,6 +178,45 @@ SRC_DIR="$SEEDLING_HOME/system/src"
 # .git folder would be dead weight (and its read-only object files used
 # to break deletion on Windows).
 rm -rf "$SRC_DIR/.git"
+
+# The deployment profile travels with the source copy, so `seed apply` keeps
+# working after the share it was installed from goes away. An absolute path
+# in the conf is honoured as-is.
+PROFILE_PATH=""
+if [ -n "$SEEDLING_PROFILE_FROM_ENV" ]; then
+    # User-supplied, for the piped one-liner. Relative paths resolve against
+    # the directory they ran the installer from, not the source copy -- they
+    # are pointing at THEIR file.
+    case "$SEEDLING_PROFILE_FROM_ENV" in
+        /*|?:[\\/]*) PROFILE_SRC="$SEEDLING_PROFILE_FROM_ENV" ;;
+        *)           PROFILE_SRC="$SEEDLING_INVOKED_FROM/$SEEDLING_PROFILE_FROM_ENV" ;;
+    esac
+    # A missing path here is FATAL, unlike the conf case below. Someone who
+    # explicitly named a profile and silently got the default environment
+    # instead would not find out until something they expected is missing.
+    [ -f "$PROFILE_SRC" ] || die "SEEDLING_PROFILE=$SEEDLING_PROFILE_FROM_ENV was set, but no file exists at $PROFILE_SRC."
+    # Copy it in: the original may be a downloads folder, a mounted share, or
+    # a temp file, and `seed apply` has to keep working long after that goes
+    # away -- the same reason the source itself is copied.
+    PROFILE_PATH="$SEEDLING_HOME/system/config/profile.toml"
+    cp "$PROFILE_SRC" "$PROFILE_PATH"
+    info "Using profile $PROFILE_SRC (copied to $PROFILE_PATH)"
+elif [ -n "$SEEDLING_PROFILE" ]; then
+    # Conf-supplied: ships inside the distributed copy, so it already lives
+    # under ~/seedling and `seed update-commands` refreshes it.
+    case "$SEEDLING_PROFILE" in
+        /*|?:[\\/]*) PROFILE_PATH="$SEEDLING_PROFILE" ;;
+        *)           PROFILE_PATH="$SRC_DIR/$SEEDLING_PROFILE" ;;
+    esac
+    if [ ! -f "$PROFILE_PATH" ]; then
+        # Non-fatal, unlike the env case: a conf naming a profile that wasn't
+        # distributed shouldn't brick installs across a whole fleet.
+        warn "SEEDLING_PROFILE=$SEEDLING_PROFILE was set, but no profile "
+        warn "was found at $PROFILE_PATH -- falling back to the default setup."
+        PROFILE_PATH=""
+        SEEDLING_PROFILE=""
+    fi
+fi
 
 # ---------------------------------------------------------------------------
 # 2b-vendor. Offline binaries shipped inside the install source (see
@@ -327,6 +375,15 @@ if [ ! -f "$SETTINGS_FILE" ]; then
         [ -n "$entries" ] && entries="$entries,
 "
         entries="$entries  \"extension_gallery\": \"$(json_escape "$SEEDLING_EXTENSION_GALLERY")\""
+    fi
+    # Keyed off the RESOLVED path, not the conf variable: a profile supplied
+    # by the SEEDLING_PROFILE env var (the piped one-liner) leaves the conf
+    # variable empty, and would otherwise never be recorded -- so `seed
+    # apply` with no arguments would find nothing afterwards.
+    if [ -n "$PROFILE_PATH" ]; then
+        [ -n "$entries" ] && entries="$entries,
+"
+        entries="$entries  \"profile\": \"$(json_escape "$PROFILE_PATH")\""
     fi
     exts_norm=$(printf '%s' "$SEEDLING_VSCODE_EXTENSIONS" | tr -d ' ')
     if [ "$exts_norm" = "none" ]; then
@@ -510,7 +567,19 @@ else
             VSCODE_PID=$!
         fi
 
-        if [ -d "$SEEDLING_HOME/python/venvs/dev" ]; then
+        if [ -n "$PROFILE_PATH" ]; then
+            # A profile is the authoritative definition of this deployment's
+            # environment, so it REPLACES the built-in single-'dev'-venv
+            # setup rather than layering on top of it -- otherwise every
+            # machine would carry a 'dev' venv the admin never asked for.
+            info "Applying deployment profile: $PROFILE_PATH"
+            if env SEEDLING_HOME="$SEEDLING_HOME" "$SEED_CLI" python &&                env SEEDLING_HOME="$SEEDLING_HOME" "$SEED_CLI" apply "$PROFILE_PATH"; then
+                DEV_READY=1
+            else
+                warn "The deployment profile didn't fully apply."
+                warn "Re-run it later with:  seed apply"
+            fi
+        elif [ -d "$SEEDLING_HOME/python/venvs/dev" ]; then
             info "Default 'dev' venv already exists, leaving it as-is."
             DEV_READY=1
         else

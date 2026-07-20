@@ -75,6 +75,12 @@ seed summary              # see everything seedling has installed
 > Skip the default environment with `SEEDLING_AUTO_SETUP=false` before
 > installing. On Windows you can also just download the repo and
 > double‑click `install.cmd`.
+>
+> **Given a profile by your admin?** Point the same one-liner at it and you
+> get their exact environment — every venv, package and repo — in one step:
+> `curl -fsSL ... | SEEDLING_PROFILE=./team.toml sh` (on Windows, set
+> `$env:SEEDLING_PROFILE` first). See
+> [deployment profiles](docs/PROFILES.md).
 
 ---
 

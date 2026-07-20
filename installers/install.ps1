@@ -234,6 +234,51 @@ Copy-Item -Recurse -Force $OriginalSrc $SrcDir
 # recorded update_source (see below) instead of `git pull`-ing, so the
 # .git folder would be dead weight (and its read-only object files used
 # to break deletion on Windows).
+# The deployment profile travels with the source copy, so `seed apply` keeps
+# working after the share it was installed from goes away. An absolute path
+# in the conf is honoured as-is.
+$ProfilePath = ""
+if ($env:SEEDLING_PROFILE) {
+    # User-supplied, for the piped one-liner (`$env:SEEDLING_PROFILE = ...;
+    # irm ... | iex`), where there is no local conf to edit. Relative paths
+    # resolve against the directory they ran the installer from -- they are
+    # pointing at THEIR file.
+    $rawProfile = $env:SEEDLING_PROFILE
+    $profileSrc = if ([System.IO.Path]::IsPathRooted($rawProfile)) {
+        $rawProfile
+    } else {
+        Join-Path (Get-Location).Path $rawProfile
+    }
+    # Fatal, unlike the conf case below: someone who explicitly named a
+    # profile and silently got the default environment instead would not
+    # find out until something they expected is missing.
+    if (-not (Test-Path $profileSrc)) {
+        Die "SEEDLING_PROFILE=$rawProfile was set, but no file exists at $profileSrc."
+    }
+    # Copy it in: the original may be a downloads folder, a mounted share or
+    # a temp file, and `seed apply` has to keep working long after that goes
+    # away -- the same reason the source itself is copied.
+    $ProfilePath = Join-Path $SeedlingHome "system\config\profile.toml"
+    Copy-Item -Force $profileSrc $ProfilePath
+    Info "Using profile $profileSrc (copied to $ProfilePath)"
+} elseif ($Conf["SEEDLING_PROFILE"]) {
+    # Conf-supplied: ships inside the distributed copy, so it already lives
+    # under the seedling home and `seed update-commands` refreshes it.
+    $rawProfile = $Conf["SEEDLING_PROFILE"]
+    if ([System.IO.Path]::IsPathRooted($rawProfile)) {
+        $ProfilePath = $rawProfile
+    } else {
+        $ProfilePath = Join-Path $SrcDir $rawProfile
+    }
+    if (-not (Test-Path $ProfilePath)) {
+        # Non-fatal, unlike the env case: a conf naming a profile that wasn't
+        # distributed shouldn't brick installs across a whole fleet.
+        Warn "SEEDLING_PROFILE=$rawProfile was set, but no profile was found at"
+        Warn "$ProfilePath -- falling back to the default setup."
+        $ProfilePath = ""
+    }
+}
+
 $SrcGit = Join-Path $SrcDir ".git"
 if (Test-Path $SrcGit) { Remove-Item -Recurse -Force $SrcGit }
 
@@ -370,6 +415,7 @@ if (-not (Test-Path $SettingsFile)) {
     if ($Conf["SEEDLING_EXTENSION_GALLERY"]) {
         $seed["extension_gallery"] = $Conf["SEEDLING_EXTENSION_GALLERY"]
     }
+    if ($ProfilePath) { $seed["profile"] = "$ProfilePath" }
     if ($Conf["SEEDLING_VSCODE_EXTENSIONS"]) {
         $extsRaw = $Conf["SEEDLING_VSCODE_EXTENSIONS"].Trim()
         if ($extsRaw.ToLower() -eq "none") {
@@ -515,7 +561,22 @@ if ($AutoSetup.ToLower() -eq "false") {
         } -ArgumentList $SeedCli, $SeedlingHome
     }
 
-    if (Test-Path (Join-Path $SeedlingHome "python\venvs\dev")) {
+    if ($ProfilePath) {
+        # A profile is the authoritative definition of this deployment's
+        # environment, so it REPLACES the built-in single-'dev'-venv setup
+        # rather than layering on top of it -- otherwise every machine would
+        # carry a 'dev' venv the admin never asked for.
+        Info "Applying deployment profile: $ProfilePath"
+        $env:SEEDLING_HOME = $SeedlingHome
+        & $SeedCli python
+        if ($LASTEXITCODE -eq 0) { & $SeedCli apply $ProfilePath }
+        if ($LASTEXITCODE -eq 0) {
+            $DevReady = $true
+        } else {
+            Warn "The deployment profile didn't fully apply."
+            Warn "Re-run it later with:  seed apply"
+        }
+    } elseif (Test-Path (Join-Path $SeedlingHome "python\venvs\dev")) {
         Info "Default 'dev' venv already exists, leaving it as-is."
         $DevReady = $true
     } else {

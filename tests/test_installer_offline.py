@@ -174,6 +174,101 @@ class TestOrgConf:
         assert "UV_NATIVE_TLS" not in (env_log.read_text() if env_log.exists() else "")
 
 
+class TestProfile:
+    """SEEDLING_PROFILE makes the installer apply a deployment profile
+    instead of the built-in single-'dev'-venv setup."""
+
+    def _profile(self, copy, body: str):
+        (copy / "seedling-profile.toml").write_text(body, encoding="utf-8")
+
+    def test_profile_is_recorded_and_applied(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        self._profile(copy, '[[venv]]\nname = "team"\ndefault = true\n')
+        _write_conf(copy, SEEDLING_PROFILE="seedling-profile.toml")
+        result = run_install()
+        assert result.returncode == 0, result.stdout + result.stderr
+        # Recorded against the COPY inside ~/seedling, so `seed apply` keeps
+        # working after the install share goes away.
+        recorded = _settings(home)["profile"]
+        assert recorded.endswith("seedling-profile.toml")
+        assert "system" in recorded.replace("\\", "/")
+        assert "seed-cli apply" in _calls(home)
+
+    def test_profile_replaces_the_default_dev_venv_setup(self, install_env):
+        """Otherwise every machine carries a 'dev' venv the admin never
+        asked for, alongside the ones the profile declares."""
+        copy, fake_home, home, run_install = install_env
+        self._profile(copy, '[[venv]]\nname = "team"\n')
+        _write_conf(copy, SEEDLING_PROFILE="seedling-profile.toml")
+        run_install()
+        calls = _calls(home)
+        assert "seed-cli apply" in calls
+        assert "seed-cli venv dev" not in calls
+
+    def test_a_missing_profile_falls_back_instead_of_failing(self, install_env):
+        """A conf naming a profile that wasn't distributed must not brick the
+        install -- it warns and does the normal setup."""
+        copy, fake_home, home, run_install = install_env
+        _write_conf(copy, SEEDLING_PROFILE="nope.toml")
+        result = run_install()
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "falling back to the default setup" in result.stdout
+        assert "profile" not in (_settings(home) or {})
+        assert "seed-cli venv dev" in _calls(home)
+
+    def test_no_profile_key_when_unset(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        _write_conf(copy, SEEDLING_AUTO_SETUP="false")
+        run_install()
+        assert "profile" not in (_settings(home) or {})
+
+    def test_env_var_lets_a_user_supply_their_own_profile(self, install_env, tmp_path):
+        """The piped one-liner has no local conf to edit, so SEEDLING_PROFILE
+        as an ENV VAR is the only way a user can point at their own file."""
+        copy, fake_home, home, run_install = install_env
+        mine = tmp_path / "mine.toml"
+        mine.write_text('[[venv]]\nname = "mine"\ndefault = true\n', encoding="utf-8")
+        result = run_install(f"SEEDLING_PROFILE='{mine.as_posix()}'")
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "seed-cli apply" in _calls(home)
+        assert "seed-cli venv dev" not in _calls(home)
+
+    def test_a_user_profile_is_copied_into_the_seedling_home(self, install_env, tmp_path):
+        """The original may be a temp file or a mounted share; `seed apply`
+        has to keep working after that goes away."""
+        copy, fake_home, home, run_install = install_env
+        mine = tmp_path / "mine.toml"
+        mine.write_text('[[venv]]\nname = "mine"\n', encoding="utf-8")
+        run_install(f"SEEDLING_PROFILE='{mine.as_posix()}'")
+        copied = home / "system" / "config" / "profile.toml"
+        assert copied.is_file()
+        assert "mine" in copied.read_text(encoding="utf-8")
+        assert _settings(home)["profile"] == str(copied).replace("\\", "/") \
+            or _settings(home)["profile"].endswith("profile.toml")
+
+    def test_env_var_beats_the_conf(self, install_env, tmp_path):
+        copy, fake_home, home, run_install = install_env
+        (copy / "seedling-profile.toml").write_text(
+            '[[venv]]\nname = "fromconf"\n', encoding="utf-8")
+        _write_conf(copy, SEEDLING_PROFILE="seedling-profile.toml")
+        mine = tmp_path / "mine.toml"
+        mine.write_text('[[venv]]\nname = "fromenv"\n', encoding="utf-8")
+        run_install(f"SEEDLING_PROFILE='{mine.as_posix()}'")
+        copied = (home / "system" / "config" / "profile.toml").read_text(encoding="utf-8")
+        assert "fromenv" in copied and "fromconf" not in copied
+
+    def test_a_missing_user_profile_is_fatal(self, install_env, tmp_path):
+        """Deliberately unlike the conf case, which falls back. Someone who
+        explicitly named a profile and silently got the DEFAULT environment
+        wouldn't find out until something they expected was missing."""
+        copy, fake_home, home, run_install = install_env
+        result = run_install(f"SEEDLING_PROFILE='{(tmp_path / 'ghost.toml').as_posix()}'")
+        assert result.returncode != 0
+        combined = result.stdout + result.stderr
+        assert "no file exists at" in combined
+        assert "falling back" not in combined
+
+
 class TestEditorConf:
     """SEEDLING_VSCODE_FLAVOR / _EXTENSION_GALLERY / _VSCODE_EXTENSIONS reach
     settings.json intact, and a pristine conf seeds none of them."""
