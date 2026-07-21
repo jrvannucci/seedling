@@ -58,6 +58,45 @@ class TestBashFunction:
         assert result.stdout.splitlines()[0].endswith("seedling/repo/myproj")
         assert "exit=1" in result.stdout
 
+    def test_auto_activate_false_skips_startup_and_the_spawn(self, tmp_path):
+        """`seed auto-activate False` is honoured by a plain grep of
+        settings.json -- no seed-cli launch at all, and no activation."""
+        home = tmp_path / "seedling"
+        (home / "system" / "config").mkdir(parents=True)
+        (home / "system" / "config" / "settings.json").write_text(
+            '{\n  "auto_activate": false,\n  "default_venv": "dev"\n}\n')
+        log = home / "system" / "bin" / "calls.log"
+        _stub_cli(home, f'echo "$*" >> "{log.as_posix()}"\n'
+                        f'[ "$1 $2 $3" = "config get default_venv" ] && echo dev\n'
+                        f'exit 0\n')
+        rendered = _render_sh(tmp_path, home)
+        result = run_bash(
+            f"unset VIRTUAL_ENV; . '{rendered}'; "
+            f"echo \"VE=[${{VIRTUAL_ENV:-}}]\"")
+        assert "VE=[]" in result.stdout                 # not activated
+        assert not log.exists(), "seed-cli must not be spawned when off"
+
+    def test_auto_activate_true_activates_at_startup(self, tmp_path):
+        home = tmp_path / "seedling"
+        (home / "system" / "config").mkdir(parents=True)
+        (home / "system" / "config" / "settings.json").write_text(
+            '{\n  "auto_activate": true,\n  "default_venv": "dev"\n}\n')
+        activate = home / "python" / "venvs" / "dev" / "bin" / "activate"
+        activate.parent.mkdir(parents=True)
+        activate.write_text("VIRTUAL_ENV=ACTIVATED-DEV; export VIRTUAL_ENV\n"
+                            "deactivate() { unset VIRTUAL_ENV; unset -f deactivate; }\n")
+        _stub_cli(home, textwrap.dedent(f"""\
+            [ "$1 $2 $3" = "config get default_venv" ] && echo dev
+            if [ "$1" = "activate" ] && [ "$3" = "--print-path" ]; then
+                echo "{activate.as_posix()}"
+            fi
+            exit 0
+        """))
+        rendered = _render_sh(tmp_path, home)
+        result = run_bash(
+            f"unset VIRTUAL_ENV; . '{rendered}'; echo \"VE=[${{VIRTUAL_ENV:-}}]\"")
+        assert "VE=[ACTIVATED-DEV]" in result.stdout
+
     def test_auto_deactivate_when_active_venv_deleted(self, tmp_path):
         home = tmp_path / "seedling"
         venv = home / "python" / "venvs" / "dev"
@@ -211,6 +250,43 @@ class TestPowerShellFunction:
         assert "VE=ACTIVATED-DEV" in out, out          # the venv was activated
         assert "seed-cli" not in out, out              # ...without invoking the CLI
         assert "CommandNotFound" not in out, out
+
+    def test_auto_activate_false_skips_startup_activation(self, tmp_path):
+        """`seed auto-activate False` leaves default_venv set but stops new
+        shells activating it -- and still without launching seed-cli."""
+        home = tmp_path / "seedling"
+        (home / "system" / "config").mkdir(parents=True)
+        (home / "system" / "config" / "settings.json").write_text(
+            '{ "auto_activate": false, "default_venv": "dev" }', encoding="utf-8")
+        scripts = home / "python" / "venvs" / "dev" / "Scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "Activate.ps1").write_text("$env:VIRTUAL_ENV = 'ACTIVATED-DEV'\n")
+        rendered = tmp_path / "seed.ps1"
+        rendered.write_text(
+            PS_TEMPLATE.read_text().replace("__SEEDLING_HOME_PLACEHOLDER__", str(home)))
+        result = self._run_ps(
+            f"Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue; "
+            f". '{rendered}'; Write-Output \"VE=[$env:VIRTUAL_ENV]\"")
+        out = result.stdout + result.stderr
+        assert "VE=[]" in out, out                      # not activated
+        assert "seed-cli" not in out, out               # ...and no spawn
+
+    def test_absent_auto_activate_key_still_activates(self, tmp_path):
+        """Older settings files predate the key; absence must mean ON."""
+        home = tmp_path / "seedling"
+        (home / "system" / "config").mkdir(parents=True)
+        (home / "system" / "config" / "settings.json").write_text(
+            '{ "default_venv": "dev" }', encoding="utf-8")
+        scripts = home / "python" / "venvs" / "dev" / "Scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "Activate.ps1").write_text("$env:VIRTUAL_ENV = 'ACTIVATED-DEV'\n")
+        rendered = tmp_path / "seed.ps1"
+        rendered.write_text(
+            PS_TEMPLATE.read_text().replace("__SEEDLING_HOME_PLACEHOLDER__", str(home)))
+        result = self._run_ps(
+            f"Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue; "
+            f". '{rendered}'; Write-Output \"VE=[$env:VIRTUAL_ENV]\"")
+        assert "VE=[ACTIVATED-DEV]" in (result.stdout + result.stderr)
 
     def test_startup_falls_back_to_seed_cli_when_activate_script_missing(self, tmp_path):
         """If the venv isn't where the shortcut expects (custom layout, deleted

@@ -14,7 +14,7 @@ destructive action reads the same way (`remove-venv`, `remove-python`,
 | Family | Commands |
 |---|---|
 | Python interpreters *(structural — the base installs venvs are built from)* | `python [ver]` *(install)*, `python-list`, `remove-python` |
-| Venvs & packages *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `venv-default`, `install`, `uninstall`, `package-list`, `remove-venv`, `remove-venv-all` |
+| Venvs & packages *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `remove-venv`, `remove-venv-all` |
 | Offline utilities *(build a wheel set for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>` |
 | Repos | `repo-clone`, `repo-list`, `repo-cd`, `repo-vscode`, `repo-open`, `repo-install`, `remove-repo` |
 | Everyday / singletons | `vscode`, `summary`, `health-check`, `logs-viewer`, `config`, `where`, `kill-processes`, `update-commands`, `remove-user`, `purge`, `purge-and-reinstall` |
@@ -168,6 +168,28 @@ project is a natural next step.
 ```
 seed venv-default
 seed venv-default myproject
+```
+
+## `seed auto-activate [True|False]`
+
+Turns **auto-activation of the default venv in new shells** on or off. This
+is separate from *which* venv is the default (`seed venv-default`): it decides
+*whether* that venv activates automatically when you open a terminal.
+
+- With `True` / `False` (case-insensitive): sets it. Existing shells are
+  unaffected — open a new terminal to see the change.
+- With no argument: shows the current state.
+- Turning it off **leaves `default_venv` set** — `seed activate` still works,
+  and turning it back on resumes activating the same venv.
+
+Sugar for the `auto_activate` setting (`seed config set auto_activate
+true|false`). Off by grep, on by default: the shell hook honours it without
+launching seed-cli.
+
+```
+seed auto-activate            # show current state
+seed auto-activate False      # stop auto-activating in new terminals
+seed auto-activate True       # resume
 ```
 
 ## `seed install <package...>`
@@ -850,6 +872,10 @@ setting with its current value and an explanation. The keys:
 - `default_venv` — a venv name that **every new shell auto-activates** on
   startup. Unset means no auto-activation. (Existing shells are
   unaffected; open a new terminal to see it.)
+- `auto_activate` — whether new shells auto-activate `default_venv`
+  (true/false, default true). Toggle with
+  [`seed auto-activate True|False`](#seed-auto-activate-truefalse); when
+  false, the default venv stays set but isn't activated automatically.
 - `update_source` — where `seed update-commands` gets seedling's own
   source: a git URL (works with self-hosted GitHub/GitLab on isolated
   networks) *or* a plain directory path (e.g. a network drive holding a

@@ -9,6 +9,7 @@ from .commands import (
     activate_cmd,
     admin_cmd,
     apply_cmd,
+    auto_activate_cmd,
     config_cmd,
     deactivate_cmd,
     default_venv_cmd,
@@ -53,6 +54,7 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("activate", "<name>", "Activate a venv in this shell"),
         ("deactivate", "", "Deactivate the current venv"),
         ("venv-default", "[name]", "Show or set the venv new shells auto-activate"),
+        ("auto-activate", "[True|False]", "Turn default-venv auto-activation on/off"),
         ("install", "<package...>", "Install packages (uv pip install)"),
         ("uninstall", "<package...>", "Uninstall packages (uv pip uninstall)"),
         ("package-list", "", "List installed packages (uv pip list)"),
@@ -196,6 +198,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_default_venv.add_argument("name", nargs="?",
                                  help="Venv to auto-activate in new shells; "
                                       "omit to show the current one")
+
+    p_auto = sub.add_parser(
+        "auto-activate",
+        help="Turn auto-activation of the default venv in new shells on or off")
+    p_auto.add_argument("state", nargs="?",
+                        help="True or False; omit to show the current state")
 
     p_install = sub.add_parser(
         "install", help="Install packages into the active venv (passthrough to `uv pip install`)")
@@ -484,6 +492,7 @@ def _dispatch_main(argv: list[str]) -> int:
         "activate": activate_cmd.run,
         "deactivate": deactivate_cmd.run,
         "venv-default": default_venv_cmd.run,
+        "auto-activate": auto_activate_cmd.run,
         "install": install_cmd.run,
         "uninstall": uninstall_cmd.run,
         "package-list": list_cmd.list_packages,

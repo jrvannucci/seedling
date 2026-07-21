@@ -15,6 +15,7 @@ from seedling.commands import python_cmd
 ALL_COMMANDS = [
     "python", "python-list", "remove-python",
     "venv", "venv-list", "remove-venv", "remove-venv-all", "venv-default",
+    "auto-activate",
     "activate", "deactivate", "install", "uninstall", "package-list",
     "download-whl", "download-requirements",
     "repo-clone", "repo-list", "repo-cd", "repo-vscode", "repo-open",
@@ -224,6 +225,40 @@ def test_config_show_get_set_unset(run_cli, home):
     assert config.get("venv_default_packages") == ["ipython", "ruff", "ipykernel"]
     code, out = run_cli("config", "set", "bogus_key", "x")
     assert code == 1 and "Unknown key" in out
+
+
+def test_auto_activate_toggles_and_shows(run_cli, home):
+    # Default is on.
+    assert config.get("auto_activate") is True
+    code, out = run_cli("auto-activate")
+    assert code == 0 and "ON" in out
+
+    code, out = run_cli("auto-activate", "False")
+    assert code == 0
+    assert config.get("auto_activate") is False        # a real bool, not "False"
+    code, out = run_cli("auto-activate")
+    assert "OFF" in out
+
+    code, out = run_cli("auto-activate", "true")        # case-insensitive
+    assert code == 0 and config.get("auto_activate") is True
+
+
+def test_auto_activate_rejects_non_boolean(run_cli, home):
+    code, out = run_cli("auto-activate", "maybe")
+    assert code == 1
+    assert "expected True or False" in out
+    # An invalid value must not change the stored setting.
+    assert config.get("auto_activate") is True
+
+
+def test_auto_activate_is_independent_of_default_venv(run_cli, home):
+    """Turning auto-activation off leaves the default venv set -- the two are
+    separate settings."""
+    make_venv_dirs(home, "dev")
+    run_cli("venv-default", "dev")
+    run_cli("auto-activate", "False")
+    assert config.get("default_venv") == "dev"
+    assert config.get("auto_activate") is False
 
 
 def test_config_native_tls_stores_real_bool(run_cli, home):

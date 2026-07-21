@@ -130,8 +130,13 @@ if (-not $env:VIRTUAL_ENV) {
     $script:SeedlingSettings = Join-Path $script:SeedlingHome "system\config\settings.json"
     if (Test-Path $script:SeedlingSettings) {
         try {
-            $script:SeedlingDefaultVenv = `
-                (Get-Content -Raw $script:SeedlingSettings | ConvertFrom-Json).default_venv
+            $script:SeedlingCfg = Get-Content -Raw $script:SeedlingSettings | ConvertFrom-Json
+            # auto_activate defaults to on: only an explicit `false` disables
+            # it, so an absent/null value (older settings files) still
+            # activates. Toggle with `seed auto-activate True|False`.
+            if ($script:SeedlingCfg.auto_activate -ne $false) {
+                $script:SeedlingDefaultVenv = $script:SeedlingCfg.default_venv
+            }
         } catch {
             # A malformed settings file must not break every new shell; fall
             # through to the seed-cli path, which reports the real problem.

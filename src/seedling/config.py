@@ -16,6 +16,11 @@ KNOWN_KEYS: dict[str, str] = {
     "default_venv": (
         "Venv name every new shell auto-activates on startup. Empty/null "
         "means no auto-activation."),
+    "auto_activate": (
+        "Whether new shells auto-activate `default_venv` at startup. "
+        "true/false (default true). Toggle with `seed auto-activate "
+        "True|False`; when false, a default_venv is left set but not "
+        "activated automatically."),
     "update_source": (
         "Where `seed update-commands` fetches seedling's own source from: a "
         "git URL (including self-hosted GitHub/GitLab on another network) "
@@ -75,6 +80,7 @@ KNOWN_KEYS: dict[str, str] = {
 _DEFAULTS: dict[str, Any] = {
     "default_base": None,
     "default_venv": None,
+    "auto_activate": True,
     "update_source": None,
     "venv_default_packages": ["ipython", "ruff", "ipykernel"],
     "python_mirror": None,

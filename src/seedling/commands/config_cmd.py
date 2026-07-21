@@ -23,7 +23,7 @@ import json
 from .. import colors, config, paths
 
 _LIST_KEYS = {"venv_default_packages"}
-_BOOL_KEYS = {"native_tls"}
+_BOOL_KEYS = {"native_tls", "auto_activate"}
 
 
 def _format_value(value) -> str:

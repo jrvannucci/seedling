@@ -115,13 +115,25 @@ seed() {
 
 # Auto-activate the configured default venv in every new shell
 # (set one with: seed config set default_venv <name>). Skipped when some
-# venv is already active. SEEDLING_NO_LOG keeps this startup query from
+# venv is already active, or when auto-activation is turned off with
+# `seed auto-activate False`. SEEDLING_NO_LOG keeps this startup query from
 # spamming seedling's command log on every shell launch.
 if [ -z "$VIRTUAL_ENV" ]; then
-    __seedling_default_venv="$(SEEDLING_NO_LOG=1 "$__SEEDLING_CLI" config get default_venv 2>/dev/null)"
+    # Honour `seed auto-activate False` without a seed-cli launch: settings.json
+    # is written by Python's json.dumps (deterministic formatting), so a plain
+    # grep for the disabled state is reliable, and skipping here also saves the
+    # config-get process below. Only an explicit `false` disables it; an
+    # absent key (older installs) stays enabled.
+    __seedling_settings="$__SEEDLING_HOME/system/config/settings.json"
+    if [ -f "$__seedling_settings" ] && \
+       grep -Eq '"auto_activate"[[:space:]]*:[[:space:]]*false' "$__seedling_settings"; then
+        __seedling_default_venv=""
+    else
+        __seedling_default_venv="$(SEEDLING_NO_LOG=1 "$__SEEDLING_CLI" config get default_venv 2>/dev/null)"
+    fi
     if [ -n "$__seedling_default_venv" ]; then
         seed activate "$__seedling_default_venv" >/dev/null 2>&1 \
             || echo "seedling: couldn't auto-activate default venv '$__seedling_default_venv'"
     fi
-    unset __seedling_default_venv
+    unset __seedling_default_venv __seedling_settings
 fi

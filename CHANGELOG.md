@@ -11,6 +11,16 @@ what a release involves.
 
 ## [Unreleased]
 
+### Added
+
+- **`seed auto-activate True|False`** — turn auto-activation of the default
+  venv in new shells on or off, without unsetting which venv is the default.
+  Off leaves `default_venv` set (so `seed activate` still works and turning it
+  back on resumes the same venv); it just stops new terminals activating it
+  automatically. Both shell hooks honour it by reading the setting directly —
+  the PowerShell hook from `settings.json` it already parses, the POSIX hook
+  by a grep that also skips its startup seed-cli launch entirely when off.
+
 ### Changed
 
 - **New PowerShell terminals open faster.** The shell hook auto-activates the
