@@ -24,6 +24,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -233,3 +234,109 @@ def plant_stub_uv(home: Path) -> Path:
     stub.write_text(STUB_UV)
     stub.chmod(0o755)
     return bin_dir
+
+
+# ---------------------------------------------------------------------------
+# Windows installer harness -- lets install.ps1 be EXECUTED end to end, not
+# just syntax-checked. The trick that makes it possible: install.ps1 skips the
+# uv download when system\bin\uv.exe already exists, then runs `& uv tool
+# install` and expects seed-cli.exe to appear. So the whole thing works with a
+# real (tiny) stub uv.exe in place, exactly like the POSIX stub -- but on
+# Windows `& $UvExe` needs a genuine PE executable, not a script named .exe.
+# We compile one with the C# compiler that ships with .NET Framework (present
+# on every Windows box). It mirrors the POSIX stub: logs its calls, records
+# UV_* env, and fabricates seed-cli.exe (a copy of itself) on `tool install`.
+# ---------------------------------------------------------------------------
+_STUB_EXE_SRC = r"""
+using System;
+using System.IO;
+using System.Collections;
+class Stub {
+    static int Main(string[] a) {
+        string dir = AppDomain.CurrentDomain.BaseDirectory;
+        string self = Path.GetFileNameWithoutExtension(
+            System.Reflection.Assembly.GetExecutingAssembly().Location);
+        File.AppendAllText(Path.Combine(dir, "calls.log"),
+            self + " " + string.Join(" ", a) + "\n");
+        if (self == "uv") {
+            using (var w = new StreamWriter(Path.Combine(dir, "uv-env.log"), true)) {
+                foreach (DictionaryEntry e in Environment.GetEnvironmentVariables()) {
+                    string k = (string)e.Key;
+                    if (k.StartsWith("UV_") || k == "SSL_CERT_FILE" || k == "GIT_SSL_CAINFO")
+                        w.WriteLine(k + "=" + e.Value);
+                }
+            }
+            if (a.Length >= 1 && a[0] == "tool")
+                File.Copy(Path.Combine(dir, "uv.exe"),
+                          Path.Combine(dir, "seed-cli.exe"), true);
+        }
+        // `seed-cli config get default_venv` prints nothing -> the installer
+        // reads it as "unset" and sets the default, same as a real fresh run.
+        return 0;
+    }
+}
+"""
+
+_stub_exe_cache: Path | None = None
+
+
+def _compiled_stub_uv() -> Path | None:
+    """Compile the stub uv.exe once per session (cached), or None if the C#
+    compiler isn't available. Copied into each test's bin dir afterward."""
+    global _stub_exe_cache
+    if _stub_exe_cache and _stub_exe_cache.exists():
+        return _stub_exe_cache
+    if POWERSHELL is None:
+        return None
+    out = Path(tempfile.mkdtemp(prefix="seedling-stub-")) / "uv.exe"
+    src = out.parent / "stub.cs"
+    src.write_text(_STUB_EXE_SRC, encoding="utf-8")
+    ps = (f"Add-Type -TypeDefinition (Get-Content -Raw '{src}') "
+          f"-OutputAssembly '{out}' -OutputType ConsoleApplication "
+          f"-ErrorAction Stop")
+    subprocess.run([POWERSHELL, "-NoProfile", "-Command", ps],
+                   capture_output=True, text=True, timeout=180)
+    if not out.exists():
+        return None
+    _stub_exe_cache = out
+    return out
+
+
+# Cheap collection-time gate (no compile): Windows + a PowerShell on PATH.
+# Whether the stub actually compiles is checked lazily in plant_stub_uv_windows
+# so a normal `pytest` run never pays a compile cost it won't use.
+needs_ps_installer = pytest.mark.skipif(
+    not (os.name == "nt" and POWERSHELL is not None),
+    reason="needs Windows and PowerShell")
+
+
+def plant_stub_uv_windows(home: Path) -> Path:
+    """Pre-place the compiled stub uv.exe at system\\bin so install.ps1 runs
+    with no network and no real build. Skips the test if the C# compiler
+    isn't available -- compiled once per session, then reused."""
+    stub = _compiled_stub_uv()
+    if stub is None:
+        pytest.skip("could not compile the stub uv.exe (no C# compiler?)")
+    bin_dir = home / "system" / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(stub, bin_dir / "uv.exe")
+    return bin_dir
+
+
+def run_powershell_install(copy: Path, seedling_home: Path, fake_profile: Path,
+                           env_extra: dict | None = None, timeout: int = 300):
+    """Execute install.ps1 against an isolated home and a FAKE $PROFILE, so
+    the hook line never touches the real user profile. $PROFILE is only read
+    by the installer, so overriding it in the calling scope redirects the
+    write. SEEDLING_*/UV_* are scrubbed from the environment first."""
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith(("SEEDLING_", "UV_"))
+           and k not in ("SSL_CERT_FILE", "GIT_SSL_CAINFO")}
+    env["SEEDLING_HOME"] = str(seedling_home)
+    if env_extra:
+        env.update(env_extra)
+    script = copy / "installers" / "install.ps1"
+    cmd = f"$PROFILE = '{fake_profile}'; & '{script}'"
+    return subprocess.run(
+        [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", cmd],
+        capture_output=True, text=True, timeout=timeout, env=env)
