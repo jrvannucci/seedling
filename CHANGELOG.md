@@ -11,6 +11,18 @@ what a release involves.
 
 ## [Unreleased]
 
+### Changed
+
+- **New PowerShell terminals open faster.** The shell hook auto-activates the
+  default venv on every terminal that opens without one already active. It
+  used to do this by launching `seed-cli` (a Python process) twice — once to
+  read `default_venv`, once to resolve the activation script — which added
+  roughly 0.7s to every terminal on a default install. It now reads the
+  setting straight from `settings.json` and dot-sources the venv's
+  `Activate.ps1` directly, both native PowerShell, and only falls back to
+  `seed-cli` for an unusual layout or a malformed settings file. (The POSIX
+  hook still uses the CLI; `sh` has no built-in JSON reader.)
+
 ### Removed (breaking)
 
 - **`seed kill-processes all` is gone.** `--system` is the only spelling for

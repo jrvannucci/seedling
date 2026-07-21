@@ -185,6 +185,54 @@ class TestPowerShellFunction:
         assert "GOT:install|--verbose|requests" in result.stdout, \
             result.stdout + result.stderr
 
+    def test_startup_activates_default_venv_without_launching_seed_cli(self, tmp_path):
+        """Opening a shell auto-activates the default venv by reading
+        settings.json and dot-sourcing the venv's Activate.ps1 directly -- it
+        must NOT spawn seed-cli (a Python process, ~350ms cold), which used to
+        run twice here and dominated terminal-open time. seed-cli.exe does not
+        even exist in this test, so any attempt to invoke it would surface as a
+        CommandNotFound error -- whose ABSENCE proves the fast path was taken."""
+        home = tmp_path / "seedling"
+        (home / "system" / "config").mkdir(parents=True)
+        (home / "system" / "config" / "settings.json").write_text(
+            '{ "default_venv": "dev" }', encoding="utf-8")
+        scripts = home / "python" / "venvs" / "dev" / "Scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "Activate.ps1").write_text(
+            "$env:VIRTUAL_ENV = 'ACTIVATED-DEV'\n"
+            "function global:deactivate { Remove-Item Env:VIRTUAL_ENV }\n")
+        rendered = tmp_path / "seed.ps1"
+        rendered.write_text(
+            PS_TEMPLATE.read_text().replace("__SEEDLING_HOME_PLACEHOLDER__", str(home)))
+        result = self._run_ps(
+            f"Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue; "
+            f". '{rendered}'; Write-Output \"VE=$env:VIRTUAL_ENV\"")
+        out = result.stdout + result.stderr
+        assert "VE=ACTIVATED-DEV" in out, out          # the venv was activated
+        assert "seed-cli" not in out, out              # ...without invoking the CLI
+        assert "CommandNotFound" not in out, out
+
+    def test_startup_falls_back_to_seed_cli_when_activate_script_missing(self, tmp_path):
+        """If the venv isn't where the shortcut expects (custom layout, deleted
+        venv), it still defers to `seed activate` so behavior is never lost."""
+        home = tmp_path / "seedling"
+        (home / "system" / "config").mkdir(parents=True)
+        (home / "system" / "config" / "settings.json").write_text(
+            '{ "default_venv": "ghost" }', encoding="utf-8")
+        rendered = tmp_path / "seed.ps1"
+        rendered.write_text(
+            PS_TEMPLATE.read_text().replace("__SEEDLING_HOME_PLACEHOLDER__", str(home)))
+        stub = tmp_path / "stub.ps1"
+        stub.write_text(
+            'param([Parameter(ValueFromRemainingArguments=$true)][string[]]$A)\n'
+            'if ($A[0] -eq "activate") { Write-Output "FALLBACK-ACTIVATE"; exit 1 }\n'
+            'exit 0\n')
+        result = self._run_ps(
+            f"Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue; "
+            f". '{rendered}'; $script:SeedlingCli = '{stub}'; "
+            f"seed activate ghost")
+        assert "FALLBACK-ACTIVATE" in (result.stdout + result.stderr)
+
     def test_repo_cd_changes_directory(self, tmp_path):
         home = tmp_path / "seedling"
         repo = home / "repo" / "myproj"

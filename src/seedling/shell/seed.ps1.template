@@ -115,13 +115,40 @@ function seed {
 
 # Auto-activate the configured default venv in every new shell
 # (set one with: seed config set default_venv <name>). Skipped when some
-# venv is already active. SEEDLING_NO_LOG keeps this startup query from
-# spamming seedling's command log on every shell launch.
+# venv is already active.
+#
+# This runs on EVERY terminal that opens without a venv active, so it avoids
+# launching seed-cli entirely: seed-cli.exe is a Python program, and its cold
+# start -- previously TWICE here, to read the setting and again to resolve the
+# activation script -- dominated the time to open a terminal. Instead we read
+# default_venv straight from settings.json and dot-source the venv's own
+# Activate.ps1, both native PowerShell. The seed-cli path is kept only as a
+# fallback for anything the shortcut can't handle (a custom venv layout, a
+# missing script), so correctness never depends on it.
 if (-not $env:VIRTUAL_ENV) {
-    $env:SEEDLING_NO_LOG = "1"
-    $script:SeedlingDefaultVenv = (& $script:SeedlingCli config get default_venv 2>$null | Select-Object -First 1)
-    Remove-Item Env:SEEDLING_NO_LOG -ErrorAction SilentlyContinue
+    $script:SeedlingDefaultVenv = $null
+    $script:SeedlingSettings = Join-Path $script:SeedlingHome "system\config\settings.json"
+    if (Test-Path $script:SeedlingSettings) {
+        try {
+            $script:SeedlingDefaultVenv = `
+                (Get-Content -Raw $script:SeedlingSettings | ConvertFrom-Json).default_venv
+        } catch {
+            # A malformed settings file must not break every new shell; fall
+            # through to the seed-cli path, which reports the real problem.
+            $script:SeedlingDefaultVenv = $null
+            $env:SEEDLING_NO_LOG = "1"
+            $script:SeedlingDefaultVenv = (& $script:SeedlingCli config get default_venv 2>$null | Select-Object -First 1)
+            Remove-Item Env:SEEDLING_NO_LOG -ErrorAction SilentlyContinue
+        }
+    }
     if ($script:SeedlingDefaultVenv) {
-        seed activate $script:SeedlingDefaultVenv | Out-Null
+        $script:SeedlingActivate = Join-Path $script:SeedlingHome `
+            ("python\venvs\" + $script:SeedlingDefaultVenv + "\Scripts\Activate.ps1")
+        if (Test-Path $script:SeedlingActivate) {
+            . $script:SeedlingActivate
+            Write-Host "Activated: $($script:SeedlingDefaultVenv)"
+        } else {
+            seed activate $script:SeedlingDefaultVenv | Out-Null
+        }
     }
 }
