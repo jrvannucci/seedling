@@ -5,6 +5,7 @@ name = "seedling"
 # built distribution carries, and a bump is a one-line edit.
 dynamic = ["version"]
 description = "A tidy, single-folder wrapper around uv for getting started with Python."
+license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = []
 

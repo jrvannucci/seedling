@@ -9,6 +9,12 @@ This page states seedling's position so it is on the record, and tells you
 which components carry restrictions worth checking before you distribute
 them internally.
 
+> **seedling's own code is [Apache-2.0](https://github.com/cryocliff/seedling/blob/main/LICENSE)**
+> (patent grant included), with no third-party runtime dependencies. This
+> page is about the *other* software seedling downloads for you; for the
+> component inventory see
+> [THIRD-PARTY-NOTICES](https://github.com/cryocliff/seedling/blob/main/THIRD-PARTY-NOTICES.md).
+
 ---
 
 ## Contents

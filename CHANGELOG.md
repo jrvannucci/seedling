@@ -13,6 +13,17 @@ what a release involves.
 
 ### Added
 
+- **seedling now has a license: [Apache-2.0](LICENSE)** (patent grant
+  included), declared in the package metadata as `License-Expression:
+  Apache-2.0`. Until now the code was under implicit "all rights reserved,"
+  which technically forbade the very redistribution the deployment docs
+  describe. A new [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md) records that
+  seedling bundles no third-party code and has no third-party runtime
+  dependencies (stdlib only), and inventories the software it downloads on
+  your behalf and under what licenses. This is about seedling's *own* code;
+  [docs/LICENSING.md](docs/LICENSING.md) remains the reference for what you
+  may redistribute when you build an offline bundle.
+
 - **`seed auto-activate True|False`** — turn auto-activation of the default
   venv in new shells on or off, without unsetting which venv is the default.
   Off leaves `default_venv` set (so `seed activate` still works and turning it

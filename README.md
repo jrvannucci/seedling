@@ -228,3 +228,15 @@ routes you from what you're trying to do to the right page.
 [contributor guide](docs/CONTRIBUTING.md) covers the edit → `seed update-commands`
 loop, the source layout, and running the tests (`uvx pytest` from the repo
 root — no setup needed).
+
+---
+
+## License
+
+seedling is licensed under the **[Apache License 2.0](LICENSE)**. It has no
+third‑party runtime dependencies and bundles no third‑party software; the
+tools it downloads on your behalf (uv, Python, and optionally an editor) come
+from their publishers under their own licenses — see
+[THIRD‑PARTY‑NOTICES](THIRD-PARTY-NOTICES.md) and, for what you may
+redistribute when building an offline bundle,
+[docs/LICENSING.md](docs/LICENSING.md).

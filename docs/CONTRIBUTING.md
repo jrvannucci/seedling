@@ -159,3 +159,15 @@ To cut a release:
 This matters more than it looks. `seed update-commands` pulls from a share or a
 git URL, so an install can sit at a different version than the source it was
 built from — the changelog is how a user finds out what an update changed.
+
+---
+
+## License
+
+seedling is [Apache-2.0](https://github.com/cryocliff/seedling/blob/main/LICENSE).
+Contributions are accepted under the same license (inbound = outbound, per
+Apache-2.0 section 5) — by opening a pull request you agree your contribution
+is licensed under Apache-2.0. Please don't add third-party runtime
+dependencies: seedling deliberately ships on the standard library alone, which
+is what keeps its licensing and its "nothing pre-installed" promise simple
+(see [THIRD-PARTY-NOTICES](https://github.com/cryocliff/seedling/blob/main/THIRD-PARTY-NOTICES.md)).
