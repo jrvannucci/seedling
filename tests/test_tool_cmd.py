@@ -155,6 +155,51 @@ def test_remove_unknown(home, capsys):
     assert "No conda-forge tool named 'ghost'" in capsys.readouterr().out
 
 
+def test_run_tool_dispatches_to_the_right_env(fake_micromamba, home, monkeypatch):
+    """`seed tool <cmd> args` finds which env provides <cmd> and execs it
+    there, passing arguments straight through."""
+    tool_cmd.install(_ns(spec="ripgrep"))    # stub exposes command 'ripgrep'
+    execed = {}
+
+    def fake_exec(env_name, command, toolargs):
+        execed.update(env=env_name, command=command, args=toolargs)
+        return 0
+    monkeypatch.setattr(tool_cmd.conda_tool, "exec_tool", fake_exec)
+    monkeypatch.setattr(tool_cmd.conda_tool, "find_micromamba",
+                        lambda: paths.micromamba_binary())
+
+    rc = tool_cmd.run_tool(_ns(name="ripgrep", toolargs=["foo", "--bar"]))
+    assert rc == 0
+    assert execed == {"env": "ripgrep", "command": "ripgrep",
+                      "args": ["foo", "--bar"]}
+
+
+def test_run_tool_propagates_exit_code(fake_micromamba, home, monkeypatch):
+    tool_cmd.install(_ns(spec="ripgrep"))
+    monkeypatch.setattr(tool_cmd.conda_tool, "exec_tool", lambda *a: 2)
+    monkeypatch.setattr(tool_cmd.conda_tool, "find_micromamba",
+                        lambda: paths.micromamba_binary())
+    assert tool_cmd.run_tool(_ns(name="ripgrep", toolargs=[])) == 2
+
+
+def test_run_tool_unknown_command(fake_micromamba, home, capsys):
+    tool_cmd.install(_ns(spec="ripgrep"))
+    capsys.readouterr()
+    rc = tool_cmd.run_tool(_ns(name="nope", toolargs=[]))
+    assert rc == 1
+    out = capsys.readouterr().out
+    assert "No installed conda-forge tool provides" in out
+    assert "ripgrep" in out                # lists what IS available
+
+
+def test_run_tool_no_command_lists_available(fake_micromamba, home, capsys):
+    tool_cmd.install(_ns(spec="ripgrep"))
+    capsys.readouterr()
+    rc = tool_cmd.run_tool(_ns(name=None, toolargs=[]))
+    assert rc == 1
+    assert "ripgrep" in capsys.readouterr().out
+
+
 class _ns:
     """Lightweight argparse.Namespace substitute."""
     def __init__(self, **kw):

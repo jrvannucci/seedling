@@ -13,13 +13,16 @@ what a release involves.
 
 ### Added
 
-- **`seed tool-install / tool-list / tool-remove`** — command-line tools from
-  conda-forge (ripgrep, pandoc, ffmpeg, gh, compilers, ...), the things that
-  aren't Python packages and so can't be `seed install`-ed. This adds a second
-  engine alongside uv: [micromamba](https://mamba.readthedocs.io), fetched once
-  into `system/bin` (checksum-verified) on first use, or vendored for an
-  offline install. Each tool gets an isolated environment; seedling exposes its
-  commands on PATH via launchers in a shims directory, and removal is exact.
+- **`seed tool / tool-install / tool-list / tool-remove`** — command-line
+  tools from conda-forge (ripgrep, pandoc, ffmpeg, gh, compilers, ...), the
+  things that aren't Python packages and so can't be `seed install`-ed. This
+  adds a second engine alongside uv:
+  [micromamba](https://mamba.readthedocs.io), fetched once into `system/bin`
+  (checksum-verified) on first use, or vendored for an offline install. Each
+  tool gets an isolated environment; removal is exact. Installed tools are
+  reachable two ways: **`seed tool <cmd> [args...]`** runs one directly
+  (`seed tool gh pr create`) with no PATH change and no new terminal, and a
+  PATH launcher lets other programs and scripts find it by bare name.
   Installs from **conda-forge only** — every call passes `--override-channels`,
   so Anaconda's `defaults` channel and its commercial terms are never involved
   (see [docs/LICENSING.md](docs/LICENSING.md)). A new `conda_channel` setting

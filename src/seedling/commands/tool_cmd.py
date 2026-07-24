@@ -105,6 +105,57 @@ def _remove_shims(commands: list[str]) -> None:
                 pass
 
 
+def _command_index() -> dict[str, str]:
+    """{command name -> the tool/env that provides it} across every installed
+    tool, so `seed tool <cmd>` can find and run it."""
+    index: dict[str, str] = {}
+    if not paths.TOOL_MANIFEST_DIR.is_dir():
+        return index
+    for m in sorted(paths.TOOL_MANIFEST_DIR.glob("*.json")):
+        try:
+            data = json.loads(m.read_text())
+        except (OSError, ValueError):
+            continue
+        for cmd in data.get("commands", []):
+            index.setdefault(cmd, m.stem)   # first tool to claim a name wins
+    return index
+
+
+def run_tool(args) -> int:
+    """`seed tool <command> [args...]` -- run an installed conda-forge tool
+    without needing it on PATH or a fresh terminal. The convenient, always-
+    works counterpart to the PATH shims."""
+    command = getattr(args, "name", None)
+    toolargs = getattr(args, "toolargs", None) or []
+    index = _command_index()
+
+    if not command:
+        print("Usage: seed tool <command> [args...]   "
+              "(e.g. seed tool gh pr create)")
+        if index:
+            print("Available commands: " + ", ".join(sorted(index)))
+        else:
+            print("No conda-forge tools installed yet "
+                  "(seed tool-install <name>).")
+        return 1
+
+    env_name = index.get(command)
+    if env_name is None:
+        print(f"No installed conda-forge tool provides the command "
+              f"'{command}'.")
+        if index:
+            print("Available commands: " + ", ".join(sorted(index)))
+        print("Install one with:  seed tool-install <name>")
+        return 1
+
+    try:
+        conda_tool.find_micromamba()
+    except conda_tool.MicromambaNotFound as e:
+        print(f"error: {e}")
+        return 1
+    return conda_tool.exec_tool(env_name, command, toolargs)
+
+
 def install(args) -> int:
     spec = getattr(args, "spec", None)
     if not spec:

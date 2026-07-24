@@ -61,6 +61,7 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("package-list", "", "List installed packages (uv pip list)"),
     ]),
     ("Command-line tools from conda-forge (ripgrep, pandoc, ffmpeg, ...)", [
+        ("tool", "<cmd> [args...]", "Run an installed tool (e.g. seed tool gh ...)"),
         ("tool-install", "<name>[=version]", "Install a CLI tool from conda-forge"),
         ("tool-list", "", "List installed conda-forge tools"),
         ("tool-remove", "<name>", "Remove a conda-forge tool"),
@@ -210,6 +211,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Turn auto-activation of the default venv in new shells on or off")
     p_auto.add_argument("state", nargs="?",
                         help="True or False; omit to show the current state")
+
+    p_tool = sub.add_parser(
+        "tool", help="Run an installed conda-forge tool (no PATH setup needed)")
+    p_tool.add_argument("name", nargs="?",
+                        help="The command to run (e.g. gh, rg); omit to list "
+                             "available commands")
+    p_tool.add_argument("toolargs", nargs=argparse.REMAINDER,
+                        help="Arguments passed straight through to the tool")
 
     p_tool_install = sub.add_parser(
         "tool-install", help="Install a command-line tool from conda-forge")
@@ -510,6 +519,7 @@ def _dispatch_main(argv: list[str]) -> int:
         "deactivate": deactivate_cmd.run,
         "venv-default": default_venv_cmd.run,
         "auto-activate": auto_activate_cmd.run,
+        "tool": tool_cmd.run_tool,
         "tool-install": tool_cmd.install,
         "tool-list": tool_cmd.list_tools,
         "tool-remove": tool_cmd.remove,
