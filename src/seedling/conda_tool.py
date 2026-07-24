@@ -158,3 +158,17 @@ def run_captured(args: list[str], *, env: dict | None = None,
     mm = find_micromamba()
     return subprocess.run([str(mm), *args], env=_env(env), check=check,
                           capture_output=True, text=True)
+
+
+def exec_tool(env_name: str, command: str, toolargs: list[str]) -> int:
+    """Run `command` inside a tool's environment, inheriting this process's
+    stdin/stdout/stderr so the tool behaves exactly as if run directly --
+    interactive prompts (`gh auth login`), colour, and pagers all work. No
+    `[micromamba]` tagging: the user asked for the tool, not for micromamba.
+    Returns the tool's own exit code."""
+    mm = find_micromamba()
+    result = subprocess.run(
+        [str(mm), "run", "-r", str(paths.MAMBA_DIR), "-n", env_name,
+         command, *toolargs],
+        env=_env(None))
+    return result.returncode

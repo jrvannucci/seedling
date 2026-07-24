@@ -235,6 +235,28 @@ requests           2.34.2
 urllib3            2.7.0
 ```
 
+## `seed tool <command> [args...]`
+
+Runs an installed conda-forge tool **without needing it on PATH or a fresh
+terminal** — `seed tool gh pr create`, `seed tool rg TODO`. seedling runs the
+tool by its exact path (via `micromamba run`), inheriting your terminal, so
+interactive prompts, colour, and pagers all behave normally, and the tool's
+own exit code is passed back.
+
+This is the convenient, always-works counterpart to the PATH launchers: the
+launchers let *other* programs and scripts find `gh`/`rg` by bare name and are
+nice for heavy interactive use, but they need a new terminal (and a shell that
+has seedling's hook). `seed tool <command>` works the moment the tool is
+installed.
+
+Everything after the command name is passed straight through untouched. Run
+`seed tool` with no arguments to list the available commands.
+
+```
+seed tool gh auth login
+seed tool rg "def install" src
+```
+
 ## `seed tool-install <name>[=version]`
 
 Installs a **command-line tool from conda-forge** — the things that aren't
