@@ -81,6 +81,18 @@ SHELL_DIR = SYSTEM_DIR / "shell"
 LOGS_DIR = SYSTEM_DIR / "logs"
 UV_CACHE_DIR = SYSTEM_DIR / "cache" / "uv"
 
+# conda-forge command-line tools, managed with micromamba (`seed tool-install`).
+# The per-tool environments live under system/ because they are an
+# implementation detail; only the shims are user-facing. MAMBA_DIR is
+# micromamba's root prefix (its package cache and envs), and TOOL_SHIMS_DIR
+# holds the small launchers the shell hook puts on PATH so an installed tool
+# runs as a bare command.
+MAMBA_DIR = SYSTEM_DIR / "conda"
+MAMBA_ENVS_DIR = MAMBA_DIR / "envs"
+MAMBA_PKGS_DIR = MAMBA_DIR / "pkgs"
+TOOL_SHIMS_DIR = MAMBA_DIR / "shims"
+TOOL_MANIFEST_DIR = MAMBA_DIR / "tools"
+
 PYTHON_DIR = HOME / "python"
 BASE_DIR = PYTHON_DIR / "base"
 VENVS_DIR = PYTHON_DIR / "venvs"
@@ -107,6 +119,9 @@ ALL_DIRS = [
     EXTENSIONS_DIR,
     VSCODE_DIR,
     REPO_DIR,
+    # TOOL_SHIMS_DIR is created unconditionally so the shell hook can safely
+    # prepend it to PATH even before any conda-forge tool is installed.
+    TOOL_SHIMS_DIR,
 ]
 
 
@@ -118,6 +133,21 @@ def ensure_layout() -> None:
 def uv_binary() -> Path:
     exe = "uv.exe" if os.name == "nt" else "uv"
     return BIN_DIR / exe
+
+
+def micromamba_binary() -> Path:
+    exe = "micromamba.exe" if os.name == "nt" else "micromamba"
+    return BIN_DIR / exe
+
+
+def tool_env_dir(name: str) -> Path:
+    """The micromamba environment backing a single conda-forge tool."""
+    return MAMBA_ENVS_DIR / name
+
+
+def tool_manifest_file(name: str) -> Path:
+    """Records which shim commands a tool created, so removal is exact."""
+    return TOOL_MANIFEST_DIR / f"{name}.json"
 
 
 def base_python_dir(tag: str) -> Path:

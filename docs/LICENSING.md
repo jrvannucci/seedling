@@ -65,6 +65,8 @@ rather than binaries. It is a deliberate design choice, not an oversight.
 | [uv](https://astral.sh/uv) | astral-sh releases | Apache-2.0 / MIT | Permissive |
 | [Python interpreters](https://github.com/astral-sh/python-build-standalone) | python-build-standalone | PSF and assorted upstream | Permissive |
 | Python packages | PyPI or your index | Per package | Per package — check your set |
+| [micromamba](https://mamba.readthedocs.io) *(only if you use `tool-install`)* | mamba-org releases | BSD-3-Clause | Permissive |
+| conda-forge tools *(via `tool-install`)* | **conda-forge**, not Anaconda `defaults` | Per package; the channel itself is community-run and free to use | Per package — see note below |
 | [MinGit](https://github.com/git-for-windows/git) *(Windows, optional)* | git-for-windows | **GPL-2.0** | Copyleft — carries a source-offer obligation |
 | [Visual Studio Code](https://code.visualstudio.com) *(optional)* | Microsoft | **Proprietary** | **Restricted** — the MIT licence on `microsoft/vscode` covers the source, not these branded builds |
 | Marketplace extensions *(optional)* | Visual Studio Marketplace | Per extension, under the Marketplace's own Terms of Use | **Restricted** |
@@ -73,6 +75,25 @@ rather than binaries. It is a deliberate design choice, not an oversight.
 
 Everything seedling needs to do its actual job — manage interpreters, venvs,
 and packages — is in the permissive rows. Every restricted row is optional.
+
+### conda-forge is not Anaconda's `defaults`
+
+This distinction matters, because the Anaconda licensing change is often what
+sends people looking for a tool like seedling in the first place. Anaconda's
+Terms require a paid licence for larger organizations to use **Anaconda's own
+packaged repository** — the `defaults` channel, and the Anaconda/Miniconda
+distributions built from it.
+
+**conda-forge is a different thing**: a community-run channel whose packaging
+recipes are BSD-licensed and whose hosting is free to use, independent of that
+requirement. `seed tool-install` installs from conda-forge **only** — every
+call passes `--override-channels`, so `defaults` is never consulted, and the
+default `conda_channel` is `conda-forge`. Point it at your own mirror to stay
+inside your network.
+
+That keeps the tool itself clear of Anaconda's commercial terms. As always,
+each individual package you install carries its own upstream licence — the
+same situation as PyPI — so check the specific tools you standardize on.
 
 ---
 

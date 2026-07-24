@@ -17,6 +17,7 @@ ALL_COMMANDS = [
     "venv", "venv-list", "remove-venv", "remove-venv-all", "venv-default",
     "auto-activate",
     "activate", "deactivate", "install", "uninstall", "package-list",
+    "tool-install", "tool-list", "tool-remove",
     "download-whl", "download-requirements",
     "repo-clone", "repo-list", "repo-cd", "repo-vscode", "repo-open",
     "repo-install", "remove-repo",

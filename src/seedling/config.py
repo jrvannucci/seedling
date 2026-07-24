@@ -69,6 +69,11 @@ KNOWN_KEYS: dict[str, str] = {
         "Extensions installed into a fresh editor (list). Empty/null means "
         "the built-in starter kit for the configured flavor. Set to an empty "
         "list to install none at all."),
+    "conda_channel": (
+        "Channel `seed tool-install` fetches conda-forge tools from. Defaults "
+        "to \"conda-forge\" (the community channel, distinct from Anaconda's "
+        "`defaults`). Point it at a URL or a local directory for an internal "
+        "mirror or an offline network. seedling never consults `defaults`."),
     "profile": (
         "Path to the deployment profile `seed apply` uses by default -- the "
         "TOML file describing the interpreters, venvs, packages and repos "
@@ -81,6 +86,7 @@ _DEFAULTS: dict[str, Any] = {
     "default_base": None,
     "default_venv": None,
     "auto_activate": True,
+    "conda_channel": "conda-forge",
     "update_source": None,
     "venv_default_packages": ["ipython", "ruff", "ipykernel"],
     "python_mirror": None,

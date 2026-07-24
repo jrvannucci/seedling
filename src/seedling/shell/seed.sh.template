@@ -14,6 +14,14 @@ __SEEDLING_CLI="$__SEEDLING_HOME/system/bin/seed-cli"
 # install time. For default installs this is a no-op.
 export SEEDLING_HOME="$__SEEDLING_HOME"
 
+# Command-line tools installed with `seed tool-install` (from conda-forge) put
+# their launchers here; add it to PATH so they run as bare commands. Guarded so
+# repeated sourcing never stacks duplicate entries.
+case ":$PATH:" in
+    *":$__SEEDLING_HOME/system/conda/shims:"*) ;;
+    *) PATH="$__SEEDLING_HOME/system/conda/shims:$PATH"; export PATH ;;
+esac
+
 # If the venv this shell has active was just deleted (purge, remove-user,
 # remove-venv(-all), remove-python...), deactivate it instead of leaving a
 # dangling prompt pointing at a folder that no longer exists. Only the

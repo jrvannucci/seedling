@@ -13,6 +13,24 @@ what a release involves.
 
 ### Added
 
+- **`seed tool-install / tool-list / tool-remove`** — command-line tools from
+  conda-forge (ripgrep, pandoc, ffmpeg, gh, compilers, ...), the things that
+  aren't Python packages and so can't be `seed install`-ed. This adds a second
+  engine alongside uv: [micromamba](https://mamba.readthedocs.io), fetched once
+  into `system/bin` (checksum-verified) on first use, or vendored for an
+  offline install. Each tool gets an isolated environment; seedling exposes its
+  commands on PATH via launchers in a shims directory, and removal is exact.
+  Installs from **conda-forge only** — every call passes `--override-channels`,
+  so Anaconda's `defaults` channel and its commercial terms are never involved
+  (see [docs/LICENSING.md](docs/LICENSING.md)). A new `conda_channel` setting
+  (`SEEDLING_CONDA_CHANNEL`) points it at an internal mirror or a local
+  directory for a proxied or air-gapped network.
+
+  *Not yet included:* installer-time micromamba bootstrap and `build-offline`
+  conda-channel mirroring — for now, the online path fetches on first use and
+  the offline path relies on a vendored micromamba plus a mirror you point
+  `conda_channel` at.
+
 - **seedling now has a license: [Apache-2.0](LICENSE)** (patent grant
   included), declared in the package metadata as `License-Expression:
   Apache-2.0`. Until now the code was under implicit "all rights reserved,"
