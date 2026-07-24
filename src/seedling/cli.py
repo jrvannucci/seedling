@@ -25,6 +25,7 @@ from .commands import (
     repo_cmd,
     status_cmd,
     summary_cmd,
+    tool_cmd,
     uninstall_cmd,
     update_cmd,
     venv_cmd,
@@ -58,6 +59,11 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("install", "<package...>", "Install packages (uv pip install)"),
         ("uninstall", "<package...>", "Uninstall packages (uv pip uninstall)"),
         ("package-list", "", "List installed packages (uv pip list)"),
+    ]),
+    ("Command-line tools from conda-forge (ripgrep, pandoc, ffmpeg, ...)", [
+        ("tool-install", "<name>[=version]", "Install a CLI tool from conda-forge"),
+        ("tool-list", "", "List installed conda-forge tools"),
+        ("tool-remove", "<name>", "Remove a conda-forge tool"),
     ]),
     ("Offline utilities -- download wheels to carry to an air-gapped machine", [
         ("download-whl", "<package...>", "Download a package + its deps as wheels"),
@@ -204,6 +210,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Turn auto-activation of the default venv in new shells on or off")
     p_auto.add_argument("state", nargs="?",
                         help="True or False; omit to show the current state")
+
+    p_tool_install = sub.add_parser(
+        "tool-install", help="Install a command-line tool from conda-forge")
+    p_tool_install.add_argument("spec",
+                                help="conda-forge package, optionally pinned: "
+                                     "ripgrep, or ripgrep=14.1.0")
+    sub.add_parser("tool-list", help="List installed conda-forge tools")
+    p_tool_remove = sub.add_parser(
+        "tool-remove", parents=[danger],
+        help="Remove a conda-forge tool and its commands")
+    p_tool_remove.add_argument("name", help="Tool to remove")
 
     p_install = sub.add_parser(
         "install", help="Install packages into the active venv (passthrough to `uv pip install`)")
@@ -493,6 +510,9 @@ def _dispatch_main(argv: list[str]) -> int:
         "deactivate": deactivate_cmd.run,
         "venv-default": default_venv_cmd.run,
         "auto-activate": auto_activate_cmd.run,
+        "tool-install": tool_cmd.install,
+        "tool-list": tool_cmd.list_tools,
+        "tool-remove": tool_cmd.remove,
         "install": install_cmd.run,
         "uninstall": uninstall_cmd.run,
         "package-list": list_cmd.list_packages,

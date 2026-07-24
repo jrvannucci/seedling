@@ -357,6 +357,14 @@ if [ ! -f "$SETTINGS_FILE" ]; then
 "
         entries="$entries  \"package_index\": \"$(json_escape "$SEEDLING_PACKAGE_INDEX")\""
     fi
+    # conda-forge channel for `seed tool-install`. Only seeded when overridden
+    # (an internal mirror / offline path); the built-in default is conda-forge.
+    channel_norm=$(printf '%s' "$SEEDLING_CONDA_CHANNEL" | tr -d ' ')
+    if [ -n "$channel_norm" ] && [ "$channel_norm" != "conda-forge" ]; then
+        [ -n "$entries" ] && entries="$entries,
+"
+        entries="$entries  \"conda_channel\": \"$(json_escape "$SEEDLING_CONDA_CHANNEL")\""
+    fi
     if is_true "$SEEDLING_NATIVE_TLS"; then
         [ -n "$entries" ] && entries="$entries,
 "

@@ -17,6 +17,7 @@ def test_defaults_when_no_settings_file(home):
     assert data["native_tls"] is None
     assert data["ca_cert"] is None
     assert data["auto_activate"] is True
+    assert data["conda_channel"] == "conda-forge"
 
 
 def test_load_tolerates_utf8_bom_from_powershell_installer(home):

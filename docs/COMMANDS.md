@@ -235,6 +235,58 @@ requests           2.34.2
 urllib3            2.7.0
 ```
 
+## `seed tool-install <name>[=version]`
+
+Installs a **command-line tool from conda-forge** — the things that aren't
+Python packages and so aren't `seed install`-able: `ripgrep`, `pandoc`,
+`ffmpeg`, `gh`, compilers, and so on.
+
+This is seedling's *second* engine. `seed install` is uv (the PyPI world);
+`seed tool-install` is [micromamba](https://mamba.readthedocs.io), fetched
+once into `system/bin` the first time you use it (or dropped there as a
+vendored binary for an offline install). Each tool gets its own isolated
+environment, and seedling writes a small launcher for every command the tool
+provides into a directory the shell hook puts on your PATH — so the tool runs
+as a bare command in a new terminal.
+
+Packages come from **conda-forge only** — the community channel, which is
+distinct from Anaconda's `defaults` and its commercial terms (see
+[Licensing](LICENSING.md)). Point `conda_channel` at an internal mirror or a
+local directory for a proxied or air-gapped network.
+
+- Pin a version with `=`: `seed tool-install ripgrep=14.1.0`.
+- The command name is often not the package name (installing `ripgrep` gives
+  you `rg`); seedling prints what it exposed.
+- Open a new terminal afterward so the tool is on PATH.
+
+```
+seed tool-install ripgrep
+seed tool-install pandoc=3.2
+```
+
+## `seed tool-list`
+
+Lists the conda-forge tools you've installed and the command(s) each provides.
+
+```
+seed tool-list
+```
+```
+conda-forge tools:
+  ripgrep  ->  rg   (ripgrep)
+  pandoc   ->  pandoc   (pandoc=3.2)
+```
+
+## `seed tool-remove <name>`
+
+Removes a conda-forge tool: its environment, its PATH launchers, and its
+record. Supports `--preview` to see exactly what would go first.
+
+```
+seed tool-remove ripgrep
+seed tool-remove ripgrep --preview
+```
+
 ## `seed download-whl <package...>`
 
 Downloads a package **and all of its dependencies** as `.whl` files (plus any

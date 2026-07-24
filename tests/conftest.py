@@ -66,6 +66,11 @@ _ORIGINALS = {
     "VSCODE_DATA_DIR": paths_mod.VSCODE_DATA_DIR,
     "VSCODE_EXTENSIONS_DIR": paths_mod.VSCODE_EXTENSIONS_DIR,
     "REPO_DIR": paths_mod.REPO_DIR,
+    "MAMBA_DIR": paths_mod.MAMBA_DIR,
+    "MAMBA_ENVS_DIR": paths_mod.MAMBA_ENVS_DIR,
+    "MAMBA_PKGS_DIR": paths_mod.MAMBA_PKGS_DIR,
+    "TOOL_SHIMS_DIR": paths_mod.TOOL_SHIMS_DIR,
+    "TOOL_MANIFEST_DIR": paths_mod.TOOL_MANIFEST_DIR,
 }
 _ORIGINAL_GIT_DIR = git_tool_mod.GIT_DIR
 
@@ -91,10 +96,15 @@ def _rebind_paths(home: Path) -> None:
     p.VSCODE_DATA_DIR = p.VSCODE_DIR / "data"
     p.VSCODE_EXTENSIONS_DIR = p.VSCODE_DIR / "extensions"
     p.REPO_DIR = home / "repo"
+    p.MAMBA_DIR = p.SYSTEM_DIR / "conda"
+    p.MAMBA_ENVS_DIR = p.MAMBA_DIR / "envs"
+    p.MAMBA_PKGS_DIR = p.MAMBA_DIR / "pkgs"
+    p.TOOL_SHIMS_DIR = p.MAMBA_DIR / "shims"
+    p.TOOL_MANIFEST_DIR = p.MAMBA_DIR / "tools"
     p.ALL_DIRS = [
         p.HOME, p.SYSTEM_DIR, p.BIN_DIR, p.CONFIG_DIR, p.SHELL_DIR,
         p.LOGS_DIR, p.UV_CACHE_DIR, p.PYTHON_DIR, p.BASE_DIR, p.VENVS_DIR,
-        p.EXTENSIONS_DIR, p.VSCODE_DIR, p.REPO_DIR,
+        p.EXTENSIONS_DIR, p.VSCODE_DIR, p.REPO_DIR, p.TOOL_SHIMS_DIR,
     ]
     git_tool_mod.GIT_DIR = p.EXTENSIONS_DIR / "git"
 
@@ -107,7 +117,7 @@ def _restore_paths() -> None:
         paths_mod.CONFIG_DIR, paths_mod.SHELL_DIR, paths_mod.LOGS_DIR,
         paths_mod.UV_CACHE_DIR, paths_mod.PYTHON_DIR, paths_mod.BASE_DIR,
         paths_mod.VENVS_DIR, paths_mod.EXTENSIONS_DIR, paths_mod.VSCODE_DIR,
-        paths_mod.REPO_DIR,
+        paths_mod.REPO_DIR, paths_mod.TOOL_SHIMS_DIR,
     ]
     git_tool_mod.GIT_DIR = _ORIGINAL_GIT_DIR
 
