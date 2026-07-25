@@ -410,7 +410,7 @@ asking for confirmation (skippable with `-y`).
 seed remove-venv-all
 ```
 
-## `seed vscode [path] [--reinstall] [--no-open]`
+## `seed vscode [path] [--reinstall] [--no-open] [-y]`
 
 Opens VS Code at `path` (defaults to the current directory), installing a
 fully portable copy into `~/seedling/extensions/vscode/app` first if none
@@ -418,6 +418,18 @@ exists — though a default install already did that up front (see
 `SEEDLING_AUTO_VSCODE` in `seedling.conf`), so normally this just opens.
 `--no-open` installs/verifies without opening a window (what the
 installer's default setup uses).
+
+- **The first-time install asks first.** With nothing installed yet, this
+  command would otherwise pull ~300 MB without warning, which is expensive
+  on a metered or locked-down connection. It prints the size and prompts;
+  declining exits 0 and tells you how to install later. Once VS Code *is*
+  installed there is no prompt — opening stays instant.
+- `-y`/`--yes` (or `SEEDLING_YES=1`) skips that prompt, and
+  `--non-interactive` (or `SEEDLING_NONINTERACTIVE=1`) skips the install
+  rather than waiting for input. `--reinstall` is exempt: asking for a
+  reinstall already says you want the download.
+- `seed repo-vscode` shares the same gate and the same flags, since it can
+  trigger the same first-time download.
 
 - **Portable mode:** a `data/` folder is created next to the VS Code
   executable, which makes VS Code keep all settings, extension installs,
@@ -522,11 +534,14 @@ seed repo-cd myproject
 seed repo-cd
 ```
 
-## `seed repo-vscode <name>`
+## `seed repo-vscode <name> [-y]`
 
 Opens a cloned repo in VS Code — installing VS Code first if it isn't
 already (same one-time setup as `seed vscode`). Shares the same CLI-entry-
-point, detached-process opening logic as `seed vscode`.
+point, detached-process opening logic as `seed vscode`, and the same
+first-time download prompt (with the same `-y` / `--non-interactive`
+flags) — reaching the editor from a repo shouldn't cost 300 MB any more
+quietly than reaching it directly.
 
 ```
 seed repo-vscode some-project

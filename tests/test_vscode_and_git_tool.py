@@ -76,6 +76,67 @@ def test_vscode_opens_given_path(run_cli, home, monkeypatch, tmp_path):
     assert opened == [str(tmp_path)]
 
 
+def test_first_install_prompts_and_declining_downloads_nothing(
+        run_cli, home, monkeypatch):
+    """Nothing is installed: `seed vscode` must ASK before pulling ~300MB, and
+    a 'no' must leave the network untouched and still exit 0 (declining an
+    optional download isn't an error)."""
+    def boom(*a, **k):
+        raise AssertionError("download attempted despite a declined prompt")
+    monkeypatch.setattr(vscode_cmd, "_resolve_download", boom)
+    monkeypatch.setattr("builtins.input", lambda *a: "n")
+    code, out = run_cli("vscode")
+    assert code == 0
+    assert "300 MB" in out
+    assert "Skipped" in out
+
+
+def test_first_install_prompt_skipped_when_already_installed(
+        run_cli, home, monkeypatch):
+    """The gate covers the DOWNLOAD, not the open. An existing install must
+    never prompt -- that's the common path and it stays instant."""
+    _preseed_vscode(home)
+    def no_input(*a, **k):
+        raise AssertionError("prompted despite VS Code already being installed")
+    monkeypatch.setattr("builtins.input", no_input)
+    monkeypatch.setattr(vscode_cmd, "open_window", lambda cli, p: None)
+    code, _ = run_cli("vscode")
+    assert code == 0
+
+
+def test_first_install_yes_flag_bypasses_prompt(home, monkeypatch):
+    """-y is what the installers pass; it must not sit waiting on input."""
+    import argparse
+    def no_input(*a, **k):
+        raise AssertionError("prompted despite -y")
+    monkeypatch.setattr("builtins.input", no_input)
+    args = argparse.Namespace(yes=True, non_interactive=False)
+    assert vscode_cmd.confirm_first_install(args) is True
+
+
+def test_non_interactive_declines_instead_of_hanging(home, monkeypatch):
+    """--non-interactive without -y must refuse rather than block forever."""
+    import argparse
+    def no_input(*a, **k):
+        raise AssertionError("prompted in non-interactive mode")
+    monkeypatch.setattr("builtins.input", no_input)
+    args = argparse.Namespace(yes=False, non_interactive=True)
+    assert vscode_cmd.confirm_first_install(args) is False
+
+
+def test_repo_vscode_shares_the_same_gate(run_cli, home, monkeypatch):
+    """Reaching the editor via a repo must not cost 300MB more quietly than
+    reaching it directly."""
+    (home / "repo" / "myrepo").mkdir(parents=True)
+    def boom(*a, **k):
+        raise AssertionError("download attempted despite a declined prompt")
+    monkeypatch.setattr(vscode_cmd, "_resolve_download", boom)
+    monkeypatch.setattr("builtins.input", lambda *a: "n")
+    code, out = run_cli("repo-vscode", "myrepo")
+    assert code == 0
+    assert "300 MB" in out
+
+
 def test_write_status_single_parseable_line(home):
     # The installers poll this file for their status bar: one line,
     # "<phase> <done> <total>", overwritten in place.

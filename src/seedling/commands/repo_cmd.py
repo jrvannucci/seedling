@@ -194,6 +194,11 @@ def vscode_repo(args) -> int:
         print(f"No repo named '{name}' found in {paths.REPO_DIR}")
         return 1
 
+    # Same first-run download gate as `seed vscode` -- reaching the editor
+    # from a repo shouldn't cost 300MB more quietly than reaching it directly.
+    if not vscode_cmd.confirm_first_install(args):
+        return 0
+
     cli = vscode_cmd.install(force=False)
     if cli is None:
         print("Could not find any way to launch VS Code after installing it.")
