@@ -29,10 +29,18 @@ what a release involves.
   (`SEEDLING_CONDA_CHANNEL`) points it at an internal mirror or a local
   directory for a proxied or air-gapped network.
 
-  *Not yet included:* installer-time micromamba bootstrap and `build-offline`
-  conda-channel mirroring — for now, the online path fetches on first use and
-  the offline path relies on a vendored micromamba plus a mirror you point
-  `conda_channel` at.
+- **`seed download-tool <name>...`** — the conda-forge counterpart of
+  `download-whl`: on a connected machine, resolve a tool and all its
+  dependencies and write them into a local conda channel (packages, plus a
+  `repodata.json` synthesized from the solve — no `conda index` needed) to
+  carry to an air-gapped one. Point `conda_channel` at the folder and
+  `tool-install` runs fully offline (it auto-adds `--offline` and a `file://`
+  URL for a local channel). This closes the offline conda gap: with it, staging
+  conda-forge tools for a dark network no longer needs an internal mirror.
+
+  *Still not included:* installer-time micromamba bootstrap (the online path
+  fetches it on first use), and folding the conda channel into the single
+  `build-offline` bundle (today it's a separate `download-tool` folder).
 
 - **seedling now has a license: [Apache-2.0](LICENSE)** (patent grant
   included), declared in the package metadata as `License-Expression:

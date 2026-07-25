@@ -309,6 +309,29 @@ seed tool-remove ripgrep
 seed tool-remove ripgrep --preview
 ```
 
+## `seed download-tool <name>[=version] [--dest <dir>]`
+
+The conda-forge counterpart of `download-whl`: on a connected machine, resolve
+a tool **and all its dependencies** and write them into a local **conda
+channel** — a directory you carry to an air-gapped machine (or a share) and
+install from offline.
+
+```
+(connected)  seed download-tool ripgrep pandoc
+(copy the ./conda-channel folder to the offline machine or a share)
+(offline)    seed config set conda_channel <that-folder>
+             seed tool-install ripgrep
+```
+
+seedling solves the request with micromamba, downloads each package
+(checksum-verified), and synthesizes the channel's `repodata.json` from the
+solve — so no `conda index` or network is needed on the offline side. When
+`conda_channel` points at a local folder, `tool-install` runs fully offline
+automatically.
+
+Lands in `./conda-channel` unless you pass `--dest`. Pin versions with `=`
+(`seed download-tool pandoc=3.2`).
+
 ## `seed download-whl <package...>`
 
 Downloads a package **and all of its dependencies** as `.whl` files (plus any

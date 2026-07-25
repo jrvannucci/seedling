@@ -18,7 +18,16 @@ import json
 import os
 import re
 
-from .. import colors, conda_tool, confirm, paths
+from pathlib import Path
+
+from .. import colors, conda_tool, confirm, download, paths
+
+# Fields carried from micromamba's solve into the local channel's repodata.json.
+# We take them from the solve output rather than cracking open each package, so
+# no .conda/zstd handling is needed.
+_REPODATA_KEYS = ("name", "version", "build", "build_number", "depends",
+                  "constrains", "license", "md5", "sha256", "size", "subdir",
+                  "timestamp")
 
 # Environment/runtime commands that live in every conda env but are not the
 # tool the user asked for -- never exposed as shims.
@@ -105,6 +114,76 @@ def _remove_shims(commands: list[str]) -> None:
                 pass
 
 
+def _build_channel(records: list[dict], dest: Path) -> tuple[list[str], int]:
+    """Download each package into a conda-channel layout under `dest` and write
+    a repodata.json per subdir (synthesized from the solve records). Every
+    channel needs a noarch subdir, so an empty one is created if the solve
+    produced none. Returns (subdirs, package_count)."""
+    subdirs: dict[str, dict] = {}
+    for p in records:
+        sub = p["subdir"]
+        pkg_dir = dest / sub
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        download.fetch(p["url"], pkg_dir / p["fn"],
+                       expected_sha256=p.get("sha256"))
+        table = "packages.conda" if p["fn"].endswith(".conda") else "packages"
+        rec = {k: p[k] for k in _REPODATA_KEYS if k in p}
+        subdirs.setdefault(sub, {"packages": {}, "packages.conda": {}})
+        subdirs[sub][table][p["fn"]] = rec
+
+    subdirs.setdefault("noarch", {"packages": {}, "packages.conda": {}})
+    for sub, tables in subdirs.items():
+        d = dest / sub
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "repodata.json").write_text(json.dumps(
+            {"info": {"subdir": sub}, "repodata_version": 1, **tables}))
+    return sorted(subdirs), len(records)
+
+
+def download_tool(args) -> int:
+    """`seed download-tool <name>...` -- the conda analogue of download-whl:
+    resolve a tool and its dependencies on a connected machine and write them
+    into a local channel to carry to an air-gapped one."""
+    specs = getattr(args, "specs", None) or []
+    if not specs:
+        print("Usage: seed download-tool <name>[=version] [<name> ...] "
+              "[--dest <dir>]")
+        print("Downloads each conda-forge tool AND its dependencies into a "
+              "local channel for an offline `seed tool-install`.")
+        return 1
+
+    dest = Path(getattr(args, "dest", None) or "conda-channel").resolve()
+    try:
+        conda_tool.ensure_micromamba()
+    except conda_tool.MicromambaNotFound as e:
+        print(f"error: {e}")
+        return 1
+
+    ch = conda_tool.channel()
+    print(f"Resolving {', '.join(specs)} from {ch} ...")
+    try:
+        records = conda_tool.solve_downloads(specs, conda_tool.channel_arg(ch))
+    except conda_tool.CondaSolveError as e:
+        print(colors.warn(f"Could not resolve: {e}"))
+        return 1
+    if not records:
+        print("Nothing to download.")
+        return 1
+
+    dest.mkdir(parents=True, exist_ok=True)
+    print(f"Downloading {len(records)} package(s) into {dest} ...")
+    _build_channel(records, dest)
+
+    print()
+    print(colors.ok(f"Downloaded {len(records)} package(s) into {dest}"))
+    print("To install on an offline machine:")
+    print("  1. Copy this folder to the target machine or a shared drive.")
+    print(f"  2. seed config set conda_channel {dest}")
+    print(f"  3. seed tool-install {_spec_name(specs[0])}   "
+          "# resolves from the folder, offline")
+    return 0
+
+
 def _command_index() -> dict[str, str]:
     """{command name -> the tool/env that provides it} across every installed
     tool, so `seed tool <cmd>` can find and run it."""
@@ -182,9 +261,13 @@ def install(args) -> int:
 
     ch = conda_tool.channel()
     print(f"Installing '{spec}' from {ch} ...")
-    result = conda_tool.run(
-        ["create", "-y", "-n", name, "--override-channels", "-c", ch, spec],
-        check=False)
+    create = ["create", "-y", "-n", name, "--override-channels",
+              "-c", conda_tool.channel_arg(ch), spec]
+    if conda_tool.channel_is_local(ch):
+        # A channel built by `seed download-tool`: force offline so micromamba
+        # never reaches for the network on an air-gapped box.
+        create.insert(1, "--offline")
+    result = conda_tool.run(create, check=False)
     if result.returncode != 0:
         print(colors.warn(f"Could not install '{spec}'. Nothing was changed."))
         # Clean up a half-created env so a retry sees a clean slate.

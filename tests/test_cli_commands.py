@@ -18,7 +18,7 @@ ALL_COMMANDS = [
     "auto-activate",
     "activate", "deactivate", "install", "uninstall", "package-list",
     "tool", "tool-install", "tool-list", "tool-remove",
-    "download-whl", "download-requirements",
+    "download-whl", "download-requirements", "download-tool",
     "repo-clone", "repo-list", "repo-cd", "repo-vscode", "repo-open",
     "repo-install", "remove-repo",
     "vscode", "summary", "health-check", "logs-viewer", "config", "where",
