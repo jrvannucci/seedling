@@ -14,6 +14,7 @@ Every command here:
 
 from __future__ import annotations
 
+import json
 
 from .. import admin, colors, confirm
 from . import kill_cmd
@@ -146,7 +147,6 @@ def python_remove(args) -> int:
     if not alias.exists():
         print(f"No base Python '{args.tag}' for user '{args.user}'.")
         return 1
-    import json
     try:
         target = base_dir / json.loads(alias.read_text())["target"]
     except (json.JSONDecodeError, KeyError, OSError):

@@ -101,6 +101,7 @@ created for you and activates automatically in every new terminal.
 │   ├── config/settings.json    settings (seed config)
 │   ├── logs/                   one log file per day
 │   ├── cache/uv/               uv's download cache
+│   ├── conda/                  micromamba + conda-forge tools (seed tool-install)
 │   ├── certs/                  CA bundle for org installs
 │   └── shell/                  the seed.sh / seed.ps1 hook
 ├── python/

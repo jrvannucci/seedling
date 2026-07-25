@@ -1,12 +1,15 @@
 """
-`seed tool-install / tool-list / tool-remove` -- command-line tools from
-conda-forge (ripgrep, pandoc, ffmpeg, gh, compilers, ...), the things that
-aren't Python packages and so aren't `seed install`-able.
+`seed tool / tool-install / tool-list / tool-remove / download-tool` --
+command-line tools from conda-forge (ripgrep, pandoc, ffmpeg, gh, compilers,
+...), the things that aren't Python packages and so aren't `seed install`-able.
 
 Each tool gets its own isolated micromamba environment; seedling then writes a
 small launcher for every command the tool provides into a shims directory that
-the shell hook puts on PATH, so the tool runs as a bare command. Removal is
-exact: the manifest records which shims were created.
+the shell hook puts on PATH, so the tool runs as a bare command. `seed tool
+<cmd>` runs an installed tool directly without any PATH setup, and
+`seed download-tool` stages a tool and its dependencies into a local channel
+for an offline install. Removal is exact: the manifest records which shims
+were created.
 
 conda-forge only -- see conda_tool for why that keeps seedling clear of
 Anaconda's commercial terms.
@@ -17,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 
 from pathlib import Path
 
@@ -263,7 +267,6 @@ def install(args) -> int:
 
 def _cleanup_env(name: str) -> None:
     conda_tool.run(["env", "remove", "-y", "-n", name], check=False)
-    import shutil
     shutil.rmtree(paths.tool_env_dir(name), ignore_errors=True)
 
 
@@ -314,6 +317,10 @@ def remove(args) -> int:
             + [f"command '{c}'" for c in commands],
         )
         return 0
+
+    if not confirm.confirm(args, f"Remove conda-forge tool '{name}'?"):
+        print("Aborted. Nothing was removed.")
+        return 1
 
     _remove_shims(commands)
     _cleanup_env(name)

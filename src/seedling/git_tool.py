@@ -166,7 +166,7 @@ def _latest_mingit_url() -> tuple[str, str | None]:
     api_url = "https://api.github.com/repos/git-for-windows/git/releases/latest"
     req = urllib.request.Request(api_url, headers={"User-Agent": "seedling"})
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=download.NETWORK_TIMEOUT) as resp:
             data = json.loads(resp.read())
     except urllib.error.HTTPError as e:
         if e.code == 403:
@@ -179,7 +179,10 @@ def _latest_mingit_url() -> tuple[str, str | None]:
                 f"(the '...-64-bit.zip' asset) and extract it into {GIT_DIR}."
             ) from e
         raise GitNotFound(f"Could not reach GitHub's API ({e}).") from e
-    except urllib.error.URLError as e:
+    except (urllib.error.URLError, TimeoutError) as e:
+        # TimeoutError (a read timeout past connect) isn't a URLError subclass,
+        # so catch it too -- otherwise the new timeout would surface as a bare
+        # traceback instead of the clean GitNotFound the callers handle.
         raise GitNotFound(f"Could not reach GitHub's API ({e}).") from e
 
     for asset in data.get("assets", []):

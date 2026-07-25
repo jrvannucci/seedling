@@ -11,6 +11,8 @@ what a release involves.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-24
+
 ### Added
 
 - **`seed tool / tool-install / tool-list / tool-remove`** — command-line
@@ -201,11 +203,24 @@ what a release involves.
 
 ### Fixed
 
+- **`seed tool-remove` now asks for confirmation** before deleting a tool's
+  environment, matching every other `remove-*` command. It previously removed
+  immediately, ignoring the `-y`/`--non-interactive` flags it advertised;
+  those flags now work as documented (`-y` skips the prompt).
+- **Network downloads no longer hang indefinitely on a stalled connection.**
+  seedling's own fetches (portable MinGit, VS Code, micromamba) and the MinGit
+  release lookup now use a 60-second per-operation timeout, so a dead
+  connection fails with an error instead of blocking the command forever.
 - "Known limits" still described `seed kill-processes` as machine-wide by
   default; it has been seedling-scoped since 0.5.0, with `--system` for the
   machine-wide sweep.
 - An example path in the admin docs read `C:\seedlinglice` instead of
   `C:\seedling\alice`.
+- **Command reference corrections.** The family-overview table in
+  `docs/COMMANDS.md` now lists the `tool*` family, `download-tool`, and
+  `apply` (all were documented in the body but missing from the summary), and
+  the `seed auto-activate` note is reworded from a confusing "off by grep"
+  phrasing.
 
 ## [0.6.0] — 2026-07-19
 

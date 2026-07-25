@@ -15,9 +15,10 @@ destructive action reads the same way (`remove-venv`, `remove-python`,
 |---|---|
 | Python interpreters *(structural — the base installs venvs are built from)* | `python [ver]` *(install)*, `python-list`, `remove-python` |
 | Venvs & packages *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `remove-venv`, `remove-venv-all` |
-| Offline utilities *(build a wheel set for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>` |
+| Command-line tools from conda-forge *(the non-Python tools)* | `tool <cmd>` *(run)*, `tool-install <name>` *(install)*, `tool-list`, `tool-remove` |
+| Offline utilities *(stage packages/tools for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>`, `download-tool <name...>` |
 | Repos | `repo-clone`, `repo-list`, `repo-cd`, `repo-vscode`, `repo-open`, `repo-install`, `remove-repo` |
-| Everyday / singletons | `vscode`, `summary`, `health-check`, `logs-viewer`, `config`, `where`, `kill-processes`, `update-commands`, `remove-user`, `purge`, `purge-and-reinstall` |
+| Everyday / singletons | `vscode`, `summary`, `health-check`, `logs-viewer`, `config`, `apply`, `where`, `kill-processes`, `update-commands`, `remove-user`, `purge`, `purge-and-reinstall` |
 
 **Python interpreters** — structural commands: the base installs that venvs
 are built from. Most days you never touch these after the first install.
@@ -183,8 +184,10 @@ is separate from *which* venv is the default (`seed venv-default`): it decides
   and turning it back on resumes activating the same venv.
 
 Sugar for the `auto_activate` setting (`seed config set auto_activate
-true|false`). Off by grep, on by default: the shell hook honours it without
-launching seed-cli.
+true|false`); on by default. The shell hook honours it without launching
+seed-cli — it detects the disabled state with a plain `grep` of
+`settings.json`, which also lets it skip the startup seed-cli call entirely
+when auto-activation is off.
 
 ```
 seed auto-activate            # show current state
@@ -299,14 +302,17 @@ conda-forge tools:
   pandoc   ->  pandoc   (pandoc=3.2)
 ```
 
-## `seed tool-remove <name>`
+## `seed tool-remove <name> [-y]`
 
 Removes a conda-forge tool: its environment, its PATH launchers, and its
-record. Supports `--preview` to see exactly what would go first.
+record. Prompts for confirmation first (skippable with `-y`/`--yes`), like
+every other `remove-*` command, and supports `--preview` to see exactly what
+would go without touching anything.
 
 ```
 seed tool-remove ripgrep
 seed tool-remove ripgrep --preview
+seed tool-remove ripgrep -y
 ```
 
 ## `seed download-tool <name>[=version] [--dest <dir>]`

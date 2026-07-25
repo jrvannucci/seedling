@@ -94,7 +94,7 @@ def _digest_for(asset: str) -> str | None:
     try:
         req = urllib.request.Request(
             _RELEASE_TAG_API, headers={"Accept": "application/vnd.github+json"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=download.NETWORK_TIMEOUT) as resp:
             data = json.load(resp)
     except (OSError, ValueError):
         return None

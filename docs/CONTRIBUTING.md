@@ -97,9 +97,10 @@ src/
     config.py         JSON config (default base, default venv, update source, etc.) + `seed config`'s KNOWN_KEYS
     confirm.py        shared -y / --preview / --non-interactive handling for destructive commands
     runlog.py         tees stdout/stderr into ~/seedling/system/logs/, one file per day
-    download.py       SHA-256-verifying download helper (MinGit, VS Code)
+    download.py       SHA-256-verifying download helper (MinGit, VS Code, micromamba)
     uv_tool.py        locates + invokes the sandboxed uv binary, tags its output `[uv]`
     git_tool.py       locates git, bootstraps portable MinGit on Windows, tags streamed output `[git]`
+    conda_tool.py     locates + invokes micromamba for conda-forge tools, builds offline channels
     fsutil.py         retrying, cwd-aware directory deletion (see "Why deletion is so defensive")
     colors.py         minimal ANSI color helper (NO_COLOR/non-tty aware)
     commands/         one module per `seed` command (python, venv, activate, repo,
