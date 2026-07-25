@@ -26,7 +26,7 @@ from argparse import Namespace
 import os
 
 from .. import colors, config, confirm, paths, profile as profile_mod, uv_tool
-from . import python_cmd, repo_cmd, venv_cmd
+from . import python_cmd, repo_cmd, tool_cmd, venv_cmd
 
 
 def _install_into(venv_name: str, packages: list[str]) -> bool:
@@ -122,6 +122,13 @@ def _plan(prof: profile_mod.Profile, *, force: bool) -> list[tuple[str, str]]:
             steps.append(("repo", f"clone {repo.url}"
                                   + (" and install its dependencies"
                                      if repo.install else "")))
+
+    for tool in prof.tools:
+        name = tool_cmd._spec_name(tool)
+        if paths.tool_manifest_file(name).exists():
+            steps.append(("skip", f"conda-forge tool {name!r} already installed"))
+        else:
+            steps.append(("tool", f"install conda-forge tool {tool}"))
 
     for key, value in prof.settings.items():
         current = config.get(key)
@@ -234,6 +241,15 @@ def run(args) -> int:
                 os.environ["VIRTUAL_ENV"] = previous
         if rc != 0:
             failed.append(f"dependencies for {name}")
+
+    for tool in prof.tools:
+        name = tool_cmd._spec_name(tool)
+        if paths.tool_manifest_file(name).exists():
+            continue
+        # conda_channel is already in place (seedling.conf at install time), so
+        # an offline bundle installs these from its own conda-channel.
+        if tool_cmd.install(Namespace(spec=tool)) != 0:
+            failed.append(f"tool {name}")
 
     for key, value in prof.settings.items():
         if config.get(key) != value:

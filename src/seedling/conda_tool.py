@@ -104,6 +104,19 @@ def _digest_for(asset: str) -> str | None:
     return None
 
 
+def fetch_micromamba(dest: Path) -> Path:
+    """Download the pinned micromamba binary to `dest`, verified against the
+    release digest. Used both for the first-use bootstrap and to vendor
+    micromamba into an offline bundle."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    asset = asset_name()
+    download.fetch(_RELEASE_DL.format(asset=asset), dest,
+                   expected_sha256=_digest_for(asset))
+    if os.name != "nt":
+        dest.chmod(0o755)
+    return dest
+
+
 def ensure_micromamba() -> Path:
     """Return the micromamba binary, fetching the pinned build if it isn't
     already present (or vendored). Verified against the release digest."""
@@ -113,15 +126,8 @@ def ensure_micromamba() -> Path:
     on_path = shutil.which("micromamba")
     if on_path:
         return Path(on_path)
-
-    paths.BIN_DIR.mkdir(parents=True, exist_ok=True)
-    asset = asset_name()
-    url = _RELEASE_DL.format(asset=asset)
-    print(f"Fetching micromamba {MICROMAMBA_VERSION} ({asset}) ...")
-    download.fetch(url, local, expected_sha256=_digest_for(asset))
-    if os.name != "nt":
-        local.chmod(0o755)
-    return local
+    print(f"Fetching micromamba {MICROMAMBA_VERSION} ({asset_name()}) ...")
+    return fetch_micromamba(local)
 
 
 def channel() -> str:
@@ -154,14 +160,20 @@ def channel_arg(ch: str) -> str:
     return ch
 
 
-def solve_downloads(specs: list[str], channel_str: str) -> list[dict]:
+def solve_downloads(specs: list[str], channel_str: str,
+                    mm: Path | None = None) -> list[dict]:
     """The package records micromamba would fetch to install `specs` from
     `channel_str` -- name, url, sha256, subdir, and the metadata a
-    repodata.json needs -- WITHOUT installing anything. Used by
-    `seed download-tool` to build an offline channel."""
-    result = run_captured(
-        ["create", "--dry-run", "--json", "-n", "_seed_solve",
-         "--override-channels", "-c", channel_str, *specs], check=False)
+    repodata.json needs -- WITHOUT installing anything. Used to build an
+    offline channel (`seed download-tool`, and the offline bundler). Pass `mm`
+    to use a specific micromamba (e.g. one just vendored into a bundle)."""
+    argv = ["create", "--dry-run", "--json", "-n", "_seed_solve",
+            "--override-channels", "-c", channel_str, *specs]
+    if mm is None:
+        result = run_captured(argv, check=False)
+    else:
+        result = subprocess.run([str(mm), *argv], env=_env(None), check=False,
+                                capture_output=True, text=True)
     if result.returncode != 0:
         raise CondaSolveError(
             (result.stderr or result.stdout or "").strip()
@@ -171,6 +183,40 @@ def solve_downloads(specs: list[str], channel_str: str) -> list[dict]:
     except ValueError as e:
         raise CondaSolveError(f"could not parse micromamba's output: {e}")
     return data.get("actions", {}).get("FETCH", [])
+
+
+# Fields carried from micromamba's solve into a local channel's repodata.json.
+# Taken from the solve output rather than by opening each package, so no
+# .conda/zstd handling is needed.
+_REPODATA_KEYS = ("name", "version", "build", "build_number", "depends",
+                  "constrains", "license", "md5", "sha256", "size", "subdir",
+                  "timestamp")
+
+
+def build_channel(records: list[dict], dest: Path) -> list[str]:
+    """Download each package in `records` into a conda-channel layout under
+    `dest`, and write a repodata.json per subdir (synthesized from the
+    records). Every channel needs a noarch subdir, so an empty one is created
+    if the solve produced none. Returns the subdirs written."""
+    subdirs: dict[str, dict] = {}
+    for p in records:
+        sub = p["subdir"]
+        pkg_dir = dest / sub
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        download.fetch(p["url"], pkg_dir / p["fn"],
+                       expected_sha256=p.get("sha256"))
+        table = "packages.conda" if p["fn"].endswith(".conda") else "packages"
+        rec = {k: p[k] for k in _REPODATA_KEYS if k in p}
+        subdirs.setdefault(sub, {"packages": {}, "packages.conda": {}})
+        subdirs[sub][table][p["fn"]] = rec
+
+    subdirs.setdefault("noarch", {"packages": {}, "packages.conda": {}})
+    for sub, tables in subdirs.items():
+        d = dest / sub
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "repodata.json").write_text(json.dumps(
+            {"info": {"subdir": sub}, "repodata_version": 1, **tables}))
+    return sorted(subdirs)
 
 
 def _env(extra: dict | None) -> dict:

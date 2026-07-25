@@ -241,6 +241,11 @@ if [ -d "$SRC_DIR/vendor" ]; then
         chmod +x "$SEEDLING_HOME/system/bin/"uv* 2>/dev/null || true
         info "Using vendored uv from the install source."
     fi
+    if [ -d "$SRC_DIR/vendor/micromamba" ] && [ ! -e "$SEEDLING_HOME/system/bin/micromamba" ] && [ ! -e "$SEEDLING_HOME/system/bin/micromamba.exe" ]; then
+        cp -R "$SRC_DIR/vendor/micromamba/." "$SEEDLING_HOME/system/bin/"
+        chmod +x "$SEEDLING_HOME/system/bin/"micromamba* 2>/dev/null || true
+        info "Using vendored micromamba (conda-forge tools) from the install source."
+    fi
     if [ -d "$SRC_DIR/vendor/git" ] && [ ! -d "$SEEDLING_HOME/extensions/git" ]; then
         mkdir -p "$SEEDLING_HOME/extensions/git"
         cp -R "$SRC_DIR/vendor/git/." "$SEEDLING_HOME/extensions/git/"
