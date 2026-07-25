@@ -66,9 +66,10 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("tool-list", "", "List installed conda-forge tools"),
         ("tool-remove", "<name>", "Remove a conda-forge tool"),
     ]),
-    ("Offline utilities -- download wheels to carry to an air-gapped machine", [
+    ("Offline utilities -- stage packages/tools to carry to an air-gapped machine", [
         ("download-whl", "<package...>", "Download a package + its deps as wheels"),
         ("download-requirements", "<req.txt>", "Download a requirements file's wheels"),
+        ("download-tool", "<name...>", "Download a conda-forge tool + its deps as a channel"),
     ]),
     ("Git repos", [
         ("repo-clone", "<git-url>", "Clone a repo into ~/seedling/repo"),
@@ -262,6 +263,16 @@ def build_parser() -> argparse.ArgumentParser:
         "args", nargs=argparse.REMAINDER,
         help="<requirements.txt> plus any `pip download` flags. Wheels land "
              "in ./wheelhouse unless you pass your own --dest.")
+
+    p_dl_tool = sub.add_parser(
+        "download-tool",
+        help="Download a conda-forge tool (+deps) into a local channel for an offline install")
+    p_dl_tool.add_argument(
+        "specs", nargs="*",
+        help="conda-forge tool(s), optionally pinned (e.g. ripgrep, pandoc=3.2)")
+    p_dl_tool.add_argument(
+        "-d", "--dest", default=None,
+        help="Directory to write the channel into (default ./conda-channel)")
 
     p_vscode = sub.add_parser("vscode", help="Install (if needed) and open VS Code")
     p_vscode.add_argument("path", nargs="?", help="Path to open (defaults to cwd)")
@@ -523,6 +534,7 @@ def _dispatch_main(argv: list[str]) -> int:
         "tool-install": tool_cmd.install,
         "tool-list": tool_cmd.list_tools,
         "tool-remove": tool_cmd.remove,
+        "download-tool": tool_cmd.download_tool,
         "install": install_cmd.run,
         "uninstall": uninstall_cmd.run,
         "package-list": list_cmd.list_packages,

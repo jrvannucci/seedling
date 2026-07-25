@@ -200,6 +200,90 @@ def test_run_tool_no_command_lists_available(fake_micromamba, home, capsys):
     assert "ripgrep" in capsys.readouterr().out
 
 
+# --- download-tool (offline channel builder) -------------------------------
+
+_FETCH = [
+    {"name": "ripgrep", "version": "15.2.0", "build": "h0_0", "build_number": 0,
+     "subdir": "win-64", "fn": "ripgrep-15.2.0-h0_0.conda",
+     "url": "https://conda.anaconda.org/conda-forge/win-64/ripgrep-15.2.0-h0_0.conda",
+     "sha256": "abc", "md5": "d", "size": 10, "depends": ["ucrt"]},
+    {"name": "ucrt", "version": "10.0", "build": "h1_0", "build_number": 0,
+     "subdir": "noarch", "fn": "ucrt-10.0-h1_0.tar.bz2",
+     "url": "https://conda.anaconda.org/conda-forge/noarch/ucrt-10.0-h1_0.tar.bz2",
+     "sha256": "def", "md5": "e", "size": 20, "depends": []},
+]
+
+
+@pytest.fixture
+def fake_solve_and_fetch(monkeypatch):
+    """Stub the solve (returns fixed records) and the downloader (writes a
+    placeholder file), so download-tool's channel building is exercised with
+    no network."""
+    monkeypatch.setattr(tool_cmd.conda_tool, "ensure_micromamba",
+                        lambda: paths.micromamba_binary())
+    monkeypatch.setattr(tool_cmd.conda_tool, "solve_downloads",
+                        lambda specs, ch: list(_FETCH))
+
+    def fake_fetch(url, dest, *, expected_sha256=None):
+        dest.write_text("pkg")
+    monkeypatch.setattr(tool_cmd.download, "fetch", fake_fetch)
+
+
+def test_download_tool_builds_a_valid_channel(fake_solve_and_fetch, home, tmp_path):
+    dest = tmp_path / "ch"
+    rc = tool_cmd.download_tool(_ns(specs=["ripgrep"], dest=str(dest)))
+    assert rc == 0
+    # packages downloaded into their subdir folders
+    assert (dest / "win-64" / "ripgrep-15.2.0-h0_0.conda").exists()
+    assert (dest / "noarch" / "ucrt-10.0-h1_0.tar.bz2").exists()
+    # repodata per subdir, with the .conda/.tar.bz2 split
+    win = json.loads((dest / "win-64" / "repodata.json").read_text())
+    assert "ripgrep-15.2.0-h0_0.conda" in win["packages.conda"]
+    assert win["packages.conda"]["ripgrep-15.2.0-h0_0.conda"]["depends"] == ["ucrt"]
+    noarch = json.loads((dest / "noarch" / "repodata.json").read_text())
+    assert "ucrt-10.0-h1_0.tar.bz2" in noarch["packages"]
+
+
+def test_download_tool_always_writes_a_noarch(fake_solve_and_fetch, home, tmp_path):
+    """A conda channel is invalid without a noarch/repodata.json, even when the
+    solve produced no noarch packages."""
+    import copy
+    win_only = [copy.deepcopy(_FETCH[0])]      # only the win-64 package
+    tool_cmd.conda_tool.solve_downloads = lambda specs, ch: win_only
+    dest = tmp_path / "ch2"
+    tool_cmd.download_tool(_ns(specs=["ripgrep"], dest=str(dest)))
+    assert (dest / "noarch" / "repodata.json").exists()
+
+
+def test_download_tool_reports_offline_next_steps(fake_solve_and_fetch, home, tmp_path, capsys):
+    tool_cmd.download_tool(_ns(specs=["ripgrep"], dest=str(tmp_path / "ch")))
+    out = capsys.readouterr().out
+    assert "conda_channel" in out and "tool-install ripgrep" in out
+
+
+# --- install honours a local channel (offline) -----------------------------
+
+def test_local_channel_install_is_offline_and_file_url(fake_micromamba, home,
+                                                       tmp_path, monkeypatch):
+    channel_dir = tmp_path / "ch"
+    channel_dir.mkdir()
+    config.set_value("conda_channel", str(channel_dir))
+    tool_cmd.install(_ns(spec="ripgrep"))
+    create = next(c for c in fake_micromamba if c[:1] == ["create"])
+    assert "--offline" in create                       # never touches network
+    carg = create[create.index("-c") + 1]
+    assert carg.startswith("file://")                  # local dir -> file URL
+
+
+def test_named_channel_is_not_treated_as_local(fake_micromamba, home):
+    """The default 'conda-forge' is a channel NAME, not a path -- it must pass
+    through unchanged and NOT trigger --offline."""
+    tool_cmd.install(_ns(spec="ripgrep"))
+    create = next(c for c in fake_micromamba if c[:1] == ["create"])
+    assert "--offline" not in create
+    assert create[create.index("-c") + 1] == "conda-forge"
+
+
 class _ns:
     """Lightweight argparse.Namespace substitute."""
     def __init__(self, **kw):

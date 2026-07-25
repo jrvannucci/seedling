@@ -40,6 +40,10 @@ class MicromambaNotFound(RuntimeError):
     pass
 
 
+class CondaSolveError(RuntimeError):
+    """micromamba could not resolve the requested packages."""
+
+
 def tag_line(line: str) -> str:
     """Prefix micromamba's own output so it never reads as seedling's."""
     if not line.strip():
@@ -124,6 +128,49 @@ def channel() -> str:
     """The conda channel to install from. conda-forge by default; a URL or a
     local directory (an internal mirror) for the offline/proxied case."""
     return str(config.get("conda_channel") or "conda-forge")
+
+
+def channel_is_local(ch: str) -> bool:
+    """Whether `ch` is a local filesystem channel (a directory built by
+    `seed download-tool`) rather than a remote one. A bare name like
+    "conda-forge" is a REMOTE named channel, not a path -- only something that
+    looks like a path (or a file:// URL) counts as local."""
+    if ch.startswith("file://"):
+        return True
+    if "://" in ch:               # http(s): a remote mirror
+        return False
+    return ("/" in ch or "\\" in ch or ch.startswith("~")
+            or (len(ch) > 1 and ch[1] == ":"))   # windows drive
+
+
+def channel_arg(ch: str) -> str:
+    """The value to pass after micromamba's `-c`. A local directory is turned
+    into a file:// URL (which micromamba reads a repodata.json from); remote
+    channels and bare names pass through unchanged."""
+    if channel_is_local(ch) and not ch.startswith("file://"):
+        p = Path(ch).expanduser()
+        if p.exists():
+            return p.resolve().as_uri()
+    return ch
+
+
+def solve_downloads(specs: list[str], channel_str: str) -> list[dict]:
+    """The package records micromamba would fetch to install `specs` from
+    `channel_str` -- name, url, sha256, subdir, and the metadata a
+    repodata.json needs -- WITHOUT installing anything. Used by
+    `seed download-tool` to build an offline channel."""
+    result = run_captured(
+        ["create", "--dry-run", "--json", "-n", "_seed_solve",
+         "--override-channels", "-c", channel_str, *specs], check=False)
+    if result.returncode != 0:
+        raise CondaSolveError(
+            (result.stderr or result.stdout or "").strip()
+            or "micromamba could not resolve the request")
+    try:
+        data = json.loads(result.stdout)
+    except ValueError as e:
+        raise CondaSolveError(f"could not parse micromamba's output: {e}")
+    return data.get("actions", {}).get("FETCH", [])
 
 
 def _env(extra: dict | None) -> dict:
