@@ -133,11 +133,24 @@ def test_list_empty(home, capsys):
 def test_remove_deletes_env_shim_and_manifest(fake_micromamba, home):
     tool_cmd.install(_ns(spec="ripgrep"))
     assert _shim("ripgrep").exists()
-    rc = tool_cmd.remove(_ns(name="ripgrep", preview=False))
+    rc = tool_cmd.remove(_ns(name="ripgrep", preview=False, yes=True))
     assert rc == 0
     assert not _shim("ripgrep").exists()
     assert not paths.tool_manifest_file("ripgrep").exists()
     assert not paths.tool_env_dir("ripgrep").exists()
+
+
+def test_remove_aborts_without_confirmation(fake_micromamba, home, monkeypatch, capsys):
+    """Like every other remove-* command, tool-remove needs confirmation:
+    a 'no' answer leaves the env, shim, and manifest untouched."""
+    tool_cmd.install(_ns(spec="ripgrep"))
+    monkeypatch.setattr("builtins.input", lambda *a: "no")
+    rc = tool_cmd.remove(_ns(name="ripgrep", preview=False))
+    assert rc == 1
+    assert "Aborted" in capsys.readouterr().out
+    assert _shim("ripgrep").exists()
+    assert paths.tool_manifest_file("ripgrep").exists()
+    assert paths.tool_env_dir("ripgrep").exists()
 
 
 def test_remove_preview_changes_nothing(fake_micromamba, home, capsys):

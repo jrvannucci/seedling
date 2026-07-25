@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import os
+
 from .. import colors, config, paths, uv_tool
 from . import python_cmd
 
 
 def _python_interpreter_path(base_dir):
     # uv's managed CPython layout: <base>/bin/python3 on unix, <base>/python.exe on windows
-    import os
-
     if os.name == "nt":
         candidate = base_dir / "python.exe"
         if candidate.exists():
@@ -51,11 +51,13 @@ def run(args) -> int:
     print(f"Creating venv '{args.name}' from base '{tag}' -> {target}")
     result = uv_tool.run_captured(["venv", "--python", str(interpreter), str(target)])
     for line in (result.stdout + result.stderr).splitlines():
-        # uv prints its own "activate with: source .../activate" hint, which
+        # uv prints its own "Activate with: source .../activate" hint, which
         # doesn't match how `seed activate` actually works (it's a shell
-        # function, not a sourced script path) -- drop it, keep everything
-        # else (interpreter resolution, creation confirmation, etc.)
-        if "activate" in line.lower():
+        # function, not a sourced script path) -- drop just that hint line,
+        # keep everything else (interpreter resolution, creation confirmation,
+        # etc.). Matching the "activate with" lead-in rather than any mention
+        # of "activate" avoids swallowing unrelated uv output.
+        if "activate with" in line.lower():
             continue
         if line.strip():
             print(uv_tool.tag_line(line))
@@ -86,8 +88,6 @@ def run(args) -> int:
 def _python_interpreter_path_venv(venv_dir):
     """A venv's own interpreter (layout differs from uv's managed CPython
     dirs, which _python_interpreter_path handles)."""
-    import os
-
     if os.name == "nt":
         candidate = venv_dir / "Scripts" / "python.exe"
     else:

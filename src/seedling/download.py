@@ -24,6 +24,12 @@ from pathlib import Path
 
 from . import colors
 
+# Applied to every network operation so a stalled connection can't hang the
+# process indefinitely. It's a per-blocking-operation timeout (connect, and
+# each socket read), not a total-transfer budget, so it never aborts a slow
+# but healthy download -- only one that goes silent.
+NETWORK_TIMEOUT = 60
+
 
 class ChecksumMismatch(RuntimeError):
     pass
@@ -65,7 +71,8 @@ def fetch(url: str, dest: Path, *, expected_sha256: str | None = None,
     `total_bytes` is 0 when the server sent no Content-Length. Callbacks are
     expected to do their own throttling."""
     req = urllib.request.Request(url, headers={"User-Agent": "seedling"})
-    with urllib.request.urlopen(req) as resp, open(dest, "wb") as f:
+    with urllib.request.urlopen(req, timeout=NETWORK_TIMEOUT) as resp, \
+            open(dest, "wb") as f:
         if on_progress is None:
             shutil.copyfileobj(resp, f)
         else:

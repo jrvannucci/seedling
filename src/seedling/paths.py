@@ -16,6 +16,8 @@ scattered across the filesystem:
         cache/
             uv/           <- uv's package/interpreter download cache, kept
                              inside seedling instead of ~/.cache / %LOCALAPPDATA%
+        conda/            <- micromamba root: conda-forge tool envs, package
+                             cache, and the PATH shims (`seed tool-install`)
         shell/
             seed.sh       <- sourced by bash/zsh to define the `seed` function
             seed.ps1      <- dot-sourced by PowerShell to define the `seed` function
@@ -33,6 +35,7 @@ scattered across the filesystem:
 
 from __future__ import annotations
 
+import getpass
 import os
 from pathlib import Path
 
@@ -41,7 +44,6 @@ def _current_username() -> str:
     """Login name, for the {user} placeholder. getpass.getuser() consults
     USER/LOGNAME/LNAME/USERNAME then the password database -- covers every
     platform seedling runs on."""
-    import getpass
     try:
         return getpass.getuser()
     except Exception:
