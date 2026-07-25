@@ -360,7 +360,14 @@ offline-bundle/
   python-builds/     <- the exact interpreter archive your shipped uv wants
   wheels/            <- hatchling + the default venv packages (+ any --packages you add),
                         resolved once per mirrored interpreter
+  conda-channel/     <- only with --tools (or a profile's [tools]): a conda channel
+                        of conda-forge CLI tools + micromamba, for `seed tool-install`
 ```
+
+Pass `--tools ripgrep,pandoc` (or declare `tools = [...]` in your profile) and
+the builder vendors **micromamba** and a **conda channel** into the bundle and
+points `SEEDLING_CONDA_CHANNEL` at it, so `seed tool-install` (and any tools a
+profile declares, via `seed apply`) work offline from the one bundle.
 
 It also pre-seeds portable **VS Code and its default extensions** into
 `vendor/vscode/` (the ~300MB step — skip it with `--no-vscode`). Copy the folder

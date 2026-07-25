@@ -116,6 +116,19 @@ COMPONENTS = {
         "redistribution": "permissive",
         "note": "Licences vary per package; review your own --packages set.",
     },
+    "micromamba": {
+        "source": "https://github.com/mamba-org/micromamba-releases/releases",
+        "license": "BSD-3-Clause",
+        "redistribution": "permissive",
+    },
+    "conda-forge-tools": {
+        "source": "conda-forge (https://conda-forge.org)",
+        "license": "per tool -- see the bundled channel",
+        "redistribution": "permissive",
+        "note": ("conda-forge is the community channel, distinct from "
+                 "Anaconda's `defaults` and its commercial terms. Each tool "
+                 "carries its own upstream licence -- review your set."),
+    },
     "mingit": {
         "source": GIT_WIN_LATEST_API,
         "license": "GPL-2.0",
@@ -257,7 +270,7 @@ def ask(question: str, *, default: bool, auto: bool) -> bool:
 
 
 def planned_components(*, vscode: bool, mingit: bool, flavor: str,
-                       gallery_overridden: bool) -> list[str]:
+                       gallery_overridden: bool, conda: bool = False) -> list[str]:
     """Which COMPONENTS keys this build will actually stage.
 
     uv, the interpreters and the wheels are unconditional. The editor
@@ -265,6 +278,8 @@ def planned_components(*, vscode: bool, mingit: bool, flavor: str,
     depending on configuration -- which is exactly what decides whether this
     bundle contains anything restricted."""
     names = ["uv", "python-build-standalone", "python-packages"]
+    if conda:
+        names += ["micromamba", "conda-forge-tools"]
     if mingit:
         names.append("mingit")
     if vscode:
@@ -776,6 +791,42 @@ def build_vscode(vendor_vscode: Path, staging: Path) -> bool:
     return True
 
 
+def build_conda_channel(vendor_micromamba: Path, channel_dir: Path,
+                        tools: list[str]) -> tuple[bool, int]:
+    """Vendor micromamba and build a conda channel of `tools` + their
+    dependencies under `channel_dir`, so the offline machine can
+    `seed tool-install` them with no network. Returns (ok, package_count).
+
+    The channel is downloaded from the builder's configured conda source
+    (conda-forge by default, or an internal mirror), and its repodata.json is
+    synthesized from the solve -- the same mechanism as `seed download-tool`,
+    reused here so the bundle carries one artifact instead of a side folder."""
+    from seedling import conda_tool
+    mm_name = "micromamba.exe" if platform.system() == "Windows" else "micromamba"
+    try:
+        mm = conda_tool.fetch_micromamba(vendor_micromamba / mm_name)
+    except (OSError, RuntimeError) as e:
+        warn(f"Could not fetch micromamba: {e}")
+        return False, 0
+    ok(f"Vendored micromamba into {vendor_micromamba}")
+
+    source = conda_tool.channel_arg(conda_tool.channel())
+    info(f"Resolving {', '.join(tools)} from {conda_tool.channel()} ...")
+    try:
+        records = conda_tool.solve_downloads(tools, source, mm=mm)
+    except conda_tool.CondaSolveError as e:
+        warn(f"Could not resolve the conda-forge tools: {e}")
+        return False, 0
+    if not records:
+        warn("No conda packages resolved for the requested tools.")
+        return False, 0
+
+    info(f"Downloading {len(records)} conda package(s) into {channel_dir} ...")
+    conda_tool.build_channel(records, channel_dir)
+    ok(f"Conda channel built at {channel_dir} ({len(records)} package(s)).")
+    return True, len(records)
+
+
 # --------------------------------------------------------------------------
 # preflight: does the assembled bundle actually install?
 # --------------------------------------------------------------------------
@@ -1014,6 +1065,12 @@ def main(argv=None) -> int:
         help="Extra packages to add to the offline wheel index, "
              "comma-separated (on top of hatchling + the default venv packages).")
     parser.add_argument(
+        "--tools", default="",
+        help="conda-forge command-line tools to bundle (comma-separated, e.g. "
+             "ripgrep,pandoc). Vendors micromamba and builds a conda channel "
+             "into the bundle so `seed tool-install` works offline. A profile's "
+             "[tools] are included automatically.")
+    parser.add_argument(
         "--no-vscode", action="store_true",
         help="Skip the VS Code + extensions download (the ~300MB step).")
     parser.add_argument(
@@ -1070,6 +1127,7 @@ def main(argv=None) -> int:
     # the drift that shows up as a failed install in the air-gapped room,
     # long after the bundle left.
     profile_packages: list[str] = []
+    profile_tools: list[str] = []
     profile_path = None
     if args.profile is None:
         candidate = REPO_ROOT / "seedling-profile.toml"
@@ -1079,11 +1137,16 @@ def main(argv=None) -> int:
     if profile_path is not None:
         from seedling import profile as profile_mod
         try:
-            profile_packages = profile_mod.load(profile_path).package_set()
+            loaded = profile_mod.load(profile_path)
+            profile_packages = loaded.package_set()
+            profile_tools = loaded.tool_set()
         except profile_mod.ProfileError as e:
             warn(f"{profile_path}: {e}")
             info("Fix the profile, or pass --profile= to build without it.")
             return 2
+
+    extra_tools = [t.strip() for t in args.tools.split(",") if t.strip()]
+    conda_tools = list(dict.fromkeys(extra_tools + profile_tools))
 
     packages = REQUIRED_PACKAGES + [
         p for p in extra_packages + profile_packages
@@ -1124,6 +1187,8 @@ def main(argv=None) -> int:
                   if floor else "")
     print(f"  Python      : {', '.join(v or 'newest' for v in versions)}{floor_note}")
     print(f"  Wheels      : {', '.join(packages)}")
+    if conda_tools:
+        print(f"  Conda tools : {', '.join(conda_tools)}  (via micromamba)")
     if profile_path is not None:
         print(f"  Profile     : {profile_path}"
               + (f"  (contributed {len(profile_packages)} package(s))"
@@ -1158,6 +1223,7 @@ def main(argv=None) -> int:
         mingit=(system == "Windows" and args.mingit),
         flavor=editor_flavor,
         gallery_overridden=bool(vscode_cmd.gallery_for(editor_flavor)),
+        conda=bool(conda_tools),
     )
 
     if args.dry_run:
@@ -1231,8 +1297,23 @@ def main(argv=None) -> int:
     elif not uv_exe:
         warn("Skipped -- needs uv (step 2).")
 
-    # 5. MinGit (optional, Windows).
-    step(5, "git for Windows (optional)")
+    # 5. conda-forge tools (optional -- vendors micromamba + a conda channel).
+    step(5, "conda-forge tools (SEEDLING_CONDA_CHANNEL, optional)")
+    conda_ok = False
+    conda_pkg_count = 0
+    conda_channel_dir = output / "conda-channel"
+    if not conda_tools:
+        info("No conda-forge tools requested (--tools, or a profile's [tools]). "
+             "Skipped.")
+    elif ask(f"Bundle {len(conda_tools)} conda-forge tool(s) now? "
+             f"({', '.join(conda_tools)})", default=True, auto=auto):
+        info("Vendors micromamba and builds a conda channel into the bundle so "
+             "`seed tool-install` runs with no internet on the target machine.")
+        conda_ok, conda_pkg_count = build_conda_channel(
+            vendor / "micromamba", conda_channel_dir, conda_tools)
+
+    # 6. MinGit (optional, Windows).
+    step(6, "git for Windows (optional)")
     info("Only needed if your offline machines have no system git and you use "
          "`seed repo-clone` or URL-based `seed update-commands`.")
     if system == "Windows":
@@ -1244,8 +1325,8 @@ def main(argv=None) -> int:
     else:
         info("Building on a non-Windows host; MinGit is Windows-only. Skipped.")
 
-    # 6. VS Code + extensions (optional, automated -- the heavy one).
-    step(6, "VS Code + extensions (optional, ~300MB)")
+    # 7. VS Code + extensions (optional, automated -- the heavy one).
+    step(7, "VS Code + extensions (optional, ~300MB)")
     info("Pre-seeds the portable VS Code and the default extensions (Python, "
          "Jupyter, ruff) into vendor/vscode/, so offline machines get the "
          "editor with no marketplace access. Everything else works without it.")
@@ -1260,8 +1341,8 @@ def main(argv=None) -> int:
         # extension signature verification under a `.`-leading path component.
         vscode_ok = build_vscode(vendor / "vscode", output / "vscode-staging")
 
-    # 7. Corporate CA certs (optional, user-supplied).
-    step(7, "Corporate CA certificates (optional)")
+    # 8. Corporate CA certs (optional, user-supplied).
+    step(8, "Corporate CA certificates (optional)")
     if ask("Create a vendor/certs/ folder for your CA bundle?",
            default=False, auto=auto):
         (vendor / "certs").mkdir(parents=True, exist_ok=True)
@@ -1270,8 +1351,8 @@ def main(argv=None) -> int:
     else:
         info("Skip unless a TLS-inspecting proxy re-signs HTTPS on your network.")
 
-    # 8. seedling.conf.
-    step(8, "Write seedling.conf")
+    # 9. seedling.conf.
+    step(9, "Write seedling.conf")
     conf_values = {
         "SEEDLING_REPO_URL": f"{deploy_root}\\seedling" if system == "Windows"
         else f"{deploy_root}/seedling",
@@ -1280,13 +1361,19 @@ def main(argv=None) -> int:
         "SEEDLING_PACKAGE_INDEX": f"{deploy_root}\\wheels" if system == "Windows"
         else f"{deploy_root}/wheels",
     }
+    if conda_ok:
+        # Point tool-install at the bundled channel; the local-channel path in
+        # conda_tool then installs from it offline.
+        conf_values["SEEDLING_CONDA_CHANNEL"] = (
+            f"{deploy_root}\\conda-channel" if system == "Windows"
+            else f"{deploy_root}/conda-channel")
     write_conf(seedling_copy / "seedling.conf", conf_values)
     ok(f"Wrote {seedling_copy / 'seedling.conf'} pointing at {deploy_root}.")
     for k, v in conf_values.items():
         info(f"  {k}={v}")
 
     # 9. Preflight: prove the bundle installs before it leaves this machine.
-    step(9, "Verify the bundle installs offline")
+    step(10, "Verify the bundle installs offline")
     info("Installs from the bundle with the network refused and a cold cache, "
          "so a missing wheel or interpreter surfaces HERE rather than in the "
          "air-gapped room.")
@@ -1301,7 +1388,7 @@ def main(argv=None) -> int:
     # 10. Manifest: what actually landed, and under what terms. Written from
     # the real outcomes above, so a partial build produces an honest record
     # rather than a description of what was intended.
-    step(10, "Record what was staged (MANIFEST.json)")
+    step(11, "Record what was staged (MANIFEST.json)")
     staged = {
         "uv": uv_exe is not None,
         "python-build-standalone": mirror_ok,
@@ -1311,7 +1398,11 @@ def main(argv=None) -> int:
         "vscode-extensions": vscode_ok and editor_flavor != "vscodium",
         "vscodium": vscode_ok and editor_flavor == "vscodium",
         "openvsx-extensions": vscode_ok and editor_flavor == "vscodium",
+        "micromamba": conda_ok,
+        "conda-forge-tools": conda_ok,
         "python-build-standalone:version": ", ".join(mirrored_versions) or None,
+        "conda-forge-tools:version": (", ".join(conda_tools)
+                                      if conda_ok else None),
     }
     manifest_path = write_manifest(output, components, staged=staged)
     ok(f"Wrote {manifest_path}")
@@ -1338,6 +1429,10 @@ def main(argv=None) -> int:
            # failed pass leaves real wheels behind but an unusable bundle.
            "(populated)" if wheels_ok
            else colors.warn("(incomplete -- redo step 4)"))
+    if conda_tools:
+        layout(f"conda-channel{os.sep}", "SEEDLING_CONDA_CHANNEL",
+               f"({conda_pkg_count} pkgs)" if conda_ok
+               else colors.warn("(missing -- redo step 5)"))
     if vscode_wanted:
         layout(f"seedling{os.sep}vendor{os.sep}vscode{os.sep}", "pre-seeded VS Code",
                "(populated)" if vscode_ok

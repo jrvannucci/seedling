@@ -35,12 +35,20 @@ what a release involves.
   `repodata.json` synthesized from the solve — no `conda index` needed) to
   carry to an air-gapped one. Point `conda_channel` at the folder and
   `tool-install` runs fully offline (it auto-adds `--offline` and a `file://`
-  URL for a local channel). This closes the offline conda gap: with it, staging
-  conda-forge tools for a dark network no longer needs an internal mirror.
+  URL for a local channel).
 
-  *Still not included:* installer-time micromamba bootstrap (the online path
-  fetches it on first use), and folding the conda channel into the single
-  `build-offline` bundle (today it's a separate `download-tool` folder).
+- **`build-offline` now folds conda-forge tools into the one bundle.** Pass
+  `--tools ripgrep,pandoc` (or declare `tools = [...]` in a profile, which the
+  bundler reads like it already reads the venv packages) and the build vendors
+  micromamba and a `conda-channel/` into the bundle, and writes
+  `SEEDLING_CONDA_CHANNEL` into its `seedling.conf`. On the target, the
+  installer picks up the vendored micromamba and `seed apply` installs the
+  profile's tools from the bundled channel — one artifact, no internet, no
+  side folder. The manifest records micromamba and the conda-forge tools with
+  their licences. This closes the last deferred offline-conda gap.
+
+  *Still not included:* installer-time micromamba bootstrap for the *online*
+  path (it fetches on first use of `seed tool-install`).
 
 - **seedling now has a license: [Apache-2.0](LICENSE)** (patent grant
   included), declared in the package metadata as `License-Expression:

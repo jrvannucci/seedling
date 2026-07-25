@@ -33,6 +33,11 @@ schema = 1
 # Interpreters to install. Omit to use whatever `seed python` picks.
 python = ["3.12"]
 
+# conda-forge command-line tools to install (the non-Python ones). Must sit
+# up here with the other top-level keys, BEFORE the first [[table]] -- a TOML
+# key placed after a table belongs to that table, not the profile.
+tools = ["ripgrep", "pandoc"]
+
 [[venv]]
 name = "dev"
 packages = ["ipython", "ruff", "requests"]
@@ -174,6 +179,7 @@ profile itself is invalid.
 | `[[venv]] packages` | list | Packages for this venv. Specifiers like `"ruff>=0.5"` are fine. |
 | `[[venv]] default` | bool | Make this the venv new shells auto-activate. At most one. |
 | `[[venv]] default_packages` | bool | `false` skips `venv_default_packages` for this venv. |
+| `tools` | list | conda-forge command-line tools to install (e.g. `["ripgrep", "pandoc=3.2"]`). Top-level key — put it before any `[[table]]`. |
 | `[[repo]] url` | string | **Required.** Git URL to clone. |
 | `[[repo]] install` | bool | Also install its dependencies, into the default venv. |
 | `[config]` | table | Settings to write. See below. |
@@ -197,13 +203,17 @@ whole fleet: a typo should fail once for you, not quietly for each user.
 ## Offline bundles
 
 `build-offline.cmd` reads the profile automatically (or takes `--profile
-PATH`) and adds every package the profile's venvs need to the wheel set.
+PATH`) and adds every package the profile's venvs need to the wheel set — and
+every tool in its `tools` list to a bundled conda channel (vendoring
+micromamba alongside it). On the target, `seed apply` then installs those
+tools from the bundle, with no internet and no separate folder to carry.
 
 This matters more than it sounds. Without it, the profile and the bundler's
-`--packages` list are two hand-maintained lists of the same thing, and any
-drift between them surfaces as a failed install on the air-gapped side, long
-after the bundle was carried there. Deriving one from the other removes that
-failure mode. The preflight check then verifies the result before it leaves.
+`--packages`/`--tools` lists are hand-maintained copies of the same thing, and
+any drift between them surfaces as a failed install on the air-gapped side,
+long after the bundle was carried there. Deriving one from the other removes
+that failure mode. The preflight check then verifies the wheel side before it
+leaves.
 
 Pass `--profile=` (empty) to build a bundle that deliberately doesn't match
 the repo's profile.

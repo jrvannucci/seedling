@@ -30,6 +30,7 @@ def test_minimal_profile():
 def test_full_profile_round_trips():
     prof = profile_mod.parse('''
         python = ["3.12", "3.13"]
+        tools = ["ripgrep", "pandoc=3.2"]
 
         [[venv]]
         name = "dev"
@@ -55,6 +56,8 @@ def test_full_profile_round_trips():
     assert dev.python == "312" and dev.default is True
     assert analysis.default_packages is False
     assert prof.repos[0].install is True
+    assert prof.tools == ["ripgrep", "pandoc=3.2"]
+    assert prof.tool_set() == ["ripgrep", "pandoc=3.2"]
     assert prof.settings["vscode_flavor"] == "vscodium"
 
 
@@ -213,6 +216,38 @@ def test_apply_writes_settings_and_is_then_idempotent(run_cli, home, tmp_path):
     code, out = run_cli("apply", str(prof))
     assert code == 0
     assert "Already up to date" in out
+
+
+def test_apply_installs_profile_tools(run_cli, home, tmp_path, monkeypatch):
+    """A profile's [tools] are installed by apply (from conda_channel, which on
+    an offline bundle points at the bundled channel)."""
+    from seedling.commands import apply_cmd
+    installed = []
+    monkeypatch.setattr(apply_cmd.tool_cmd, "install",
+                        lambda args: (installed.append(args.spec), 0)[1])
+    prof = _write(tmp_path, 'tools = ["ripgrep", "pandoc=3.2"]')
+
+    code, out = run_cli("apply", str(prof), "--preview")
+    assert code == 0
+    assert "install conda-forge tool ripgrep" in out
+    assert not installed, "preview must not install anything"
+
+    code, out = run_cli("apply", str(prof))
+    assert code == 0
+    assert installed == ["ripgrep", "pandoc=3.2"]
+
+
+def test_apply_skips_an_already_installed_tool(run_cli, home, tmp_path, monkeypatch):
+    from seedling.commands import apply_cmd
+    paths.TOOL_MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
+    paths.tool_manifest_file("ripgrep").write_text('{"commands": ["rg"]}')
+    called = []
+    monkeypatch.setattr(apply_cmd.tool_cmd, "install",
+                        lambda args: (called.append(args.spec), 0)[1])
+    prof = _write(tmp_path, 'tools = ["ripgrep"]')
+    code, out = run_cli("apply", str(prof))
+    assert code == 0
+    assert not called, "an installed tool must not be reinstalled"
 
 
 def test_existing_venv_is_never_recreated(run_cli, home, tmp_path):

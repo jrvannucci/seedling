@@ -306,6 +306,11 @@ if (Test-Path $VendorDir) {
         Copy-Item "$vendorUv\*" -Destination "$SeedlingHome\system\bin" -Recurse -Force
         Info "Using vendored uv from the install source."
     }
+    $vendorMm = Join-Path $VendorDir "micromamba"
+    if ((Test-Path $vendorMm) -and -not (Test-Path "$SeedlingHome\system\bin\micromamba.exe")) {
+        Copy-Item "$vendorMm\*" -Destination "$SeedlingHome\system\bin" -Recurse -Force
+        Info "Using vendored micromamba (conda-forge tools) from the install source."
+    }
     $vendorGit = Join-Path $VendorDir "git"
     if ((Test-Path $vendorGit) -and -not (Test-Path "$SeedlingHome\extensions\git")) {
         New-Item -ItemType Directory -Force -Path "$SeedlingHome\extensions\git" | Out-Null

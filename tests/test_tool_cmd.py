@@ -226,7 +226,7 @@ def fake_solve_and_fetch(monkeypatch):
 
     def fake_fetch(url, dest, *, expected_sha256=None):
         dest.write_text("pkg")
-    monkeypatch.setattr(tool_cmd.download, "fetch", fake_fetch)
+    monkeypatch.setattr(conda_tool.download, "fetch", fake_fetch)
 
 
 def test_download_tool_builds_a_valid_channel(fake_solve_and_fetch, home, tmp_path):

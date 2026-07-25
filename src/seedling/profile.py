@@ -72,7 +72,14 @@ class Profile:
     pythons: list[str] = field(default_factory=list)
     venvs: list[Venv] = field(default_factory=list)
     repos: list[Repo] = field(default_factory=list)
+    tools: list[str] = field(default_factory=list)
     settings: dict = field(default_factory=dict)
+
+    def tool_set(self) -> list[str]:
+        """The conda-forge tools this profile declares, de-duplicated. Used by
+        the offline bundler to build the bundled conda channel, and by
+        `seed apply` to install them -- one source of truth, like packages."""
+        return list(dict.fromkeys(self.tools))
 
     def package_set(self) -> list[str]:
         """Every package any venv in this profile needs, de-duplicated and
@@ -168,6 +175,8 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
         _require(isinstance(install, bool),
                  f"repo {url!r}: install must be true or false")
         profile.repos.append(Repo(url=url.strip(), install=install))
+
+    profile.tools = _str_list(raw.get("tools", []), "tools")
 
     settings = raw.get("config", {})
     _require(isinstance(settings, dict), "[config] must be a table")
