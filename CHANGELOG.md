@@ -11,6 +11,22 @@ what a release involves.
 
 ## [Unreleased]
 
+### Changed
+
+- **`seed vscode` now asks before its first-time ~300 MB download.** With no
+  editor installed, the command used to start fetching VS Code immediately;
+  it now prints the size and prompts, and declining exits 0 with the command
+  to run later. Opening an editor that is *already* installed is unchanged
+  and never prompts. `seed repo-vscode` shares the gate, since it can trigger
+  the same download.
+
+  New `-y`/`--yes` and `--non-interactive` flags on both commands (honoring
+  `SEEDLING_YES` / `SEEDLING_NONINTERACTIVE` like every other prompt);
+  `--reinstall` is exempt, as asking for a reinstall already implies the
+  download. **If you script `seed vscode` on a fresh machine
+  non-interactively, pass `-y`** — the installers' own `SEEDLING_AUTO_VSCODE`
+  setup already does.
+
 ## [0.7.0] — 2026-07-24
 
 ### Added

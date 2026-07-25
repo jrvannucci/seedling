@@ -8,7 +8,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from .. import config, download, paths
+from .. import config, confirm, download, paths
 
 # A minimal, opinionated starter kit: Python debugging, Jupyter, and linting.
 DEFAULT_EXTENSIONS = [
@@ -488,8 +488,46 @@ def open_window(cli: list[str], path: str) -> None:
     subprocess.Popen([*cli, path], **popen_kwargs)
 
 
+def is_installed() -> bool:
+    """Whether a usable VS Code is already unpacked in the seedling tree.
+    Same test `install()` uses to decide it has nothing to do, so the two can
+    never disagree about whether a download is about to happen."""
+    return _find_cli(paths.VSCODE_APP_DIR) is not None
+
+
+def confirm_first_install(args) -> bool:
+    """Ask before the first-run ~300MB download. Returns False (having said
+    what to do instead) if the user declined.
+
+    A first `seed vscode` silently pulls ~300MB. Everything else in seedling
+    that costs this much asks first -- every remove-*, the offline builder's
+    licence gate -- and on a metered or locked-down connection the surprise is
+    expensive. Only the DOWNLOAD is gated: opening an installed editor is the
+    common case and stays instant.
+
+    Shared by `seed vscode` and `seed repo-vscode`, which both trigger the
+    same download from different directions."""
+    if is_installed():
+        return True
+    # flavor() before prompting on purpose: a misconfigured vscode_flavor
+    # should fail as a config error (cli._invoke renders UnknownFlavor)
+    # rather than after the user has agreed to a download.
+    label = "VSCodium" if flavor() == "vscodium" else "VS Code"
+    print(f"{label} isn't installed yet (~300 MB download).")
+    if confirm.ask(args, f"Install {label} now?"):
+        return True
+    print("Skipped. To install it later:  seed vscode -y")
+    return False
+
+
 def run(args) -> int:
-    cli = install(force=getattr(args, "reinstall", False))
+    reinstall = getattr(args, "reinstall", False)
+    # --reinstall is exempt from the gate: it only means anything when a copy
+    # already exists, so the user has already said "fetch it again".
+    if not reinstall and not confirm_first_install(args):
+        return 0
+
+    cli = install(force=reinstall)
     if cli is None:
         print("Could not find any way to launch VS Code after installing it.")
         return 1

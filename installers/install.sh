@@ -575,7 +575,7 @@ else
             VSCODE_OUT="$(mktemp 2>/dev/null || echo "${TMPDIR:-/tmp}/seed-vscode-out.$$")"
             VSCODE_RC="$(mktemp 2>/dev/null || echo "${TMPDIR:-/tmp}/seed-vscode-rc.$$")"
             ( env SEEDLING_HOME="$SEEDLING_HOME" SEEDLING_NO_LOG=1 \
-                  "$SEED_CLI" vscode --no-open >"$VSCODE_OUT" 2>&1
+                  "$SEED_CLI" vscode --no-open -y >"$VSCODE_OUT" 2>&1
               echo "$?" >"$VSCODE_RC" ) &
             VSCODE_PID=$!
         fi

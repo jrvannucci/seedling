@@ -567,7 +567,9 @@ if ($AutoSetup.ToLower() -eq "false") {
             param($cli, $seedHome)
             $env:SEEDLING_HOME = $seedHome
             $env:SEEDLING_NO_LOG = "1"
-            & $cli vscode --no-open
+            # -y: this runs as a background job with no console to prompt at,
+            # and the user already opted in via SEEDLING_AUTO_VSCODE.
+            & $cli vscode --no-open -y
             "SEEDVSC_EXIT=$LASTEXITCODE"
         } -ArgumentList $SeedCli, $SeedlingHome
     }

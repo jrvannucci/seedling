@@ -281,6 +281,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_vscode.add_argument("--no-open", dest="no_open", action="store_true",
                            help="Install (if needed) without opening a window "
                                 "(used by the installer's default setup)")
+    # Not parents=[danger]: nothing here deletes, so --preview would be
+    # meaningless. Only the two knobs that govern the first-run download
+    # prompt apply.
+    p_vscode.add_argument("-y", "--yes", action="store_true",
+                           help="Don't ask before downloading VS Code the "
+                                "first time (~300 MB)")
+    p_vscode.add_argument("--non-interactive", dest="non_interactive",
+                           action="store_true",
+                           help="Never wait for keyboard input: skip the "
+                                "install instead of prompting (combine with "
+                                "-y to install). SEEDLING_NONINTERACTIVE=1 "
+                                "does the same.")
 
     p_clone_repo = sub.add_parser(
         "repo-clone", help="Clone a git repo into ~/seedling/repo")
@@ -304,6 +316,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_vscode_repo = sub.add_parser("repo-vscode", help="Open a cloned repo in VS Code")
     p_vscode_repo.add_argument("name", nargs="?", help="Name of the repo to open")
+    # Can trigger the same first-run VS Code download as `seed vscode`.
+    p_vscode_repo.add_argument("-y", "--yes", action="store_true",
+                                help="Don't ask before downloading VS Code the "
+                                     "first time (~300 MB)")
+    p_vscode_repo.add_argument("--non-interactive", dest="non_interactive",
+                                action="store_true",
+                                help="Never wait for keyboard input: skip the "
+                                     "install instead of prompting.")
 
     p_install_repo = sub.add_parser(
         "repo-install",

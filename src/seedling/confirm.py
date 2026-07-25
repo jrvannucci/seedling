@@ -46,6 +46,31 @@ def confirm(args, prompt: str = "") -> bool:
     return answer == "yes"
 
 
+def ask(args, question: str) -> bool:
+    """A y/N prompt for actions that are consequential but NOT destructive --
+    a large download, say. Honors the same -y / --non-interactive knobs as
+    confirm(), so the three documented switches keep working everywhere.
+
+    Accepts a bare 'y' rather than demanding 'yes' typed in full: that speed
+    bump exists to make deletion deliberate, and applied to "shall I install
+    the thing you just asked for" it reads as seedling being obstinate.
+    Defaults to NO on a bare Enter, since the cost being confirmed is one the
+    caller may not have realized they were about to pay."""
+    if auto_confirmed(args):
+        return True
+    if non_interactive(args):
+        print("Non-interactive mode: refusing to prompt. Pass -y/--yes "
+              "(or set SEEDLING_YES=1) to proceed.")
+        return False
+    try:
+        answer = input(f"{question} [y/N] ").strip().lower()
+    except EOFError:
+        # No stdin (piped/detached): treat as a decline rather than hanging
+        # or crashing. The caller prints how to do it deliberately.
+        return False
+    return answer in ("y", "yes")
+
+
 def preview_requested(args) -> bool:
     return getattr(args, "preview", False)
 
