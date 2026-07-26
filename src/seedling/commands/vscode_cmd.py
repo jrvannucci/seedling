@@ -8,7 +8,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from .. import config, confirm, download, paths
+from .. import config, download, paths
+from . import editors
 
 # A minimal, opinionated starter kit: Python debugging, Jupyter, and linting.
 DEFAULT_EXTENSIONS = [
@@ -69,13 +70,10 @@ DEFAULT_SETTINGS = {
     "extensions.autoUpdate": False,
 }
 
-# Passed to every subprocess we launch against VS Code, so its own
-# Electron/GPU/Chromium log spam never lands in the user's terminal.
-_QUIET = {
-    "stdout": subprocess.DEVNULL,
-    "stderr": subprocess.DEVNULL,
-    "stdin": subprocess.DEVNULL,
-}
+# Keeps an editor's own log spam out of the user's terminal. Family-wide --
+# any bundled GUI editor needs it -- so it lives in editors; aliased here
+# because this module references it throughout.
+_QUIET = editors.QUIET
 
 
 def _write_status(phase: str, done: int = 0, total: int = 0) -> None:
@@ -476,16 +474,9 @@ def _install_extensions(cli: list[str], wanted: list[str]) -> None:
 
 def open_window(cli: list[str], path: str) -> None:
     """Open VS Code at `path` via its CLI entry point, fully detached from
-    seedling's own process so it never blocks or leaks output into the
-    caller's terminal. Shared by `seed vscode` and `seed repo-open`."""
-    popen_kwargs = dict(_QUIET)
-    if os.name == "nt":
-        popen_kwargs["creationflags"] = (
-            subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-        )
-    else:
-        popen_kwargs["start_new_session"] = True
-    subprocess.Popen([*cli, path], **popen_kwargs)
+    seedling's own process. Kept as the name `seed vscode` and `seed
+    repo-vscode` already call; the detaching itself is family-generic."""
+    editors.open_detached(cli, path)
 
 
 def is_installed() -> bool:
@@ -495,29 +486,21 @@ def is_installed() -> bool:
     return _find_cli(paths.VSCODE_APP_DIR) is not None
 
 
+DOWNLOAD_NOTE = "~300 MB download"
+
+
 def confirm_first_install(args) -> bool:
-    """Ask before the first-run ~300MB download. Returns False (having said
-    what to do instead) if the user declined.
-
-    A first `seed vscode` silently pulls ~300MB. Everything else in seedling
-    that costs this much asks first -- every remove-*, the offline builder's
-    licence gate -- and on a metered or locked-down connection the surprise is
-    expensive. Only the DOWNLOAD is gated: opening an installed editor is the
-    common case and stays instant.
-
-    Shared by `seed vscode` and `seed repo-vscode`, which both trigger the
+    """Ask before the first-run ~300MB download, via the shared editor-family
+    gate. Shared by `seed vscode` and `seed repo-vscode`, which trigger the
     same download from different directions."""
-    if is_installed():
-        return True
     # flavor() before prompting on purpose: a misconfigured vscode_flavor
     # should fail as a config error (cli._invoke renders UnknownFlavor)
-    # rather than after the user has agreed to a download.
+    # rather than after the user has agreed to a download. Resolved here
+    # rather than in the family registry so `seed help` can't inherit the
+    # crash.
     label = "VSCodium" if flavor() == "vscodium" else "VS Code"
-    print(f"{label} isn't installed yet (~300 MB download).")
-    if confirm.ask(args, f"Install {label} now?"):
-        return True
-    print("Skipped. To install it later:  seed vscode -y")
-    return False
+    return editors.confirm_first_install(
+        args, label=label, note=DOWNLOAD_NOTE, installed=is_installed())
 
 
 def run(args) -> int:
@@ -542,3 +525,19 @@ def run(args) -> int:
     print(f"Opening VS Code -> {open_path}")
     open_window(cli, open_path)
     return 0
+
+
+# Join the editor family. Done at import time (cli imports this module), so
+# `seed help` renders VS Code's rows without cli.py needing to know anything
+# about editors beyond "ask the registry".
+editors.register(editors.Editor(
+    key="vscode",
+    label="VS Code",
+    command="vscode",
+    args_hint="[path] [--reinstall]",
+    summary="Install (once) and open VS Code",
+    download_note=DOWNLOAD_NOTE,
+    is_installed=is_installed,
+    repo_command="repo-vscode",
+    repo_summary="Open a cloned repo in VS Code",
+))
