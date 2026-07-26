@@ -46,34 +46,18 @@ _ISOLATED_ENV_VARS = [
     "UV_PYTHON_INSTALL_MIRROR", "UV_FIND_LINKS", "UV_NO_INDEX",
 ]
 
+# Every path constant, snapshotted automatically.
+#
+# This used to be a hand-written mirror of paths.py. Three separate lists had
+# to agree (this one, _rebind_paths, and _restore_paths' ALL_DIRS), and
+# missing an entry failed SILENTLY -- paths.<NEW_CONST> kept pointing at the
+# developer's REAL ~/seedling, so tests would happily read and write there.
+# Deriving it removes two of the three; test_config_and_paths guards the
+# third.
 _ORIGINALS = {
-    "HOME": paths_mod.HOME,
-    "SYSTEM_DIR": paths_mod.SYSTEM_DIR,
-    "BIN_DIR": paths_mod.BIN_DIR,
-    "TOOL_DIR": paths_mod.TOOL_DIR,
-    "SRC_DIR": paths_mod.SRC_DIR,
-    "CONFIG_DIR": paths_mod.CONFIG_DIR,
-    "CONFIG_FILE": paths_mod.CONFIG_FILE,
-    "SHELL_DIR": paths_mod.SHELL_DIR,
-    "LOGS_DIR": paths_mod.LOGS_DIR,
-    "UV_CACHE_DIR": paths_mod.UV_CACHE_DIR,
-    "PYTHON_DIR": paths_mod.PYTHON_DIR,
-    "BASE_DIR": paths_mod.BASE_DIR,
-    "VENVS_DIR": paths_mod.VENVS_DIR,
-    "EXTENSIONS_DIR": paths_mod.EXTENSIONS_DIR,
-    "APPS_DIR": paths_mod.APPS_DIR,
-    "APP_SHIMS_DIR": paths_mod.APP_SHIMS_DIR,
-    "SPYDER_CONFIG_DIR": paths_mod.SPYDER_CONFIG_DIR,
-    "VSCODE_DIR": paths_mod.VSCODE_DIR,
-    "VSCODE_APP_DIR": paths_mod.VSCODE_APP_DIR,
-    "VSCODE_DATA_DIR": paths_mod.VSCODE_DATA_DIR,
-    "VSCODE_EXTENSIONS_DIR": paths_mod.VSCODE_EXTENSIONS_DIR,
-    "REPO_DIR": paths_mod.REPO_DIR,
-    "MAMBA_DIR": paths_mod.MAMBA_DIR,
-    "MAMBA_ENVS_DIR": paths_mod.MAMBA_ENVS_DIR,
-    "MAMBA_PKGS_DIR": paths_mod.MAMBA_PKGS_DIR,
-    "TOOL_SHIMS_DIR": paths_mod.TOOL_SHIMS_DIR,
-    "TOOL_MANIFEST_DIR": paths_mod.TOOL_MANIFEST_DIR,
+    name: getattr(paths_mod, name)
+    for name in dir(paths_mod)
+    if name.isupper() and isinstance(getattr(paths_mod, name), (Path, list))
 }
 _ORIGINAL_GIT_DIR = git_tool_mod.GIT_DIR
 
@@ -117,15 +101,13 @@ def _rebind_paths(home: Path) -> None:
 
 
 def _restore_paths() -> None:
+    """Put every path constant back exactly as imported. ALL_DIRS is copied
+    rather than reassigned to a rebuilt literal -- the old code reconstructed
+    it by hand, which meant a constant added to paths.py had to be repeated
+    here too, and was simply forgotten."""
     for name, value in _ORIGINALS.items():
-        setattr(paths_mod, name, value)
-    paths_mod.ALL_DIRS = [
-        paths_mod.HOME, paths_mod.SYSTEM_DIR, paths_mod.BIN_DIR,
-        paths_mod.CONFIG_DIR, paths_mod.SHELL_DIR, paths_mod.LOGS_DIR,
-        paths_mod.UV_CACHE_DIR, paths_mod.PYTHON_DIR, paths_mod.BASE_DIR,
-        paths_mod.VENVS_DIR, paths_mod.EXTENSIONS_DIR, paths_mod.VSCODE_DIR,
-        paths_mod.REPO_DIR, paths_mod.TOOL_SHIMS_DIR,
-    ]
+        setattr(paths_mod, name,
+                list(value) if isinstance(value, list) else value)
     git_tool_mod.GIT_DIR = _ORIGINAL_GIT_DIR
 
 
