@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 
-from seedling import config, paths
+from seedling import PUBLIC_REPO, config, paths
 
 
 def test_defaults_when_no_settings_file(home):
@@ -104,3 +105,32 @@ def test_alias_and_venv_path_helpers(home):
     assert paths.base_alias_file("312").name == "312.alias.json"
     assert paths.venv_dir("dev") == home / "python" / "venvs" / "dev"
     assert paths.repo_dir("x") == home / "repo" / "x"
+
+
+def test_public_repo_matches_installer_defaults():
+    """seedling's own origin lives in ONE place (seedling.PUBLIC_REPO), but the
+    installers can't import Python -- a piped `curl ... | sh` has no checkout
+    beside it -- so they carry the same URL as their baked-in default. That
+    agreement used to rest on a code comment; this asserts it.
+
+    It matters at purge time: purge_cmd compares the recorded update_source
+    against PUBLIC_REPO to decide whether an install came from public GitHub,
+    and prints one-liners or share instructions accordingly. If the installers
+    stamped a different URL, every public install would be misidentified and
+    handed the wrong reinstall advice -- on the last screen `seed` ever shows.
+    """
+    import re
+
+    repo_root = Path(__file__).resolve().parents[1]
+    patterns = {
+        "installers/install.sh": r'DEFAULT_SEEDLING_REPO="([^"]+)"',
+        "installers/install.ps1": r'\$DefaultSeedlingRepo = "([^"]+)"',
+        "seedling.conf": r'SEEDLING_REPO_URL="([^"]+)"',
+    }
+    for rel, pattern in patterns.items():
+        text = (repo_root / rel).read_text(encoding="utf-8")
+        found = re.search(pattern, text)
+        assert found, f"{rel}: no default repo URL found (pattern changed?)"
+        assert found.group(1) == PUBLIC_REPO, (
+            f"{rel} points at {found.group(1)!r}, but seedling.PUBLIC_REPO is "
+            f"{PUBLIC_REPO!r}")

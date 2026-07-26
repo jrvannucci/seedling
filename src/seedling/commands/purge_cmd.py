@@ -24,20 +24,27 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from .. import colors, config, confirm, fsutil, git_tool, paths, runlog
+from .. import (PUBLIC_RAW_BASE, PUBLIC_REPO, colors, config, confirm, fsutil,
+                git_tool, paths, runlog)
 
 _BACKUP_NAME_RE = re.compile(r"^seedling-repo-backup(-\d+)?$")
 
 # Shown before confirming and again after a successful purge -- once `seed`
-# is gone, this screen is the last place the user will see these. Must
-# match the installers' baked-in default so a public-GitHub install is
-# recognized as such.
-_PUBLIC_REPO = "https://github.com/cryocliff/seedling.git"
+# is gone, this screen is the last place the user will see these. Derived
+# from the project-level constants so a fork or a repo rename never leaves
+# this screen pointing users at somebody else's install script.
+_PUBLIC_REPO = PUBLIC_REPO
 
 _PUBLIC_REINSTALL_LINES = [
-    "  macOS/Linux:  curl -fsSL https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.sh | sh",
-    "  PowerShell:   irm https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.ps1 | iex",
+    f"  macOS/Linux:  curl -fsSL {PUBLIC_RAW_BASE}/installers/install.sh | sh",
+    f"  PowerShell:   irm {PUBLIC_RAW_BASE}/installers/install.ps1 | iex",
 ]
+
+
+def _public_repo_label() -> str:
+    """`https://github.com/owner/seedling.git` -> `github.com/owner/seedling`,
+    for prose where the full clone URL would just be noise."""
+    return PUBLIC_REPO.removeprefix("https://").removesuffix(".git")
 
 
 def _print_reinstall(update_source) -> None:
@@ -273,7 +280,7 @@ def run(args) -> int:
     if reinstall and not reinstall_source and not confirm.preview_requested(args):
         if not confirm.confirm(
                 args, "No update source is recorded. Reinstall from the public "
-                "repo (github.com/cryocliff/seedling)?"):
+                f"repo ({_public_repo_label()})?"):
             print("Aborted. Nothing was removed.")
             print("Record where to reinstall from first, then re-run:")
             print("  seed config set update_source <git-url-or-directory>")

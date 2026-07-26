@@ -8,7 +8,7 @@
 #   sh installers/install.sh
 #
 # Usage (remote):
-#   curl -fsSL https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/install.sh | sh
 #   SEEDLING_REPO=https://github.com/someone/fork.git curl -fsSL .../installers/install.sh | sh
 
 set -eu
@@ -17,7 +17,7 @@ set -eu
 # out, so a conf that still matches them changes nothing -- only edited
 # values have any effect. The baked-in copies exist for the piped
 # one-liner install, where no local seedling.conf exists yet to consult.
-DEFAULT_SEEDLING_REPO="https://github.com/cryocliff/seedling.git"
+DEFAULT_SEEDLING_REPO="https://github.com/jrvannucci/seedling.git"
 DEFAULT_VENV_PACKAGES="ipython,ruff,ipykernel"
 
 SEEDLING_REPO_FROM_ENV="${SEEDLING_REPO:-}"

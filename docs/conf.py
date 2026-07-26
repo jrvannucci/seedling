@@ -24,12 +24,21 @@ Build locally:
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 _REPO = _HERE.parent
+
 # Repo-root files the README links to (that aren't docs pages) point here.
-_GH_BLOB = "https://github.com/cryocliff/seedling/blob/main/"
+# Derived from seedling's own PUBLIC_REPO rather than spelled out again, so a
+# fork or a repo rename doesn't leave the docs site linking at the old owner.
+# Imported straight from the source tree (no install needed), the same way
+# installers/build_offline.py borrows seedling's helpers.
+sys.path.insert(0, str(_REPO / "src"))
+from seedling import PUBLIC_REPO  # noqa: E402
+
+_GH_BLOB = PUBLIC_REPO.removesuffix(".git") + "/blob/main/"
 
 project = "seedling"
 author = "seedling contributors"

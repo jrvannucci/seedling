@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import colors, config, paths
+from . import PUBLIC_RAW_BASE, colors, config, paths
 
 
 class UvNotFound(RuntimeError):
@@ -41,8 +41,8 @@ def find_uv() -> Path:
     raise UvNotFound(
         "uv was not found in ~/seedling/bin or on PATH.\n"
         "Re-run the seedling installer:\n"
-        "  bash:       curl -fsSL https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.sh | sh\n"
-        "  powershell: irm https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.ps1 | iex"
+        f"  bash:       curl -fsSL {PUBLIC_RAW_BASE}/installers/install.sh | sh\n"
+        f"  powershell: irm {PUBLIC_RAW_BASE}/installers/install.ps1 | iex"
     )
 
 

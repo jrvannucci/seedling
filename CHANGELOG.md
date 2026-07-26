@@ -13,6 +13,20 @@ what a release involves.
 
 ### Changed
 
+- **The project moved to `github.com/jrvannucci/seedling`.** Existing installs
+  keep working: `seed update-commands` and `purge-and-reinstall` read the
+  `update_source` recorded at install time, so private forks, self-hosted git,
+  and share deployments are unaffected either way. Only a copy with no
+  recorded source falls back to the public URL. If you cloned from the old
+  location, `git remote set-url origin` (GitHub redirects until then).
+
+  seedling's own origin now lives in exactly one place — `PUBLIC_REPO` /
+  `PUBLIC_RAW_BASE` in `seedling/__init__.py`, beside `__version__` — instead
+  of being restated across `purge_cmd`, `uv_tool`, the docs build, and the
+  tests. The installers still carry the URL as their baked-in default, since
+  a piped `curl ... | sh` has no checkout beside it to read; a new test
+  asserts they agree with the constant, which until now rested on a comment.
+
 - **`seed vscode` now asks before its first-time ~300 MB download.** With no
   editor installed, the command used to start fetching VS Code immediately;
   it now prints the size and prompts, and declining exits 0 with the command

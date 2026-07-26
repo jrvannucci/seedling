@@ -71,14 +71,14 @@ environment variable — this is how an admin can email or publish a single
 
 **macOS / Linux:**
 ```sh
-curl -fsSL https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.sh \
+curl -fsSL https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/install.sh \
   | SEEDLING_PROFILE=./team.toml sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
 $env:SEEDLING_PROFILE = "C:\Users\me\Downloads\team.toml"
-irm https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.ps1 | iex
+irm https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/install.ps1 | iex
 ```
 
 Relative paths resolve against the directory you ran the installer from.
@@ -104,7 +104,7 @@ equivalents for one run.
 ## Distributing it
 
 Put the file in the copy of seedling you distribute and name it in
-[`seedling.conf`](https://github.com/cryocliff/seedling/blob/main/seedling.conf):
+[`seedling.conf`](https://github.com/jrvannucci/seedling/blob/main/seedling.conf):
 
 ```
 SEEDLING_PROFILE="seedling-profile.toml"

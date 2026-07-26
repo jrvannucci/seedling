@@ -1,6 +1,6 @@
 # seedling 🌱
 
-[![CI](https://github.com/cryocliff/seedling/actions/workflows/ci.yml/badge.svg)](https://github.com/cryocliff/seedling/actions/workflows/ci.yml)
+[![CI](https://github.com/jrvannucci/seedling/actions/workflows/ci.yml/badge.svg)](https://github.com/jrvannucci/seedling/actions/workflows/ci.yml)
 
 **Go from nothing to writing Python in one command.** No prior setup, no
 tools to install first, nothing to learn about how Python is packaged.
@@ -49,12 +49,12 @@ Nothing needs to be pre‑installed — not Python, not uv, nothing.
 
 **macOS / Linux:**
 ```sh
-curl -fsSL https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/install.sh | sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.ps1 | iex
+irm https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/install.ps1 | iex
 ```
 
 That one command does the whole setup for you — no follow-up steps, no

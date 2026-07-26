@@ -6,7 +6,7 @@
 #   .\installers\install.ps1
 #
 # Usage (remote):
-#   irm https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/install.ps1 | iex
 #   $env:SEEDLING_REPO = "https://github.com/someone/fork.git"; irm .../installers/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 # out, so a conf that still matches them changes nothing -- only edited
 # values have any effect. The baked-in copies exist for the piped
 # one-liner install, where no local seedling.conf exists yet to consult.
-$DefaultSeedlingRepo = "https://github.com/cryocliff/seedling.git"
+$DefaultSeedlingRepo = "https://github.com/jrvannucci/seedling.git"
 $DefaultVenvPackages = "ipython,ruff,ipykernel"
 
 function Info($msg)  { Write-Host "==> $msg" -ForegroundColor Green }

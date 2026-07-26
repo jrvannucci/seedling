@@ -11,10 +11,11 @@ import json
 import pytest
 
 from conftest import make_repo_copy, needs_bash, plant_stub_uv, run_bash
+from seedling import PUBLIC_REPO
 
 pytestmark = needs_bash
 
-PUBLIC_URL = "https://github.com/cryocliff/seedling.git"
+PUBLIC_URL = PUBLIC_REPO
 
 
 @pytest.fixture
