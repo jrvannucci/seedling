@@ -15,10 +15,12 @@ destructive action reads the same way (`remove-venv`, `remove-python`,
 |---|---|
 | Python interpreters *(structural — the base installs venvs are built from)* | `python [ver]` *(install)*, `python-list`, `remove-python` |
 | Venvs & packages *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `remove-venv`, `remove-venv-all` |
+| Python applications *(run, not imported — each in its own env)* | `app-install <name>` *(install)*, `app-list`, `app-remove` |
 | Command-line tools from conda-forge *(the non-Python tools)* | `tool <cmd>` *(run)*, `tool-install <name>` *(install)*, `tool-list`, `tool-remove` |
 | Offline utilities *(stage packages/tools for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>`, `download-tool <name...>` |
-| Repos | `repo-clone`, `repo-list`, `repo-cd`, `repo-vscode`, `repo-open`, `repo-install`, `remove-repo` |
-| Everyday / singletons | `vscode`, `summary`, `health-check`, `logs-viewer`, `config`, `apply`, `where`, `kill-processes`, `update-commands`, `remove-user`, `purge`, `purge-and-reinstall` |
+| Repos | `repo-clone`, `repo-list`, `repo-cd`, `repo-open`, `repo-install`, `remove-repo` |
+| Editors & IDEs *(installed on demand)* | `vscode`, `repo-vscode`, `spyder`, `repo-spyder` |
+| Everyday / singletons | `summary`, `health-check`, `logs-viewer`, `config`, `apply`, `where`, `kill-processes`, `update-commands`, `remove-user`, `purge`, `purge-and-reinstall` |
 
 **Python interpreters** — structural commands: the base installs that venvs
 are built from. Most days you never touch these after the first install.
@@ -260,6 +262,59 @@ seed tool gh auth login
 seed tool rg "def install" src
 ```
 
+## `seed app-install <name>[==version] [--reinstall] [-y]`
+
+Installs a **Python application from PyPI into its own isolated
+environment** — Spyder, JupyterLab, httpie: things you *run* rather than
+import, whose dependency trees you don't want inside a project venv.
+
+Three commands install software, split by where it comes from:
+
+| Command | Source | Lands in |
+|---|---|---|
+| `seed install` | PyPI, **into the active venv** | that venv |
+| `seed app-install` | PyPI, **its own venv** | `extensions/apps/<name>/` |
+| `seed tool-install` | conda-forge (not Python) | `system/conda/envs/<name>/` |
+
+Backed by `uv tool install`, so the environment and the command launchers
+are uv's own work; seedling just points it at the right directories and
+keeps `package_index` / `ca_cert` applied, so this works on an internal
+index or fully offline exactly like `seed install`.
+
+- Launchers land in `~/seedling/system/shims`, which the shell hook puts on
+  PATH — open a new terminal to run them by name.
+- Pin with `==`: `seed app-install spyder==6.1.5`.
+- `--reinstall` forces a fresh install of something already present.
+- The app's environment is **separate from seed-cli's own** (`system/tool`),
+  so `uv tool` operations on your apps can never touch the running CLI.
+
+```
+seed app-install spyder
+seed app-install jupyterlab
+```
+
+## `seed app-list`
+
+Lists installed applications and their versions.
+
+```
+seed app-list
+```
+```
+Applications in ~/seedling/extensions/apps:
+  spyder  [6.1.5]
+```
+
+## `seed app-remove <name> [-y]`
+
+Removes an application: its environment and its launchers. Supports
+`--preview`. Uses `uv tool uninstall`, falling back to deleting the tree so
+a half-installed app that uv no longer recognizes is still removable.
+
+```
+seed app-remove spyder
+```
+
 ## `seed tool-install <name>[=version]`
 
 Installs a **command-line tool from conda-forge** — the things that aren't
@@ -477,6 +532,54 @@ installer's default setup uses).
 seed vscode
 seed vscode ./my-project
 seed vscode --reinstall
+```
+
+## `seed spyder [path] [--no-open] [-y]`
+
+Installs (once) and opens **Spyder**, the scientific Python IDE — the
+variable explorer, IPython console and plots pane that people coming from
+MATLAB or R usually want. Same shape as `seed vscode`, and it asks before
+its first-time ~200 MB download in exactly the same way.
+
+Underneath it's `seed app-install spyder`, but the command exists because
+three things have to be arranged that a plain application install can't
+know about:
+
+- **Its settings stay inside seedling.** Spyder would otherwise write to
+  `~/.config/spyder-6` or `%APPDATA%`; seedling points it at
+  `~/seedling/extensions/spyder-config` (`--conf-dir`), so `seed purge`
+  still leaves nothing behind.
+- **It's pointed at your default venv.** Unlike VS Code, whose Python
+  extension discovers environments itself, Spyder has to be told. seedling
+  writes the interpreter into its `spyder.ini`, **merging** rather than
+  overwriting, so your own Spyder settings survive.
+- **`spyder-kernels` is installed into that venv**, pinned to the minor
+  series matching the installed Spyder (read from Spyder's own environment,
+  never hardcoded). Without a compatible version, Spyder's console refuses
+  to connect — the classic Spyder failure.
+
+Set the venv it uses with `seed venv-default <name>`. With no default venv,
+Spyder still opens but runs on its own interpreter and won't see your
+packages; it says so.
+
+> **x86_64 only.** Spyder comes from PyPI, and PyQt5's Qt payload publishes
+> no arm64 wheels — so this can't work on Apple Silicon or ARM Linux. There,
+> use the conda-forge build instead: `seed tool-install spyder`. `seed
+> spyder` says exactly that rather than failing with a dependency error.
+
+```
+seed venv-default myproject
+seed spyder
+```
+
+## `seed repo-spyder <name>`
+
+Opens a cloned repo as a **Spyder project** (`--project`), the natural
+counterpart to `seed repo-vscode`. Same install-if-needed behavior and the
+same first-run prompt.
+
+```
+seed repo-spyder some-project
 ```
 
 ## `seed repo-clone <git-url>`

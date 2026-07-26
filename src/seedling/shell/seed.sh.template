@@ -22,6 +22,14 @@ case ":$PATH:" in
     *) PATH="$__SEEDLING_HOME/system/conda/shims:$PATH"; export PATH ;;
 esac
 
+# Same, for Python applications installed with `seed app-install` (from PyPI,
+# via uv). A separate directory because it's a separate tool root -- see
+# uv_tool.app_install_env.
+case ":$PATH:" in
+    *":$__SEEDLING_HOME/system/shims:"*) ;;
+    *) PATH="$__SEEDLING_HOME/system/shims:$PATH"; export PATH ;;
+esac
+
 # If the venv this shell has active was just deleted (purge, remove-user,
 # remove-venv(-all), remove-python...), deactivate it instead of leaving a
 # dangling prompt pointing at a folder that no longer exists. Only the
