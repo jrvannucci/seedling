@@ -13,6 +13,18 @@ what a release involves.
 
 ### Changed
 
+- **`seed help` now has an "Editors & IDEs" group**, and it says what an
+  editor would cost before you run it — `(~300 MB download)` when it isn't
+  installed, `(installed)` when it is. `repo-vscode` moved there from "Git
+  repos", where it only ever sat because VS Code had nowhere else to live.
+
+  Behind it, the parts of the editor experience that aren't VS Code-specific
+  (the first-run download gate, the detached launch, the help rows) moved to
+  a new `commands/editors.py`, and VS Code registers itself with it. Nothing
+  about `seed vscode` or `seed repo-vscode` changes; this is what lets a
+  second editor join the family with a `register(...)` call instead of edits
+  scattered through `cli.py`.
+
 - **The project moved to `github.com/jrvannucci/seedling`.** Existing installs
   keep working: `seed update-commands` and `purge-and-reinstall` read the
   `update_source` recorded at install time, so private forks, self-hosted git,

@@ -14,6 +14,7 @@ from .commands import (
     deactivate_cmd,
     default_venv_cmd,
     download_cmd,
+    editors,
     install_cmd,
     kill_cmd,
     list_cmd,
@@ -33,6 +34,8 @@ from .commands import (
     vscode_cmd,
 )
 from .uv_tool import UvNotFound
+
+_EDITORS_GROUP_TITLE = "Editors & IDEs -- installed on demand, not up front"
 
 # (command, args-hint, description) -- grouped for the custom help layout.
 # argparse's own auto-generated help lists every subcommand as one flat,
@@ -75,13 +78,13 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("repo-clone", "<git-url>", "Clone a repo into ~/seedling/repo"),
         ("repo-list", "", "List cloned repos"),
         ("repo-cd", "[name]", "cd into a cloned repo (or the repos folder)"),
-        ("repo-vscode", "<name>", "Open a repo in VS Code"),
         ("repo-open", "[name]", "Open a repo in the file manager"),
         ("repo-install", "<name>", "Install a repo's dependencies into the active venv"),
     ]),
-    ("VS Code", [
-        ("vscode", "[path] [--reinstall]", "Install (once) and open VS Code"),
-    ]),
+    # The editor family's rows are filled in from the editor registry at
+    # print time (see _help_groups) -- an editor joins the family by
+    # registering itself, not by being listed again here.
+    (_EDITORS_GROUP_TITLE, []),
     ("Utilities", [
         ("apply", "[profile] [--preview]", "Apply a deployment profile (venvs, packages, repos)"),
         ("config", "[get|set|unset]", "View or change seedling settings"),
@@ -123,12 +126,24 @@ def _print_group(title: str, commands) -> None:
     print()
 
 
+def _help_groups() -> list[tuple[str, list[tuple[str, str, str]]]]:
+    """The help layout, with the editor family's rows resolved from the
+    registry. Built per call rather than at import: whether an editor is
+    installed shows in its row, and that can change between invocations."""
+    groups = []
+    for title, commands in _HELP_GROUPS:
+        if title == _EDITORS_GROUP_TITLE:
+            commands = editors.help_rows()
+        groups.append((title, commands))
+    return groups
+
+
 def print_grouped_help(show_admin: bool = False) -> None:
     print(colors.bold("seed") + " -- a tidy, single-folder wrapper around uv")
     print()
     print("Usage: seed <command> [arguments]")
     print()
-    for title, commands in _HELP_GROUPS:
+    for title, commands in _help_groups():
         _print_group(title, commands)
     if show_admin:
         _print_group(*_ADMIN_HELP_GROUP)
