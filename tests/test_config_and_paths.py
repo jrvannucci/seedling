@@ -134,3 +134,50 @@ def test_public_repo_matches_installer_defaults():
         assert found.group(1) == PUBLIC_REPO, (
             f"{rel} points at {found.group(1)!r}, but seedling.PUBLIC_REPO is "
             f"{PUBLIC_REPO!r}")
+
+
+def test_every_path_constant_is_rebound_into_the_test_home(home):
+    """No path constant may still point at the developer's real ~/seedling
+    while a test is running.
+
+    conftest rebinds paths.* onto a tmp_path per test. That rebinding is
+    hand-written, so a constant added to paths.py but not to _rebind_paths
+    keeps its import-time value -- and every failure mode is silent: tests
+    read and write the developer's actual seedling install, pass, and only
+    a destructive test reveals it. This asserts the invariant directly
+    (everything lives under the sandbox) rather than checking the
+    bookkeeping, so it also catches a constant that is mirrored but not
+    rebound.
+    """
+    from seedling import paths as p
+
+    stray: list[str] = []
+
+    def check(name: str, value) -> None:
+        if value == home or home in value.parents:
+            return
+        stray.append(f"{name} -> {value}")
+
+    for name in dir(p):
+        if not name.isupper():
+            continue
+        value = getattr(p, name)
+        if isinstance(value, Path):
+            check(name, value)
+        elif isinstance(value, list):
+            for index, item in enumerate(value):
+                if isinstance(item, Path):
+                    check(f"{name}[{index}]", item)
+
+    assert not stray, (
+        "these paths.* constants still point outside the test sandbox "
+        f"(add them to conftest._rebind_paths): {', '.join(stray)}")
+
+
+def test_git_dir_is_rebound_into_the_test_home(home):
+    """git_tool.GIT_DIR is derived from paths at import time, so rebinding
+    paths alone doesn't move it -- conftest has to rebind it separately.
+    Same silent failure mode, so same guard."""
+    from seedling import git_tool
+
+    assert home in git_tool.GIT_DIR.parents
