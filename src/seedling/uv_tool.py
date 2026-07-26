@@ -167,3 +167,17 @@ def tool_install_env() -> dict:
         "UV_TOOL_DIR": str(paths.TOOL_DIR),
         "UV_TOOL_BIN_DIR": str(paths.BIN_DIR),
     }
+
+
+def app_install_env() -> dict:
+    """Env override for `seed app-install` -- user-facing PyPI applications,
+    each in its own uv-managed venv under extensions/apps.
+
+    A SEPARATE tool root from tool_install_env() on purpose. seed-cli lives
+    in system/tool; if apps shared that root, `uv tool list` would report
+    seed-cli as an installed app and `uv tool upgrade --all` would sweep the
+    running CLI along with them."""
+    return {
+        "UV_TOOL_DIR": str(paths.APPS_DIR),
+        "UV_TOOL_BIN_DIR": str(paths.APP_SHIMS_DIR),
+    }

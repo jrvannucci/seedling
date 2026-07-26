@@ -100,6 +100,26 @@ BASE_DIR = PYTHON_DIR / "base"
 VENVS_DIR = PYTHON_DIR / "venvs"
 
 EXTENSIONS_DIR = HOME / "extensions"
+
+# PyPI applications installed as isolated tools (`seed app-install`), each in
+# its own uv-managed venv. This is UV_TOOL_DIR for those calls, which is why
+# it gets a directory of its own rather than sharing extensions/: uv treats
+# every child of UV_TOOL_DIR as one of its tools and warns about "malformed"
+# ones, and extensions/vscode is a 300MB tree uv has no business managing.
+APPS_DIR = EXTENSIONS_DIR / "apps"
+
+# UV_TOOL_BIN_DIR for those installs -- the launchers the shell hook puts on
+# PATH. Deliberately NOT inside APPS_DIR: uv would read a bin/ directory
+# sitting in its tool root as another malformed tool. Engine-neutral name
+# (not conda/, not uv/) so both tool engines can share it later.
+APP_SHIMS_DIR = SYSTEM_DIR / "shims"
+
+# Spyder's configuration, kept inside seedling rather than the ~/.config or
+# %APPDATA% location it would otherwise use (SPYDER_CONFDIR / --conf-dir).
+# Sits beside APPS_DIR, never inside it: uv reads every child of its tool
+# root as a tool and would report this as a malformed one.
+SPYDER_CONFIG_DIR = EXTENSIONS_DIR / "spyder-config"
+
 VSCODE_DIR = EXTENSIONS_DIR / "vscode"
 VSCODE_APP_DIR = VSCODE_DIR / "app"
 VSCODE_DATA_DIR = VSCODE_DIR / "data"
@@ -124,6 +144,8 @@ ALL_DIRS = [
     # TOOL_SHIMS_DIR is created unconditionally so the shell hook can safely
     # prepend it to PATH even before any conda-forge tool is installed.
     TOOL_SHIMS_DIR,
+    # Same reasoning for the PyPI-app launchers.
+    APP_SHIMS_DIR,
 ]
 
 

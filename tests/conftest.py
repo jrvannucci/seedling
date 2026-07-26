@@ -61,6 +61,9 @@ _ORIGINALS = {
     "BASE_DIR": paths_mod.BASE_DIR,
     "VENVS_DIR": paths_mod.VENVS_DIR,
     "EXTENSIONS_DIR": paths_mod.EXTENSIONS_DIR,
+    "APPS_DIR": paths_mod.APPS_DIR,
+    "APP_SHIMS_DIR": paths_mod.APP_SHIMS_DIR,
+    "SPYDER_CONFIG_DIR": paths_mod.SPYDER_CONFIG_DIR,
     "VSCODE_DIR": paths_mod.VSCODE_DIR,
     "VSCODE_APP_DIR": paths_mod.VSCODE_APP_DIR,
     "VSCODE_DATA_DIR": paths_mod.VSCODE_DATA_DIR,
@@ -91,6 +94,9 @@ def _rebind_paths(home: Path) -> None:
     p.BASE_DIR = p.PYTHON_DIR / "base"
     p.VENVS_DIR = p.PYTHON_DIR / "venvs"
     p.EXTENSIONS_DIR = home / "extensions"
+    p.APPS_DIR = p.EXTENSIONS_DIR / "apps"
+    p.APP_SHIMS_DIR = p.SYSTEM_DIR / "shims"
+    p.SPYDER_CONFIG_DIR = p.EXTENSIONS_DIR / "spyder-config"
     p.VSCODE_DIR = p.EXTENSIONS_DIR / "vscode"
     p.VSCODE_APP_DIR = p.VSCODE_DIR / "app"
     p.VSCODE_DATA_DIR = p.VSCODE_DIR / "data"
@@ -105,6 +111,7 @@ def _rebind_paths(home: Path) -> None:
         p.HOME, p.SYSTEM_DIR, p.BIN_DIR, p.CONFIG_DIR, p.SHELL_DIR,
         p.LOGS_DIR, p.UV_CACHE_DIR, p.PYTHON_DIR, p.BASE_DIR, p.VENVS_DIR,
         p.EXTENSIONS_DIR, p.VSCODE_DIR, p.REPO_DIR, p.TOOL_SHIMS_DIR,
+        p.APP_SHIMS_DIR,
     ]
     git_tool_mod.GIT_DIR = p.EXTENSIONS_DIR / "git"
 

@@ -11,6 +11,33 @@ what a release involves.
 
 ## [Unreleased]
 
+### Added
+
+- **`seed app-install / app-list / app-remove`** — Python applications from
+  PyPI, each in its own isolated environment. The uv counterpart to the
+  conda-forge `tool-*` family, for things you *run* rather than import
+  (Spyder, JupyterLab, httpie), whose dependency trees have no business in a
+  project venv. Backed by `uv tool`, so `package_index` and `ca_cert` apply
+  and an internal index or offline bundle works exactly as it does for `seed
+  install`. Apps land in `extensions/apps/<name>/`, launchers in
+  `system/shims/` (now on PATH). Deliberately a **separate uv tool root**
+  from seed-cli's own, so app operations can never sweep the running CLI.
+
+- **`seed spyder` and `seed repo-spyder`** — the Spyder IDE as a bundled
+  editor, alongside `seed vscode`. The install is `app-install spyder`
+  underneath; the command exists for the three things a generic install
+  can't know to do: keep Spyder's settings inside `~/seedling` (so `seed
+  purge` still leaves nothing), point Spyder at your default venv in its own
+  `spyder.ini` (merging, never clobbering your settings), and install a
+  **matching `spyder-kernels`** into that venv — the version read from
+  Spyder's own environment rather than pinned, so it can't drift on upgrade.
+  Without that last step Spyder's console silently refuses to connect, which
+  is the failure this audience can least afford.
+
+  **x86_64 only**: PyQt5's Qt payload publishes no arm64 wheels, so on Apple
+  Silicon and ARM Linux `seed spyder` says so and points at `seed
+  tool-install spyder` instead of failing with a dependency error.
+
 ### Changed
 
 - **`seed help` now has an "Editors & IDEs" group**, and it says what an

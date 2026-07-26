@@ -8,6 +8,7 @@ from . import __version__, colors, config, paths, runlog
 from .commands import (
     activate_cmd,
     admin_cmd,
+    app_cmd,
     apply_cmd,
     auto_activate_cmd,
     config_cmd,
@@ -24,6 +25,7 @@ from .commands import (
     python_remove_cmd,
     remove_cmd,
     repo_cmd,
+    spyder_cmd,
     status_cmd,
     summary_cmd,
     tool_cmd,
@@ -62,6 +64,11 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("install", "<package...>", "Install packages (uv pip install)"),
         ("uninstall", "<package...>", "Uninstall packages (uv pip uninstall)"),
         ("package-list", "", "List installed packages (uv pip list)"),
+    ]),
+    ("Python applications from PyPI, each in its own environment", [
+        ("app-install", "<name>[==ver]", "Install an app (spyder, jupyterlab, ...)"),
+        ("app-list", "", "List installed PyPI applications"),
+        ("app-remove", "<name>", "Remove a PyPI application"),
     ]),
     ("Command-line tools from conda-forge (ripgrep, pandoc, ffmpeg, ...)", [
         ("tool", "<cmd> [args...]", "Run an installed tool (e.g. seed tool gh ...)"),
@@ -247,6 +254,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Remove a conda-forge tool and its commands")
     p_tool_remove.add_argument("name", help="Tool to remove")
 
+    p_app_install = sub.add_parser(
+        "app-install",
+        help="Install a Python application from PyPI into its own environment")
+    p_app_install.add_argument(
+        "spec", nargs="?",
+        help="PyPI application, optionally pinned: spyder, or spyder==6.1.5")
+    p_app_install.add_argument("--reinstall", action="store_true",
+                               help="Force a fresh install of an existing app")
+    p_app_install.add_argument("-y", "--yes", action="store_true",
+                               help="Don't ask before downloading")
+    p_app_install.add_argument("--non-interactive", dest="non_interactive",
+                               action="store_true",
+                               help="Never wait for keyboard input.")
+    sub.add_parser("app-list", help="List installed PyPI applications")
+    p_app_remove = sub.add_parser(
+        "app-remove", parents=[danger],
+        help="Remove a PyPI application and its launchers")
+    p_app_remove.add_argument("name", nargs="?", help="Application to remove")
+
     p_install = sub.add_parser(
         "install", help="Install packages into the active venv (passthrough to `uv pip install`)")
     p_install.add_argument("packages", nargs=argparse.REMAINDER,
@@ -308,6 +334,26 @@ def build_parser() -> argparse.ArgumentParser:
                                 "install instead of prompting (combine with "
                                 "-y to install). SEEDLING_NONINTERACTIVE=1 "
                                 "does the same.")
+
+    p_spyder = sub.add_parser("spyder", help="Install (if needed) and open Spyder")
+    p_spyder.add_argument("path", nargs="?", help="Path to open (defaults to cwd)")
+    p_spyder.add_argument("--no-open", dest="no_open", action="store_true",
+                          help="Install (if needed) without opening a window")
+    p_spyder.add_argument("-y", "--yes", action="store_true",
+                          help="Don't ask before downloading Spyder (~200 MB)")
+    p_spyder.add_argument("--non-interactive", dest="non_interactive",
+                          action="store_true",
+                          help="Never wait for keyboard input: skip the "
+                               "install instead of prompting.")
+
+    p_spyder_repo = sub.add_parser("repo-spyder",
+                                   help="Open a cloned repo in Spyder")
+    p_spyder_repo.add_argument("name", nargs="?", help="Name of the repo to open")
+    p_spyder_repo.add_argument("-y", "--yes", action="store_true",
+                               help="Don't ask before downloading Spyder (~200 MB)")
+    p_spyder_repo.add_argument("--non-interactive", dest="non_interactive",
+                               action="store_true",
+                               help="Never wait for keyboard input.")
 
     p_clone_repo = sub.add_parser(
         "repo-clone", help="Clone a git repo into ~/seedling/repo")
@@ -565,6 +611,9 @@ def _dispatch_main(argv: list[str]) -> int:
         "deactivate": deactivate_cmd.run,
         "venv-default": default_venv_cmd.run,
         "auto-activate": auto_activate_cmd.run,
+        "app-install": app_cmd.install,
+        "app-list": app_cmd.list_apps,
+        "app-remove": app_cmd.remove,
         "tool": tool_cmd.run_tool,
         "tool-install": tool_cmd.install,
         "tool-list": tool_cmd.list_tools,
@@ -576,6 +625,8 @@ def _dispatch_main(argv: list[str]) -> int:
         "download-whl": download_cmd.run_whl,
         "download-requirements": download_cmd.run_requirements,
         "vscode": vscode_cmd.run,
+        "spyder": spyder_cmd.run,
+        "repo-spyder": spyder_cmd.repo_spyder,
         "repo-clone": repo_cmd.clone,
         "repo-list": repo_cmd.list_repos,
         "repo-cd": repo_cmd.cd_repo,

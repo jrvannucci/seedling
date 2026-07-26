@@ -22,6 +22,14 @@ if (($env:PATH -split ';') -notcontains $script:SeedlingToolShims) {
     $env:PATH = "$script:SeedlingToolShims;$env:PATH"
 }
 
+# Same, for Python applications installed with `seed app-install` (from PyPI,
+# via uv). A separate directory because it's a separate tool root -- see
+# uv_tool.app_install_env.
+$script:SeedlingAppShims = Join-Path $script:SeedlingHome "system\shims"
+if (($env:PATH -split ';') -notcontains $script:SeedlingAppShims) {
+    $env:PATH = "$script:SeedlingAppShims;$env:PATH"
+}
+
 # If the venv this shell has active was just deleted (purge, remove-user,
 # remove-venv(-all), remove-python...), deactivate it instead of leaving a
 # dangling prompt pointing at a folder that no longer exists. Only the
