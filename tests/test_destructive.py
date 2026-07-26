@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 
 from conftest import make_base_python, make_venv_dirs
-from seedling import config, confirm, paths
+from seedling import PUBLIC_REPO, config, confirm, paths
 
 
 # --- confirm module ---------------------------------------------------------
@@ -132,7 +132,7 @@ def test_purge_confirmation_screen_lists_guidance(run_cli, home, answer):
 
 
 @pytest.mark.parametrize("source,expect", [
-    ("https://github.com/cryocliff/seedling.git", "raw.githubusercontent.com"),
+    (PUBLIC_REPO, "raw.githubusercontent.com"),
     (None, "raw.githubusercontent.com"),
     (r"S:\tools\seedling", r"S:\tools\seedling\install.cmd"),
     ("https://github.mycompany.com/t/seedling.git", 'git clone "https://github.mycompany.com/t/seedling.git"'),
@@ -277,7 +277,7 @@ def test_purge_and_reinstall_no_source_yes_uses_public(
 
     from seedling.commands import purge_cmd
     marker = purge_cmd._reinstall_marker()
-    assert "github.com/cryocliff/seedling" in marker.read_text()
+    assert PUBLIC_REPO.removeprefix("https://").removesuffix(".git") in marker.read_text()
     marker.unlink(missing_ok=True)
 
 

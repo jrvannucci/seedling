@@ -47,7 +47,7 @@ unreliable, or unauditable:
   with no per-user setup instructions to follow or get wrong.
 
 The mechanism in all four cases is the same: you edit
-[`seedling.conf`](https://github.com/cryocliff/seedling/blob/main/seedling.conf)
+[`seedling.conf`](https://github.com/jrvannucci/seedling/blob/main/seedling.conf)
 in the copy of the repo you distribute, and everyone who installs from that
 copy inherits your settings. **Your users never set an environment variable,
 pass a flag, or edit a file.**

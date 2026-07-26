@@ -79,14 +79,14 @@ anything, set the `SEEDLING_REPO` environment variable instead — see
 ### One-line install
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/install.sh | sh
 ```
 ```powershell
-irm https://raw.githubusercontent.com/cryocliff/seedling/main/installers/install.ps1 | iex
+irm https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/install.ps1 | iex
 ```
 
 By default the installers clone from
-`https://github.com/cryocliff/seedling.git` (the `DEFAULT_SEEDLING_REPO` /
+`https://github.com/jrvannucci/seedling.git` (the `DEFAULT_SEEDLING_REPO` /
 `$DefaultSeedlingRepo` value near the top of `installers/install.sh` / `installers/install.ps1`).
 
 ### Local checkout install
@@ -388,10 +388,10 @@ uninstaller straight from GitHub — the same one-liner shape as the
 installer (pipe the underlying `installers/uninstall.*`, not `uninstall.cmd`):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/cryocliff/seedling/main/installers/uninstall.sh | sh
+curl -fsSL https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/uninstall.sh | sh
 ```
 ```powershell
-irm https://raw.githubusercontent.com/cryocliff/seedling/main/installers/uninstall.ps1 | iex
+irm https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/uninstall.ps1 | iex
 ```
 
 Piped like this there's no local `seedling.conf` to read, so it targets the

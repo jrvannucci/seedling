@@ -144,7 +144,7 @@ The version lives in **one** place: `__version__` in
 `seed help` footer can never disagree. A test enforces that pyproject stays
 dynamic — don't add a literal `version =` back.
 
-Keep [`CHANGELOG.md`](https://github.com/cryocliff/seedling/blob/main/CHANGELOG.md)
+Keep [`CHANGELOG.md`](https://github.com/jrvannucci/seedling/blob/main/CHANGELOG.md)
 current as you go: add a line under
 `## [Unreleased]` in the same commit as the change, while you still remember
 why it mattered. Write for someone deploying seedling, not for someone reading
@@ -165,10 +165,10 @@ built from — the changelog is how a user finds out what an update changed.
 
 ## License
 
-seedling is [Apache-2.0](https://github.com/cryocliff/seedling/blob/main/LICENSE).
+seedling is [Apache-2.0](https://github.com/jrvannucci/seedling/blob/main/LICENSE).
 Contributions are accepted under the same license (inbound = outbound, per
 Apache-2.0 section 5) — by opening a pull request you agree your contribution
 is licensed under Apache-2.0. Please don't add third-party runtime
 dependencies: seedling deliberately ships on the standard library alone, which
 is what keeps its licensing and its "nothing pre-installed" promise simple
-(see [THIRD-PARTY-NOTICES](https://github.com/cryocliff/seedling/blob/main/THIRD-PARTY-NOTICES.md)).
+(see [THIRD-PARTY-NOTICES](https://github.com/jrvannucci/seedling/blob/main/THIRD-PARTY-NOTICES.md)).

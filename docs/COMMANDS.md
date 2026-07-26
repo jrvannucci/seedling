@@ -758,7 +758,7 @@ either way. Open a new terminal afterward to pick up the fresh environment.
 
 If **no `update_source` is recorded** (uncommon — every install origin records
 one; mainly if you cleared it with `seed config unset update_source`), it asks
-whether to reinstall from the public repo (`github.com/cryocliff/seedling`) and
+whether to reinstall from the public repo (`github.com/jrvannucci/seedling`) and
 aborts *without deleting anything* if you decline — set a source first with
 `seed config set update_source <git-url-or-directory>`.
 
