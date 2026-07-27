@@ -136,6 +136,8 @@ Command names read predictably: a bare noun is the action (`python` installs,
 | `seed python [ver]` | Install an interpreter (newest stable if no version) |
 | `seed venv <name>` | Create an isolated environment |
 | `seed activate <name>` | Activate a venv in your current shell |
+| `seed run -- <cmd...>` | Run a command in a venv without activating one |
+| `seed which [name]` | Print a venv's python interpreter path |
 | `seed install <pkg...>` | Add packages to the active venv |
 | `seed download-whl <pkg...>` | Download a package + its deps as wheels for an offline install |
 | `seed vscode` | Open the bundled, portable VS Code |

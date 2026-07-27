@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from .. import confirm, fsutil, paths
+from .. import confirm, fsutil, lock, paths
 
 _KILL_NOTE = fsutil.ESCALATION_NOTE
 
@@ -51,7 +51,11 @@ def run_all(args) -> int:
     all_failures: list[str] = []
     removed = 0
     for v in venvs:
-        failures = fsutil.remove_tree(v, label=v.name)
+        # Locked one at a time, and only after the prompt: holding every
+        # venv's lock across a confirmation a human may sit on for minutes
+        # would block unrelated commands for no reason.
+        with lock.venv_lock(v):
+            failures = fsutil.remove_tree(v, label=v.name)
         if failures:
             all_failures.extend(failures)
         else:
@@ -93,7 +97,8 @@ def run_one(args) -> int:
         print("Aborted. Nothing was deleted.")
         return 1
 
-    failures = fsutil.remove_tree(target, label=args.name)
+    with lock.venv_lock(target):
+        failures = fsutil.remove_tree(target, label=args.name)
     if failures:
         print(f"Some files in '{args.name}' could not be removed after several attempts:")
         for f in failures:

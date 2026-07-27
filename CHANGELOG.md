@@ -22,7 +22,63 @@ what a release involves.
   earlier family renames — `seed repo-vscode` now fails with argparse's
   usual "invalid choice" listing.
 
+- **The venv-interpreter lookup is now `paths.venv_python()`.** The
+  Scripts-vs-bin check existed in four places — `activate`, `summary`,
+  `health-check`/`spyder` (via a private helper in `venv_cmd` that had grown
+  three cross-module importers), and venv creation. Internal only; no
+  behavior change.
+
+- **`seed spyder` now shares one definition of "which venv?" with `seed run`
+  and `seed which`.** It had its own copy of the `--venv` → `VIRTUAL_ENV` →
+  `default_venv` precedence; both now come from `venv_target`. The two
+  genuinely disagree about *failure*, so that stayed a policy decision rather
+  than being flattened: `run`/`which` stop on a dangling `VIRTUAL_ENV` or a
+  stale `default_venv`, because acting on a different environment than the
+  caller pointed at is worse than stopping; Spyder walks on past it and opens
+  with its own interpreter, because an editor that refuses to launch over a
+  stale setting is worse than one that opens and says so. An explicitly named
+  venv that can't be honored is fatal in both. No user-visible change.
+
 ### Added
+
+- **`seed run [-n <venv>] -- <command>` runs a command inside a venv without
+  activating one.** `seed activate` mutates the calling shell, which is right
+  for a person and useless to a Makefile recipe, a CI step or an AI agent —
+  each gets a fresh process per command and has no shell to mutate, so their
+  only options were a hardcoded interpreter path or re-deriving it every
+  time. The child's exit code passes through verbatim, its stdout and stderr
+  stay byte-exact (it inherits the real file descriptors, so its output does
+  not pass through seedling's logging tee), and it's argv rather than a
+  shell — no pipes, redirection or globbing unless you ask for `sh -c`
+  yourself. A command missing from the venv exits 127.
+
+- **`seed which [name] [--json]` prints a venv's interpreter path, and
+  nothing else**, so `$(seed which myproject)` works. Every diagnostic goes
+  to stderr and an unresolvable venv is a non-zero exit, never a message
+  where a path should be. `--json` adds the surrounding facts including
+  `source` — which rule resolved it. Both commands share one resolution
+  order: an explicit name, then `VIRTUAL_ENV`, then `default_venv`; an
+  explicit name that can't be honored is an error rather than a silent
+  fallback to a different environment.
+
+- **`--json` on every read command**: `venv-list`, `python-list`,
+  `health-check`, and `package-list` (translated to uv's own `--format
+  json`). The venv and base-Python payloads come from the same collectors
+  `seed summary --json` uses, so they are byte-identical to summary's arrays
+  — one definition of each shape rather than one per command. `health-check`
+  gained a collect/render split for it; its text output is unchanged and the
+  exit code is the same either way. Under `--json` the "no venv looks
+  active" note moves to stderr so stdout stays parseable.
+
+- **Concurrent `seed` commands no longer race on a venv.** `install`,
+  `uninstall`, `venv` and `remove-venv` take an exclusive per-venv lock for
+  the duration, so parallel CI jobs, a profile applied while someone works,
+  or several agents on one machine queue instead of leaving a half-written
+  `site-packages` behind. Locks are OS advisory file locks (`fcntl.flock` /
+  `msvcrt.locking`, both stdlib) rather than PID files, so a killed process
+  releases its lock automatically. Keyed by absolute path, so unrelated
+  venvs never wait on each other; a waiting command says so on stderr; and a
+  lock file that can't be created is not a reason to refuse to work.
 
 - **A deployment profile can name the editor everyone gets**: `editor =
   "spyder"` (or `"vscode"`) as a top-level key. `seed apply` installs it —

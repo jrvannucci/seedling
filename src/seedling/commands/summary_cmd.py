@@ -18,7 +18,6 @@ import subprocess
 from pathlib import Path
 
 from .. import colors, config, git_tool, paths, uv_tool
-from .venv_cmd import _python_interpreter_path_venv
 
 # Bump when a field changes meaning or goes away, so anything reading the
 # JSON can tell. Adding a field doesn't need a bump.
@@ -96,7 +95,10 @@ def _collect_tooling(want_sizes: bool) -> dict:
     }
 
 
-def _collect_pythons(want_sizes: bool) -> list[dict]:
+def collect_pythons(want_sizes: bool = False) -> list[dict]:
+    """Public because `seed python-list --json` emits exactly this. One
+    definition of "a base Python, as data" -- a consumer must not have to
+    learn a second shape depending on which command it asked."""
     if not paths.BASE_DIR.exists():
         return []
     default_tag = config.get_default_base()
@@ -120,7 +122,8 @@ def _collect_pythons(want_sizes: bool) -> list[dict]:
     return out
 
 
-def _collect_venvs(want_sizes: bool) -> list[dict]:
+def collect_venvs(want_sizes: bool = False) -> list[dict]:
+    """Public for `seed venv-list --json`, same reasoning as collect_pythons."""
     if not paths.VENVS_DIR.exists():
         return []
     active = os.environ.get("VIRTUAL_ENV")
@@ -128,7 +131,7 @@ def _collect_venvs(want_sizes: bool) -> list[dict]:
     default_venv = config.get("default_venv")
     out = []
     for v in sorted(d for d in paths.VENVS_DIR.iterdir() if d.is_dir()):
-        interpreter = _python_interpreter_path_venv(v)
+        interpreter = paths.venv_python(v)
         out.append({
             "name": v.name,
             "path": str(v),
@@ -184,8 +187,8 @@ def collect(want_sizes: bool = False) -> dict:
         "install_type": "multi-user" if shared_root else "single-user",
         "shared_root": shared_root,
         "tooling": _collect_tooling(want_sizes),
-        "pythons": _collect_pythons(want_sizes),
-        "venvs": _collect_venvs(want_sizes),
+        "pythons": collect_pythons(want_sizes),
+        "venvs": collect_venvs(want_sizes),
         "repos": _collect_repos(want_sizes, git_tool.find_git()),
         "settings": {key: settings.get(key) for key in config.KNOWN_KEYS},
         "total_size_bytes": _size_of(home, want_sizes),

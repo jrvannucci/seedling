@@ -7,6 +7,11 @@ nothing FAILed (warnings are informational), 1 otherwise.
 WARN vs FAIL: FAIL means a core seedling operation would not work right now
 (missing uv, broken venv, unreadable config). WARN means something is off
 but degradable (no git yet, no shell hook found in the usual profiles).
+
+`collect()` runs the checks and returns plain data; the renderers turn that
+into either the aligned text report or JSON (`--json`). The checks
+themselves never print -- they append a record -- so a new check shows up in
+both outputs automatically, the same split `seed summary` uses.
 """
 
 from __future__ import annotations
@@ -22,8 +27,10 @@ from pathlib import Path
 
 from .. import colors, config, git_tool, paths, uv_tool
 
-_failures = 0
-_warnings = 0
+# Bump when a field changes meaning or goes away, matching `summary --json`.
+SCHEMA_VERSION = 1
+
+_checks: list[dict] = []
 
 # The STATUS and AREA columns are padded to these widths (longest label in
 # each + a little slack) so the following column lines up. _STATUS_WIDTH is 6
@@ -67,20 +74,20 @@ def _line(status: str, color, area: str, msg: str) -> None:
         print(" " * _CHECK_INDENT + cont)
 
 
+def _record(status: str, area: str, msg: str) -> None:
+    _checks.append({"status": status, "area": area, "detail": msg})
+
+
 def _ok(area: str, msg: str) -> None:
-    _line("OK", colors.ok, area, msg)
+    _record("OK", area, msg)
 
 
 def _warn(area: str, msg: str) -> None:
-    global _warnings
-    _warnings += 1
-    _line("WARN", colors.warn, area, msg)
+    _record("WARN", area, msg)
 
 
 def _fail(area: str, msg: str) -> None:
-    global _failures
-    _failures += 1
-    _line("FAIL", colors.danger, area, msg)
+    _record("FAIL", area, msg)
 
 
 def _check_uv() -> None:
@@ -322,15 +329,13 @@ def _check_logs_writable() -> None:
         _warn("logs", f"log directory not writable ({e}) -- commands still work, just unlogged")
 
 
-def run(args) -> int:
-    global _failures, _warnings
-    _failures = 0
-    _warnings = 0
+def collect() -> dict:
+    """Run every check and return the results as plain data -- no printing,
+    no color. `healthy` is the exit-code question: warnings are
+    informational, only a FAIL makes an install unhealthy."""
+    global _checks
+    _checks = []
 
-    print(colors.bold("seedling health check") + f"  ({paths.HOME})")
-    print()
-    print("  " + colors.dim("STATUS".ljust(_STATUS_WIDTH)) + " " +
-          colors.dim("AREA".ljust(_AREA_WIDTH)) + " " + colors.dim("CHECK"))
     _check_uv()
     _check_git()
     _check_config()
@@ -340,13 +345,47 @@ def run(args) -> int:
     _check_shell_hook()
     _check_logs_writable()
 
+    checks = list(_checks)
+    failures = sum(1 for c in checks if c["status"] == "FAIL")
+    warnings = sum(1 for c in checks if c["status"] == "WARN")
+    return {
+        "schema": SCHEMA_VERSION,
+        "home": str(paths.HOME),
+        "healthy": failures == 0,
+        "failures": failures,
+        "warnings": warnings,
+        "checks": checks,
+    }
+
+
+_STATUS_COLORS = {"OK": colors.ok, "WARN": colors.warn, "FAIL": colors.danger}
+
+
+def _render_text(data: dict) -> None:
+    print(colors.bold("seedling health check") + f"  ({data['home']})")
     print()
-    if _failures:
-        print(colors.danger(f"{_failures} problem(s) found") +
-              (f", {_warnings} warning(s)." if _warnings else "."))
-        return 1
-    if _warnings:
-        print(colors.warn(f"Healthy, with {_warnings} warning(s)."))
+    print("  " + colors.dim("STATUS".ljust(_STATUS_WIDTH)) + " " +
+          colors.dim("AREA".ljust(_AREA_WIDTH)) + " " + colors.dim("CHECK"))
+    for check in data["checks"]:
+        _line(check["status"], _STATUS_COLORS[check["status"]],
+              check["area"], check["detail"])
+
+    print()
+    failures, warnings = data["failures"], data["warnings"]
+    if failures:
+        print(colors.danger(f"{failures} problem(s) found") +
+              (f", {warnings} warning(s)." if warnings else "."))
+    elif warnings:
+        print(colors.warn(f"Healthy, with {warnings} warning(s)."))
     else:
         print(colors.ok("Everything looks healthy."))
-    return 0
+
+
+def run(args) -> int:
+    data = collect()
+    if getattr(args, "json", False):
+        print(json.dumps(data, indent=2))
+    else:
+        _render_text(data)
+    # Same answer either way: 0 unless something FAILed.
+    return 0 if data["healthy"] else 1

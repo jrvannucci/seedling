@@ -13,6 +13,8 @@ scattered across the filesystem:
             settings.json <- seedling's own config (default python version, etc.)
         logs/             <- one log file per day; every `seed` command appends
                              what ran and everything it printed
+        locks/            <- advisory lock files, one per venv, so two seed
+                             commands can't mutate the same one at once
         cache/
             uv/           <- uv's package/interpreter download cache, kept
                              inside seedling instead of ~/.cache / %LOCALAPPDATA%
@@ -89,6 +91,11 @@ SHELL_DIR = SYSTEM_DIR / "shell"
 LOGS_DIR = SYSTEM_DIR / "logs"
 UV_CACHE_DIR = SYSTEM_DIR / "cache" / "uv"
 
+# Advisory lock files, one per venv, so two seed commands can't mutate the
+# same environment at once (see lock.py). Empty files whose only content is
+# the OS lock the holder takes on them -- they are never read.
+LOCKS_DIR = SYSTEM_DIR / "locks"
+
 # conda-forge command-line tools, managed with micromamba (`seed tool-install`).
 # The per-tool environments live under system/ because they are an
 # implementation detail; only the shims are user-facing. MAMBA_DIR is
@@ -140,6 +147,7 @@ ALL_DIRS = [
     CONFIG_DIR,
     SHELL_DIR,
     LOGS_DIR,
+    LOCKS_DIR,
     UV_CACHE_DIR,
     PYTHON_DIR,
     BASE_DIR,
@@ -194,6 +202,37 @@ def base_alias_file(tag: str) -> Path:
 
 def venv_dir(name: str) -> Path:
     return VENVS_DIR / name
+
+
+def venv_python_path(venv: str | Path) -> Path:
+    """Where a venv's interpreter WOULD be, whether or not it exists.
+
+    A `str` is read as a venv name (resolved under VENVS_DIR); a `Path` is
+    read as the venv directory itself, which is what callers holding a
+    VIRTUAL_ENV value or a directory listing already have.
+
+    The Scripts-vs-bin split is the most-copied two-liner in the codebase --
+    `seed activate`, `summary`, `health-check`, `spyder` and venv creation
+    each had their own -- so it lives here. Note this is the VENV layout;
+    uv's managed base CPython dirs are shaped differently and are resolved
+    by venv_cmd._python_interpreter_path.
+    """
+    venv_path = venv if isinstance(venv, Path) else venv_dir(venv)
+    return (venv_path / "Scripts" / "python.exe") if os.name == "nt" \
+        else (venv_path / "bin" / "python")
+
+
+def venv_python(venv: str | Path) -> Path | None:
+    """A venv's interpreter, or None if it isn't actually there."""
+    candidate = venv_python_path(venv)
+    return candidate if candidate.exists() else None
+
+
+def venv_bin_dir(venv: str | Path) -> Path:
+    """The directory a venv puts executables in -- what `seed run` prepends
+    to PATH, and what an activate script would."""
+    venv_path = venv if isinstance(venv, Path) else venv_dir(venv)
+    return venv_path / ("Scripts" if os.name == "nt" else "bin")
 
 
 def repo_dir(name: str) -> Path:

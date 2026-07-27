@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from .. import colors, config, paths, uv_tool
+from .. import colors, config, lock, paths, uv_tool
 from . import python_cmd
 
 
@@ -44,6 +44,16 @@ def run(args) -> int:
         return 1
 
     target = paths.venv_dir(args.name)
+
+    # Taken BEFORE the existence check, and held through the default-package
+    # install: two `seed venv myproject` runs racing would otherwise both see
+    # "doesn't exist", and the loser would install packages into a tree the
+    # winner was still creating.
+    with lock.venv_lock(target):
+        return _create(args, tag, interpreter, target)
+
+
+def _create(args, tag, interpreter, target) -> int:
     if target.exists():
         print(f"A venv named '{args.name}' already exists at {target}")
         return 1
@@ -66,7 +76,7 @@ def run(args) -> int:
     if default_packages and not getattr(args, "no_default_packages", False):
         print(f"Installing default packages: {', '.join(default_packages)} "
               "(skip with --no-default-packages)")
-        venv_python = _python_interpreter_path_venv(target)
+        venv_python = paths.venv_python(target)
         if venv_python is None:
             print("warning: couldn't find the new venv's python executable; "
                   "skipping default packages.")
@@ -85,11 +95,3 @@ def run(args) -> int:
     return 0
 
 
-def _python_interpreter_path_venv(venv_dir):
-    """A venv's own interpreter (layout differs from uv's managed CPython
-    dirs, which _python_interpreter_path handles)."""
-    if os.name == "nt":
-        candidate = venv_dir / "Scripts" / "python.exe"
-    else:
-        candidate = venv_dir / "bin" / "python"
-    return candidate if candidate.exists() else None
