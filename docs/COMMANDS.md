@@ -1109,7 +1109,12 @@ organization has standardized on.
   way a fleet picks up later changes to the standard.
 - **Never destroys.** An existing venv is left exactly as it is. `--force`
   installs the profile's *missing* packages into it; nothing is ever removed
-  or recreated. Deleting is `seed remove-venv`, run on purpose.
+  or recreated. Deleting is `seed remove-venv`, run on purpose. An existing
+  repo is likewise never pulled or re-installed, only cloned when absent.
+- **Settings are the exception**: a key in the profile's `[config]`, and the
+  default venv, are rewritten whenever this machine's value differs. See
+  [what apply will and won't do](PROFILES.md#what-apply-will-and-wont-do)
+  for the full per-declaration table.
 - `--preview` prints the plan and exits without changing anything.
 - Exit codes: `0` applied or already current, `1` a step failed (it names
   which), `2` the profile itself is invalid.
