@@ -51,6 +51,8 @@ layout, and running the tests.
 |---|---|
 | Install seedling | [Using seedling → How installation works](GUIDE.md#how-installation-works) |
 | Look up a command | [Command reference](COMMANDS.md) |
+| Install an editor (VS Code, Spyder) or a Python app | [Command reference](COMMANDS.md) |
+| Standardize the editor across a fleet | [Deployment profiles](PROFILES.md) |
 | Understand where files go | [Using seedling → The folder layout](GUIDE.md#the-folder-layout) |
 | Update or repair an install | [Using seedling → The update model](GUIDE.md#the-update-model) |
 | Remove seedling completely | [Using seedling → Uninstalling](GUIDE.md#uninstalling) |

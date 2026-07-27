@@ -16,7 +16,7 @@ This page is the deployment track. It assumes you are setting seedling up
 - [Who this is for](#who-this-is-for)
 - [Deployment configuration: `seedling.conf`](#deployment-configuration-seedlingconf)
 - [Shared-machine (multi-user) installs](#shared-machine-multi-user-installs)
-- [Choosing an editor build and registry](#choosing-an-editor-build-and-registry)
+- [Choosing an editor](#choosing-an-editor)
 - Defining the environment itself → **[PROFILES.md](PROFILES.md)**
 - [Rolling out](#rolling-out)
 - [Admin commands (shared-root teardown)](#admin-commands-shared-root-teardown)
@@ -88,7 +88,7 @@ or environment variables:
   seedling itself is still installed and working.
 - `SEEDLING_AUTO_VSCODE` (default: `true`) — also download and set up the
   portable VS Code during install, so `seed vscode` opens instantly
-  instead of downloading ~130 MB on first use. Only applies when
+  instead of downloading ~300 MB on first use. Only applies when
   `SEEDLING_AUTO_SETUP` is `true`.
 - `SEEDLING_PYTHON_MIRROR` (default: empty = internet) — where `seed
   python` downloads interpreter builds: a URL of an internal mirror, or a
@@ -107,7 +107,7 @@ or environment variables:
 - `SEEDLING_VSCODE_FLAVOR` (default: `microsoft`) — which editor build
   `seed vscode` installs: the official Visual Studio Code, or `vscodium`,
   the MIT-licensed community build. Seeds the `vscode_flavor` setting. See
-  [Choosing an editor build and registry](#choosing-an-editor-build-and-registry)
+  [Choosing a VS Code build](#which-vs-code-build)
   — this is a licensing choice as much as a technical one.
 - `SEEDLING_EXTENSION_GALLERY` (default: empty = the flavor's own registry)
   — base URL of the extension registry, for an internal Open VSX mirror.
@@ -165,7 +165,36 @@ with it, the shared root just holds one subfolder per user. (The default
 
 ---
 
-## Choosing an editor build and registry
+## Choosing an editor
+
+Two separate decisions: **which editor**, and — if it's VS Code — **which
+build of it**.
+
+### Which editor
+
+A [deployment profile](PROFILES.md) can name the one everyone gets:
+
+```toml
+editor = "spyder"     # or "vscode"
+```
+
+`seed apply` installs it, last, since it's the largest step. **Spyder** suits
+teams doing analysis rather than software engineering — a variable explorer,
+an IPython console and a plots pane, wired automatically to the venv the user
+has activated. **VS Code** is the general-purpose default. Omit the key and
+`seed apply` installs no editor at all.
+
+> **If you choose Spyder, turn off the VS Code auto-install.** They are
+> independent: `SEEDLING_AUTO_VSCODE` defaults to `true` and sets up VS Code
+> during installation, so a profile naming Spyder would land *both* — about
+> 500 MB, half of it unwanted. Set `SEEDLING_AUTO_VSCODE="false"` in your
+> `seedling.conf` alongside `editor = "spyder"`.
+
+> **Spyder is x86_64 only.** Its Qt dependency publishes no arm64 wheels, so
+> on Apple Silicon or ARM Linux use `tools = ["spyder"]` (the conda-forge
+> build) instead of `editor = "spyder"`.
+
+### Which VS Code build
 
 `seed vscode` installs the official Microsoft build of Visual Studio Code by
 default, and its extensions come from the Microsoft Marketplace. For most

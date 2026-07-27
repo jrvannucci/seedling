@@ -11,7 +11,58 @@ what a release involves.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: `repo-vscode` and `repo-spyder` are now `vscode-repo` and
+  `spyder-repo`.** The old names put them in the `repo-*` family, which is
+  where they sat in help until the editor family existed; the new ones put
+  each editor's repo command beside the editor itself, matching how every
+  other family is named after its subject (`tool` / `tool-install`, `venv` /
+  `venv-list`). The old names are gone rather than aliased, as with the
+  earlier family renames — `seed repo-vscode` now fails with argparse's
+  usual "invalid choice" listing.
+
+### Added
+
+- **A deployment profile can name the editor everyone gets**: `editor =
+  "spyder"` (or `"vscode"`) as a top-level key. `seed apply` installs it —
+  last, since it's the largest download, so a profile that also fails
+  somewhere cheap fails before spending it. Validated against the editor
+  registry, so registering an editor makes it profile-selectable with no
+  second list to maintain, and a value that isn't a bundled editor stops the
+  profile rather than quietly deploying a different one. Omitting the key
+  behaves exactly as before: `seed apply` installs no editor and
+  `SEEDLING_AUTO_VSCODE` keeps deciding VS Code at install time.
+
 ### Documentation
+
+- **The 0.8.0 features are documented outside the command reference.**
+  `app-install` and `seed spyder` had landed only in COMMANDS.md, so a whole
+  command family and a second bundled editor were invisible from the README,
+  the guide, and the offline docs. Notably `seed app-install` works
+  air-gapped — applications resolve from the same `wheels/` folder as
+  everything else — which nothing had said.
+
+- **The deployment guide covers choosing the editor, not just the VS Code
+  build.** Its editor section presented the decision as `microsoft` vs
+  `vscodium` and never mentioned that a profile can pick Spyder instead. It
+  now covers both, and warns about the interaction that would otherwise bite:
+  `SEEDLING_AUTO_VSCODE` defaults to `true` and is independent of the
+  profile, so a deployment naming Spyder gets *both* editors — about 500 MB,
+  half of it unwanted — unless the conf turns VS Code's auto-install off.
+
+- **The VS Code download size was wrong in two places.** `seedling.conf` and
+  the deployment guide both said ~130 MB, against ~300 MB everywhere else
+  (the prompt, the offline builder, the installers). A deployer sizing a
+  rollout was reading a figure less than half the real one.
+
+- **The folder-layout trees match reality again.** All three (README, guide,
+  and `paths.py`) were missing `system/shims/`, `extensions/apps/` and
+  `extensions/spyder-config/`; the guide was also missing `system/conda/`
+  from 0.7.0. `paths.py`'s was additionally *wrong*: it described
+  `extensions/vscode/data/` and `.../extensions/` as VS Code's user-data and
+  extensions directories, when portable mode keeps both under
+  `app/data/` — which is the whole reason nothing lands in `%APPDATA%`.
 
 - **`seed app-remove` removes the application, not what it installed in your
   venvs.** `seed spyder` puts `spyder-kernels` into the venv it was pointed

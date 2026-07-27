@@ -19,7 +19,7 @@ destructive action reads the same way (`remove-venv`, `remove-python`,
 | Command-line tools from conda-forge *(the non-Python tools)* | `tool <cmd>` *(run)*, `tool-install <name>` *(install)*, `tool-list`, `tool-remove` |
 | Offline utilities *(stage packages/tools for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>`, `download-tool <name...>` |
 | Repos | `repo-clone`, `repo-list`, `repo-cd`, `repo-open`, `repo-install`, `remove-repo` |
-| Editors & IDEs *(installed on demand)* | `vscode`, `repo-vscode`, `spyder`, `repo-spyder` |
+| Editors & IDEs *(installed on demand)* | `vscode`, `vscode-repo`, `spyder`, `spyder-repo` |
 | Everyday / singletons | `summary`, `health-check`, `logs-viewer`, `config`, `apply`, `where`, `kill-processes`, `update-commands`, `remove-user`, `purge`, `purge-and-reinstall` |
 
 **Python interpreters** — structural commands: the base installs that venvs
@@ -497,7 +497,7 @@ installer's default setup uses).
   `--non-interactive` (or `SEEDLING_NONINTERACTIVE=1`) skips the install
   rather than waiting for input. `--reinstall` is exempt: asking for a
   reinstall already says you want the download.
-- `seed repo-vscode` shares the same gate and the same flags, since it can
+- `seed vscode-repo` shares the same gate and the same flags, since it can
   trigger the same first-time download.
 
 - **Portable mode:** a `data/` folder is created next to the VS Code
@@ -546,6 +546,19 @@ installer's default setup uses).
 seed vscode
 seed vscode ./my-project
 seed vscode --reinstall
+```
+
+## `seed vscode-repo <name> [-y]`
+
+Opens a cloned repo in VS Code — installing VS Code first if it isn't
+already (same one-time setup as `seed vscode`). Shares the same CLI-entry-
+point, detached-process opening logic as `seed vscode`, and the same
+first-time download prompt (with the same `-y` / `--non-interactive`
+flags) — reaching the editor from a repo shouldn't cost 300 MB any more
+quietly than reaching it directly.
+
+```
+seed vscode-repo some-project
 ```
 
 ## `seed spyder [path] [--venv <name>] [--no-open] [-y]`
@@ -616,14 +629,14 @@ seed spyder                      # now runs in 'analysis'
 seed spyder --venv scratch       # or name one outright
 ```
 
-## `seed repo-spyder <name>`
+## `seed spyder-repo <name>`
 
 Opens a cloned repo as a **Spyder project** (`--project`), the natural
-counterpart to `seed repo-vscode`. Same install-if-needed behavior and the
+counterpart to `seed vscode-repo`. Same install-if-needed behavior and the
 same first-run prompt.
 
 ```
-seed repo-spyder some-project
+seed spyder-repo some-project
 ```
 
 ## `seed repo-clone <git-url>`
@@ -681,25 +694,12 @@ seed repo-cd myproject
 seed repo-cd
 ```
 
-## `seed repo-vscode <name> [-y]`
-
-Opens a cloned repo in VS Code — installing VS Code first if it isn't
-already (same one-time setup as `seed vscode`). Shares the same CLI-entry-
-point, detached-process opening logic as `seed vscode`, and the same
-first-time download prompt (with the same `-y` / `--non-interactive`
-flags) — reaching the editor from a repo shouldn't cost 300 MB any more
-quietly than reaching it directly.
-
-```
-seed repo-vscode some-project
-```
-
 ## `seed repo-open [name]`
 
 Opens a cloned repo in the **operating system's file manager** (Explorer
 on Windows, Finder on macOS, your desktop's default elsewhere). With no
 name, opens `~/seedling/repo` itself. For opening in VS Code, use
-`seed repo-vscode`.
+`seed vscode-repo`.
 
 ```
 seed repo-open some-project
@@ -1168,7 +1168,7 @@ setting with its current value and an explanation. The keys:
   the starter kit for the configured flavor.
 
 The three editor settings are usually deployment-wide rather than personal;
-see [the deployment guide](DEPLOYMENT.md#choosing-an-editor-build-and-registry)
+see [the deployment guide](DEPLOYMENT.md#which-vs-code-build)
 for what they're for and the licensing tradeoff they encode.
 
 `seed config get <key>` prints just the value (nothing at all when unset),

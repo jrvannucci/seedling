@@ -141,7 +141,7 @@ redistribute internally without asking anyone's permission.
 
 The cost is Pylance, which is licensed to official Microsoft products only
 and therefore cannot be on Open VSX. See
-[Choosing an editor build and registry](DEPLOYMENT.md#choosing-an-editor-build-and-registry)
+[Choosing a VS Code build](DEPLOYMENT.md#which-vs-code-build)
 for the full tradeoff.
 
 ---

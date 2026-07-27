@@ -135,7 +135,7 @@ def test_both_editors_are_registered_in_the_family():
     keys = set(editors.REGISTRY)
     assert {"vscode", "spyder"} <= keys
     rows = {row[0] for row in editors.help_rows()}
-    assert {"vscode", "repo-vscode", "spyder", "repo-spyder"} <= rows
+    assert {"vscode", "vscode-repo", "spyder", "spyder-repo"} <= rows
 
 
 def test_help_rows_mark_what_is_installed(home):

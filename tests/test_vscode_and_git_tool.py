@@ -132,7 +132,7 @@ def test_repo_vscode_shares_the_same_gate(run_cli, home, monkeypatch):
         raise AssertionError("download attempted despite a declined prompt")
     monkeypatch.setattr(vscode_cmd, "_resolve_download", boom)
     monkeypatch.setattr("builtins.input", lambda *a: "n")
-    code, out = run_cli("repo-vscode", "myrepo")
+    code, out = run_cli("vscode-repo", "myrepo")
     assert code == 0
     assert "300 MB" in out
 

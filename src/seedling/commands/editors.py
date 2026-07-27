@@ -62,6 +62,15 @@ class Editor:
     summary: str                  # one-line help description
     download_note: str            # e.g. "~300 MB download"
     is_installed: Callable[[], bool]
+    # The editor's own `run(args) -> int` -- the CLI dispatch contract it
+    # already satisfies, not a new abstraction invented for the registry.
+    # That distinction matters: this type deliberately has no install()/
+    # launch() hooks, because those genuinely differ (VS Code extracts an
+    # archive and patches product.json; Spyder installs a uv tool and a
+    # kernels package into a DIFFERENT venv), and a shared signature for
+    # them would be a fiction. `run` is safe to share precisely because
+    # cli.py already calls both through it.
+    run: Callable[[object], int]
     args_hint: str = ""           # e.g. "[path] [--reinstall]"
     repo_command: str | None = None      # `seed <repo_command> <name>`
     repo_summary: str = ""

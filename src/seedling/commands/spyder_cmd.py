@@ -1,5 +1,5 @@
 """
-`seed spyder` / `seed repo-spyder` -- the Spyder IDE, as a bundled editor.
+`seed spyder` / `seed spyder-repo` -- the Spyder IDE, as a bundled editor.
 
 Spyder is a Python application, so the install itself is just `seed
 app-install spyder` underneath. What this module adds is the wiring that
@@ -324,11 +324,11 @@ def run(args) -> int:
     return 0
 
 
-def repo_spyder(args) -> int:
-    """`seed repo-spyder <name>` -- open a cloned repo as a Spyder project."""
+def spyder_repo(args) -> int:
+    """`seed spyder-repo <name>` -- open a cloned repo as a Spyder project."""
     name = getattr(args, "name", None)
     if not name:
-        print("Usage: seed repo-spyder <name>")
+        print("Usage: seed spyder-repo <name>")
         return 1
 
     target = paths.repo_dir(name)
@@ -351,6 +351,7 @@ editors.register(editors.Editor(
     summary="Install (once) and open Spyder",
     download_note=DOWNLOAD_NOTE,
     is_installed=is_installed,
-    repo_command="repo-spyder",
+    run=lambda args: run(args),
+    repo_command="spyder-repo",
     repo_summary="Open a cloned repo in Spyder",
 ))

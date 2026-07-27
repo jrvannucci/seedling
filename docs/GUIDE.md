@@ -156,6 +156,13 @@ $env:SEEDLING_REPO = "S:\shared\seedling"; .\install.cmd
    auto-activate — unless a different `default_venv` was already chosen.
    Also downloads the portable VS Code (unless `SEEDLING_AUTO_VSCODE` is
    `no`, or it's already present) so `seed vscode` opens instantly.
+
+   VS Code isn't the only option: `seed spyder` installs and opens **Spyder**
+   instead, wired to whichever venv you have activated. Both are installed on
+   demand and both tell you the download size before starting. Other Python
+   applications — JupyterLab, httpie — install the same way with
+   `seed app-install <name>`, each in its own environment so nothing lands in
+   your project venvs.
 7. **Writes the shell integration.** Copies `seed.sh.template` /
    `seed.ps1.template` into `~/seedling/system/shell/seed.sh` (or `.ps1`),
    with the real `~/seedling` path substituted in, then appends a line to
@@ -203,6 +210,9 @@ could actually work. On failure, this window is skipped and the original
 │   ├── cache/
 │   │   └── uv/                   uv's package/interpreter download cache --
 │   │                             kept in here instead of ~/.cache / %LOCALAPPDATA%
+│   ├── conda/                    micromamba root: conda-forge tool envs and
+│   │                             their PATH launchers (`seed tool-install`)
+│   ├── shims/                    launchers for PyPI apps (`seed app-install`)
 │   ├── certs/
 │   │   └── ca-bundle.pem         corporate CA bundle, only on org installs
 │   │                             that ship one in vendor/certs/ (see OFFLINE.md)
@@ -217,9 +227,13 @@ could actually work. On failure, this window is skipped and the original
 │   └── venvs/
 │       └── <name>/                one folder per `seed venv <name>`
 ├── extensions/
-│   └── vscode/
-│       └── app/                   portable VS Code
-│           └── data/               portable-mode settings + extensions, all local
+│   ├── vscode/
+│   │   └── app/                   portable VS Code
+│   │       └── data/               portable-mode settings + extensions, all local
+│   ├── spyder-config/             Spyder's own settings, kept in here rather
+│   │                              than ~/.config or %APPDATA%
+│   └── apps/
+│       └── <name>/                one uv-managed env per `seed app-install`
 └── repo/
     └── <name>/                    one folder per `seed repo-clone <url>`
 ```
@@ -445,7 +459,7 @@ into.
 
 ## Known limits
 
-- `seed vscode`/`seed repo-vscode` on macOS unpack the official `.app` bundle
+- `seed vscode`/`seed vscode-repo` on macOS unpack the official `.app` bundle
   and launch its embedded CLI binary; this is the least-tested of the
   three platforms.
 - `seed python` version resolution assumes CPython (uv's default); PyPy and

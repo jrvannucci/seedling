@@ -26,7 +26,7 @@ from argparse import Namespace
 import os
 
 from .. import colors, config, confirm, paths, profile as profile_mod, uv_tool
-from . import python_cmd, repo_cmd, tool_cmd, venv_cmd
+from . import editors, python_cmd, repo_cmd, tool_cmd, venv_cmd
 
 
 def _install_into(venv_name: str, packages: list[str]) -> bool:
@@ -129,6 +129,21 @@ def _plan(prof: profile_mod.Profile, *, force: bool) -> list[tuple[str, str]]:
             steps.append(("skip", f"conda-forge tool {name!r} already installed"))
         else:
             steps.append(("tool", f"install conda-forge tool {tool}"))
+
+    # The editor comes last of the installs: it's the biggest download by far
+    # (hundreds of MB), so a profile that also fails somewhere cheap fails
+    # before spending that rather than after.
+    if prof.editor:
+        entry = editors.REGISTRY.get(prof.editor)
+        if entry is None:
+            # Registry changed under a profile validated against an older
+            # build. Report rather than crash -- everything else still applies.
+            steps.append(("skip", f"unknown editor {prof.editor!r}; skipped"))
+        elif entry.is_installed():
+            steps.append(("skip", f"{entry.label} already installed"))
+        else:
+            steps.append(("editor",
+                          f"install {entry.label} ({entry.download_note})"))
 
     for key, value in prof.settings.items():
         current = config.get(key)
@@ -250,6 +265,19 @@ def run(args) -> int:
         # an offline bundle installs these from its own conda-channel.
         if tool_cmd.install(Namespace(spec=tool)) != 0:
             failed.append(f"tool {name}")
+
+    if prof.editor:
+        entry = editors.REGISTRY.get(prof.editor)
+        if entry is not None and not entry.is_installed():
+            # -y: apply is provisioning, and the profile declaring an editor
+            # IS the consent the first-run prompt would otherwise ask for.
+            # --no-open so a fleet rollout never pops a window on someone's
+            # screen mid-install.
+            rc = entry.run(Namespace(
+                path=None, no_open=True, yes=True, non_interactive=True,
+                reinstall=False, venv=None))
+            if rc != 0:
+                failed.append(f"editor {entry.label}")
 
     for key, value in prof.settings.items():
         if config.get(key) != value:

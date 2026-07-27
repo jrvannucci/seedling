@@ -352,7 +352,7 @@ def build_parser() -> argparse.ArgumentParser:
                           help="Never wait for keyboard input: skip the "
                                "install instead of prompting.")
 
-    p_spyder_repo = sub.add_parser("repo-spyder",
+    p_spyder_repo = sub.add_parser("spyder-repo",
                                    help="Open a cloned repo in Spyder")
     p_spyder_repo.add_argument("name", nargs="?", help="Name of the repo to open")
     p_spyder_repo.add_argument("--venv", dest="venv", default=None,
@@ -384,7 +384,7 @@ def build_parser() -> argparse.ArgumentParser:
         "repo-open", help="Open a cloned repo (or ~/seedling/repo) in the file manager")
     p_open_repo.add_argument("name", nargs="?", help="Name of the repo to open")
 
-    p_vscode_repo = sub.add_parser("repo-vscode", help="Open a cloned repo in VS Code")
+    p_vscode_repo = sub.add_parser("vscode-repo", help="Open a cloned repo in VS Code")
     p_vscode_repo.add_argument("name", nargs="?", help="Name of the repo to open")
     # Can trigger the same first-run VS Code download as `seed vscode`.
     p_vscode_repo.add_argument("-y", "--yes", action="store_true",
@@ -635,13 +635,13 @@ def _dispatch_main(argv: list[str]) -> int:
         "download-requirements": download_cmd.run_requirements,
         "vscode": vscode_cmd.run,
         "spyder": spyder_cmd.run,
-        "repo-spyder": spyder_cmd.repo_spyder,
+        "spyder-repo": spyder_cmd.spyder_repo,
         "repo-clone": repo_cmd.clone,
         "repo-list": repo_cmd.list_repos,
         "repo-cd": repo_cmd.cd_repo,
         "remove-repo": repo_cmd.remove,
         "repo-open": repo_cmd.open_repo,
-        "repo-vscode": repo_cmd.vscode_repo,
+        "vscode-repo": repo_cmd.vscode_repo,
         "repo-install": repo_cmd.install_repo,
         "remove-user": remove_cmd.run,
         "remove-venv-all": venv_remove_cmd.run_all,

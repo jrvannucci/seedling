@@ -475,7 +475,7 @@ def _install_extensions(cli: list[str], wanted: list[str]) -> None:
 def open_window(cli: list[str], path: str) -> None:
     """Open VS Code at `path` via its CLI entry point, fully detached from
     seedling's own process. Kept as the name `seed vscode` and `seed
-    repo-vscode` already call; the detaching itself is family-generic."""
+    vscode-repo` already call; the detaching itself is family-generic."""
     editors.open_detached(cli, path)
 
 
@@ -491,7 +491,7 @@ DOWNLOAD_NOTE = "~300 MB download"
 
 def confirm_first_install(args) -> bool:
     """Ask before the first-run ~300MB download, via the shared editor-family
-    gate. Shared by `seed vscode` and `seed repo-vscode`, which trigger the
+    gate. Shared by `seed vscode` and `seed vscode-repo`, which trigger the
     same download from different directions."""
     # flavor() before prompting on purpose: a misconfigured vscode_flavor
     # should fail as a config error (cli._invoke renders UnknownFlavor)
@@ -538,6 +538,7 @@ editors.register(editors.Editor(
     summary="Install (once) and open VS Code",
     download_note=DOWNLOAD_NOTE,
     is_installed=is_installed,
-    repo_command="repo-vscode",
+    run=lambda args: run(args),
+    repo_command="vscode-repo",
     repo_summary="Open a cloned repo in VS Code",
 ))

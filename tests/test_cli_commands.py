@@ -20,7 +20,7 @@ ALL_COMMANDS = [
     "app-install", "app-list", "app-remove",
     "tool", "tool-install", "tool-list", "tool-remove",
     "download-whl", "download-requirements", "download-tool",
-    "repo-clone", "repo-list", "repo-cd", "repo-vscode", "repo-spyder",
+    "repo-clone", "repo-list", "repo-cd", "vscode-repo", "spyder-repo",
     "repo-open", "repo-install", "remove-repo",
     "vscode", "spyder",
     "summary", "health-check", "logs-viewer", "config", "where",
@@ -97,7 +97,7 @@ def test_bare_seed_shows_grouped_help(run_cli):
     code, out = run_cli()
     assert code == 0
     for family_member in ("python-list", "remove-venv-all", "repo-clone",
-                          "repo-vscode", "venv-default", "package-list"):
+                          "vscode-repo", "venv-default", "package-list"):
         assert family_member in out
 
 
