@@ -11,6 +11,8 @@ what a release involves.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-07-26
+
 ### Added
 
 - **`seed app-install / app-list / app-remove`** — Python applications from
