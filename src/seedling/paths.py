@@ -18,6 +18,8 @@ scattered across the filesystem:
                              inside seedling instead of ~/.cache / %LOCALAPPDATA%
         conda/            <- micromamba root: conda-forge tool envs, package
                              cache, and the PATH shims (`seed tool-install`)
+        shims/            <- launchers for PyPI apps (`seed app-install`),
+                             put on PATH by the shell hook
         shell/
             seed.sh       <- sourced by bash/zsh to define the `seed` function
             seed.ps1      <- dot-sourced by PowerShell to define the `seed` function
@@ -27,8 +29,12 @@ scattered across the filesystem:
     extensions/
         vscode/
             app/          <- the portable VS Code install itself
-            data/         <- --user-data-dir (settings, keybindings, etc.)
-            extensions/   <- --extensions-dir
+                data/     <- portable mode keeps user-data AND extensions in
+                             here, beside the executable -- which is what
+                             stops VS Code writing to ~/.vscode or %APPDATA%
+        spyder-config/    <- Spyder's own settings (SPYDER_CONFDIR), for the
+                             same reason: nothing outside ~/seedling
+        apps/<name>/      <- one uv-managed environment per `seed app-install`
     repo/
         <name>/           <- repos cloned with `seed repo-clone`
 """

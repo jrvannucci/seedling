@@ -1,6 +1,6 @@
 """Repo family: name derivation, repo-cd resolution, clone against a local
 bare repo (git file protocol -- the share-only workflow), repo-open /
-repo-vscode validation, repo-install detection."""
+vscode-repo validation, repo-install detection."""
 
 from __future__ import annotations
 
@@ -42,9 +42,9 @@ def test_repo_cd_without_wrapper_explains(run_cli, home):
 
 
 def test_repo_vscode_and_open_validate_missing(run_cli, home):
-    code, out = run_cli("repo-vscode", "ghost")
+    code, out = run_cli("vscode-repo", "ghost")
     assert code == 1 and "No repo named" in out
-    code, out = run_cli("repo-vscode")
+    code, out = run_cli("vscode-repo")
     assert code == 1 and "Usage" in out
     code, out = run_cli("repo-open", "ghost")
     assert code == 1 and "No repo named" in out

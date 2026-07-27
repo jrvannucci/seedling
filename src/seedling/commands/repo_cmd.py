@@ -48,7 +48,7 @@ def clone(args) -> int:
 
     print(f"Cloned '{name}'.")
     print(f"  seed repo-cd {name}        # jump into it (git commands work there)")
-    print(f"  seed repo-vscode {name}    # open it in VS Code")
+    print(f"  seed vscode-repo {name}    # open it in VS Code")
     print(f"  seed repo-open {name}      # open it in the file manager")
     print(f"  seed repo-install {name}   # install its dependencies into the active venv")
     return 0
@@ -160,7 +160,7 @@ def cd_repo(args) -> int:
 def open_repo(args) -> int:
     """`seed repo-open [name]` -- open a cloned repo (or the repos folder
     itself) in the OS file manager. For opening in VS Code, that's
-    `seed repo-vscode`."""
+    `seed vscode-repo`."""
     name = getattr(args, "name", None)
     target = paths.repo_dir(name) if name else paths.REPO_DIR
     if not target.exists():
@@ -183,10 +183,10 @@ def open_repo(args) -> int:
 
 
 def vscode_repo(args) -> int:
-    """`seed repo-vscode <name>` -- open a cloned repo in VS Code."""
+    """`seed vscode-repo <name>` -- open a cloned repo in VS Code."""
     name = getattr(args, "name", None)
     if not name:
-        print("Usage: seed repo-vscode <name>")
+        print("Usage: seed vscode-repo <name>")
         return 1
 
     target = paths.repo_dir(name)

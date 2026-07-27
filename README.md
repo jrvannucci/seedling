@@ -33,8 +33,9 @@ line.
   even need Python beforehand)
 - 📦 A **ready-to-use environment** with common tools already in it — just
   `python` and go
-- 🧰 A portable **VS Code** editor, with Python extensions and settings
-  already configured
+- 🧰 A portable **editor** — VS Code with Python extensions and settings
+  already configured, or **Spyder** if you'd rather have a variable explorer
+  and an IPython console
 - 🔁 One command to **clone and work on projects** from GitHub
 - 🗒️ Sensible extras handled for you — **logs**, a **health check**, and a
   one-screen **summary** of everything installed
@@ -102,14 +103,18 @@ created for you and activates automatically in every new terminal.
 │   ├── logs/                   one log file per day
 │   ├── cache/uv/               uv's download cache
 │   ├── conda/                  micromamba + conda-forge tools (seed tool-install)
+│   ├── shims/                  launchers for PyPI apps (seed app-install)
 │   ├── certs/                  CA bundle for org installs
 │   └── shell/                  the seed.sh / seed.ps1 hook
 ├── python/
 │   ├── base/312/           seed python 312
 │   └── venvs/myproject/    seed venv myproject
 ├── extensions/
-│   └── vscode/
-│       └── app/            portable VS Code (bundled)
+│   ├── vscode/
+│   │   └── app/            portable VS Code (bundled)
+│   ├── spyder-config/      Spyder's settings (seed spyder)
+│   └── apps/
+│       └── spyder/         PyPI apps, one env each (seed app-install)
 └── repo/
     └── myrepo/             seed repo-clone <url>
 ```
@@ -134,6 +139,9 @@ Command names read predictably: a bare noun is the action (`python` installs,
 | `seed install <pkg...>` | Add packages to the active venv |
 | `seed download-whl <pkg...>` | Download a package + its deps as wheels for an offline install |
 | `seed vscode` | Open the bundled, portable VS Code |
+| `seed spyder` | Open Spyder, wired to your active venv |
+| `seed app-install <name>` | Install a Python app (Spyder, JupyterLab) in its own env |
+| `seed tool-install <name>` | Install a CLI tool from conda-forge (ripgrep, pandoc) |
 | `seed repo-clone <url>` | Clone a git repo into `~/seedling/repo` |
 | `seed summary` | One screen of everything installed |
 | `seed health-check` | Verify the whole install is sound |

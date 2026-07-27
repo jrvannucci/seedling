@@ -73,6 +73,11 @@ class Profile:
     venvs: list[Venv] = field(default_factory=list)
     repos: list[Repo] = field(default_factory=list)
     tools: list[str] = field(default_factory=list)
+    # Which bundled editor this deployment standardizes on ("vscode",
+    # "spyder"). None means the profile doesn't say, and `seed apply`
+    # installs no editor -- the install-time SEEDLING_AUTO_VSCODE setting
+    # keeps deciding that, so an existing profile behaves exactly as before.
+    editor: str | None = None
     settings: dict = field(default_factory=dict)
 
     def tool_set(self) -> list[str]:
@@ -177,6 +182,24 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
         profile.repos.append(Repo(url=url.strip(), install=install))
 
     profile.tools = _str_list(raw.get("tools", []), "tools")
+
+    # `editor = "spyder"` -- the bundled editor this deployment standardizes
+    # on. Validated against the editor registry rather than a list written
+    # out here, so registering an editor makes it profile-selectable without
+    # a second place to update. Unknown values are fatal for the same reason
+    # an unknown vscode_flavor is: a typo would otherwise silently deploy a
+    # different editor than the one the fleet was told it would get.
+    editor = raw.get("editor")
+    if editor is not None:
+        from .commands import editors as _editors_registry
+        known = sorted(_editors_registry.REGISTRY)
+        _require(isinstance(editor, str) and editor.strip(),
+                 "editor must be a non-empty string")
+        editor = editor.strip().lower()
+        _require(editor in known,
+                 f"editor = {editor!r} is not a bundled editor. "
+                 f"Valid values: {', '.join(known)}.")
+        profile.editor = editor
 
     settings = raw.get("config", {})
     _require(isinstance(settings, dict), "[config] must be a table")

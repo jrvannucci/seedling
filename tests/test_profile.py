@@ -293,3 +293,48 @@ def test_plan_is_empty_for_an_already_satisfied_profile(home, tmp_path):
     config.set_value("vscode_flavor", "vscodium")
     prof = profile_mod.parse('[[venv]]\nname="dev"\n[config]\nvscode_flavor="vscodium"')
     assert all(action == "skip" for action, _ in apply_cmd._plan(prof, force=False))
+
+
+class TestProfileEditor:
+    """`editor = "spyder"` lets a deployment standardize on a bundled editor,
+    the way `tools = [...]` already does for conda-forge programs."""
+
+    def _write(self, tmp_path, body):
+        path = tmp_path / "seedling-profile.toml"
+        path.write_text(body, encoding="utf-8")
+        return path
+
+    def test_editor_is_parsed(self, tmp_path):
+        prof = profile_mod.load(self._write(tmp_path, 'editor = "spyder"\n'))
+        assert prof.editor == "spyder"
+
+    def test_editor_is_optional(self, tmp_path):
+        """Profiles written before this existed must behave exactly as they
+        did: no editor declared means apply installs none."""
+        prof = profile_mod.load(self._write(tmp_path, 'pythons = ["3.12"]\n'))
+        assert prof.editor is None
+
+    def test_editor_is_normalized(self, tmp_path):
+        prof = profile_mod.load(self._write(tmp_path, 'editor = "  SPYDER "\n'))
+        assert prof.editor == "spyder"
+
+    def test_unknown_editor_is_fatal(self, tmp_path):
+        """A typo must stop the profile, not quietly deploy a different
+        editor than the fleet was promised -- same reasoning as an unknown
+        vscode_flavor."""
+        with pytest.raises(profile_mod.ProfileError) as excinfo:
+            profile_mod.load(self._write(tmp_path, 'editor = "sypder"\n'))
+        assert "not a bundled editor" in str(excinfo.value)
+
+    def test_valid_values_come_from_the_registry(self, tmp_path):
+        """The error lists what's actually registered, so registering an
+        editor makes it profile-selectable with no second list to update."""
+        from seedling.commands import editors
+        with pytest.raises(profile_mod.ProfileError) as excinfo:
+            profile_mod.load(self._write(tmp_path, 'editor = "nope"\n'))
+        for key in editors.REGISTRY:
+            assert key in str(excinfo.value)
+
+    def test_non_string_editor_is_rejected(self, tmp_path):
+        with pytest.raises(profile_mod.ProfileError):
+            profile_mod.load(self._write(tmp_path, 'editor = 3\n'))
