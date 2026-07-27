@@ -29,6 +29,7 @@ import configparser
 import os
 import platform
 import re
+from pathlib import Path
 
 from .. import colors, config, paths
 from . import app_cmd, editors
@@ -89,9 +90,31 @@ def _kernels_requirement() -> str | None:
     return f"spyder-kernels=={parts[0]}.{parts[1]}.*"
 
 
-def target_venv() -> tuple[str, object] | tuple[None, None]:
-    """The venv Spyder should run code in: the configured default. Returns
-    (name, interpreter path), or (None, None) if there isn't a usable one."""
+def target_venv(args=None) -> tuple[str, object] | tuple[None, None]:
+    """The venv Spyder should run code in, most specific source first:
+
+      1. `--venv <name>`, when the user says outright.
+      2. VIRTUAL_ENV -- the venv active in THIS shell. `seed install`,
+         `venv-list` and `summary` all treat that as "the environment you're
+         working in", so Spyder does too: activate a venv, run `seed spyder`,
+         and you get that one. Because the kernel is prepared before Spyder
+         is launched, switching venvs and reopening switches the console with
+         it.
+      3. `default_venv` -- so this still works from a shell with nothing
+         activated.
+
+    Returns (display name, interpreter path), or (None, None) if nothing
+    usable was found.
+    """
+    active = os.environ.get("VIRTUAL_ENV")
+    if active:
+        # Any active venv, not only a seedling-managed one: `seed install`
+        # installs into whatever is active, and it would be strange for
+        # Spyder to disagree with it about what "the current environment" is.
+        interpreter = _python_interpreter_path_venv(Path(active))
+        if interpreter is not None:
+            return Path(active).name, interpreter
+
     name = config.get("default_venv")
     if not name:
         return None, None
@@ -99,6 +122,20 @@ def target_venv() -> tuple[str, object] | tuple[None, None]:
     if interpreter is None:
         return None, None
     return str(name), interpreter
+
+
+def _requested_venv(args) -> tuple[str, object] | tuple[None, None] | None:
+    """Resolve an explicit `--venv <name>`. Returns None when the flag wasn't
+    given, (None, None) when it names something unusable -- an explicit
+    request that can't be honored is an error, never a silent fallback to a
+    different environment than the one asked for."""
+    chosen = getattr(args, "venv", None)
+    if not chosen:
+        return None
+    interpreter = _python_interpreter_path_venv(paths.venv_dir(str(chosen)))
+    if interpreter is None:
+        return None, None
+    return str(chosen), interpreter
 
 
 def _ensure_kernels(interpreter) -> bool:
@@ -169,15 +206,27 @@ def _prepare(args) -> bool:
         print(colors.warn(_X86_ONLY_NOTE))
         return False
 
+    requested = _requested_venv(args)
+    if requested is not None:
+        name, interpreter = requested
+        if interpreter is None:
+            print(colors.warn(
+                f"No usable venv named '{getattr(args, 'venv', '')}'. "
+                "Nothing was changed."))
+            print("  See what exists with:  seed venv-list")
+            return False
+    else:
+        name, interpreter = target_venv(args)
+
     if not app_cmd.ensure_installed(args, APP_NAME, note=DOWNLOAD_NOTE):
         return False
 
-    name, interpreter = target_venv()
     if interpreter is None:
         print(colors.warn(
-            "No default venv is set, so Spyder will use its own interpreter "
-            "and won't see your packages."))
-        print("  Set one with:  seed venv-default <name>")
+            "No venv is active and no default is set, so Spyder will use its "
+            "own interpreter and won't see your packages."))
+        print("  Activate one first (seed activate <name>), or set a default "
+              "with:  seed venv-default <name>")
         return True
 
     print(f"Spyder will run code in the '{name}' venv.")
