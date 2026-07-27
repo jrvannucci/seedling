@@ -11,6 +11,8 @@ what a release involves.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-27
+
 ### Changed
 
 - **Breaking: `repo-vscode` and `repo-spyder` are now `vscode-repo` and
