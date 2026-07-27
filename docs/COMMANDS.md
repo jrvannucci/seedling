@@ -311,6 +311,20 @@ Removes an application: its environment and its launchers. Supports
 `--preview`. Uses `uv tool uninstall`, falling back to deleting the tree so
 a half-installed app that uv no longer recognizes is still removable.
 
+**It removes the application, not what the application put in your venvs.**
+`seed spyder`, for instance, installs `spyder-kernels` into whichever venv
+it was pointed at; `seed app-remove spyder` leaves that alone. This is
+deliberate — undoing it would mean a `remove-*` command reaching into a
+venv to change packages you may now depend on, and in Spyder's case
+deciding whether to restore the `ipykernel` version it had displaced.
+Leaving one small, harmless package behind is the milder outcome. Remove it
+yourself if you want to:
+
+```
+seed activate myproject
+seed uninstall spyder-kernels
+```
+
 ```
 seed app-remove spyder
 ```
