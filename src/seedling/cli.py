@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 
-from . import __version__, colors, config, paths, runlog
+from . import __version__, colors, config, lock, paths, runlog
 from .commands import (
     activate_cmd,
     admin_cmd,
@@ -25,6 +25,7 @@ from .commands import (
     python_remove_cmd,
     remove_cmd,
     repo_cmd,
+    run_cmd,
     spyder_cmd,
     status_cmd,
     summary_cmd,
@@ -34,6 +35,7 @@ from .commands import (
     venv_cmd,
     venv_remove_cmd,
     vscode_cmd,
+    which_cmd,
 )
 from .uv_tool import UvNotFound
 
@@ -46,24 +48,26 @@ _EDITORS_GROUP_TITLE = "Editors & IDEs -- installed on demand, not up front"
 _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
     ("Seedling Status", [
         ("summary", "[--sizes] [--json]", "Show everything seedling has installed"),
-        ("health-check", "", "Health-check the whole seedling install"),
+        ("health-check", "[--json]", "Health-check the whole seedling install"),
         ("logs-viewer", "[--days N]", "Open the command logs in a browser"),
         ("where", "", "Print the seedling home directory"),
     ]),
     ("Python interpreters -- the base installs venvs are built from", [
         ("python", "[version]", "Install a base Python (newest stable if no version)"),
-        ("python-list", "", "List installed base Python interpreters"),
+        ("python-list", "[--json]", "List installed base Python interpreters"),
     ]),
     ("Venvs & packages -- day-to-day environment work", [
         ("venv", "<name> [--python <tag>]", "Create a venv from a base Python"),
-        ("venv-list", "", "List venvs, and which one is active"),
+        ("venv-list", "[--json]", "List venvs, and which one is active"),
         ("activate", "<name>", "Activate a venv in this shell"),
         ("deactivate", "", "Deactivate the current venv"),
+        ("run", "[-n name] -- <cmd...>", "Run a command in a venv without activating one"),
+        ("which", "[name] [--json]", "Print a venv's python interpreter path"),
         ("venv-default", "[name]", "Show or set the venv new shells auto-activate"),
         ("auto-activate", "[True|False]", "Turn default-venv auto-activation on/off"),
         ("install", "<package...>", "Install packages (uv pip install)"),
         ("uninstall", "<package...>", "Uninstall packages (uv pip uninstall)"),
-        ("package-list", "", "List installed packages (uv pip list)"),
+        ("package-list", "[--json]", "List installed packages (uv pip list)"),
     ]),
     ("Python applications from PyPI, each in its own environment", [
         ("app-install", "<name>[==ver]", "Install an app (spyder, jupyterlab, ...)"),
@@ -213,8 +217,14 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Don't install the default packages "
                               "(see `seed config get venv_default_packages`)")
 
-    sub.add_parser("venv-list", help="List every venv seedling has created")
-    sub.add_parser("python-list", help="List every base Python interpreter installed")
+    p_venv_list = sub.add_parser(
+        "venv-list", help="List every venv seedling has created")
+    p_venv_list.add_argument("--json", action="store_true",
+                             help="Emit the list as JSON, for scripts and tools")
+    p_python_list = sub.add_parser(
+        "python-list", help="List every base Python interpreter installed")
+    p_python_list.add_argument("--json", action="store_true",
+                               help="Emit the list as JSON, for scripts and tools")
 
     p_activate = sub.add_parser("activate", help="Activate a venv")
     p_activate.add_argument("name", nargs="?", help="Name of the venv to activate")
@@ -222,6 +232,27 @@ def build_parser() -> argparse.ArgumentParser:
                              help=argparse.SUPPRESS)  # used internally by the shell wrapper
 
     sub.add_parser("deactivate", help="Deactivate the current venv")
+
+    p_run = sub.add_parser(
+        "run",
+        help="Run a command inside a venv without activating one "
+             "(for scripts, Makefiles, CI and agents)")
+    p_run.add_argument("-n", "--venv", dest="venv", metavar="NAME", default=None,
+                       help="Venv to run in. Defaults to the active one "
+                            "(VIRTUAL_ENV), then to default_venv.")
+    p_run.add_argument("cmd", nargs=argparse.REMAINDER,
+                       help="The command to run. Put it after `--` if it "
+                            "starts with a dash, e.g. `seed run -- python -V`.")
+
+    p_which = sub.add_parser(
+        "which",
+        help="Print the absolute path to a venv's python interpreter")
+    p_which.add_argument("name", nargs="?",
+                         help="Venv to resolve. Defaults to the active one "
+                              "(VIRTUAL_ENV), then to default_venv.")
+    p_which.add_argument("--json", action="store_true",
+                         help="Emit the full resolution as JSON instead of "
+                              "the bare path")
 
     p_default_venv = sub.add_parser(
         "venv-default", help="Show or set the venv every new shell auto-activates")
@@ -286,7 +317,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_list_packages = sub.add_parser(
         "package-list", help="List packages in the active venv (passthrough to `uv pip list`)")
     p_list_packages.add_argument("extra", nargs=argparse.REMAINDER,
-                                  help="Anything after this is passed straight to `uv pip list`")
+                                  help="Anything after this is passed straight "
+                                       "to `uv pip list`. --json is translated "
+                                       "to uv's `--format json`.")
 
     p_dl_whl = sub.add_parser(
         "download-whl",
@@ -467,7 +500,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_summary.add_argument("--json", action="store_true",
                             help="Emit the summary as JSON, for scripts and tools")
 
-    sub.add_parser("health-check", help="Health-check the whole seedling install")
+    p_health = sub.add_parser(
+        "health-check", help="Health-check the whole seedling install")
+    p_health.add_argument("--json", action="store_true",
+                          help="Emit the checks as JSON, for scripts and tools")
 
     p_logs = sub.add_parser(
         "logs-viewer",
@@ -565,6 +601,11 @@ def _invoke(handler, args) -> int:
     except UvNotFound as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+    except lock.LockBusy as e:
+        # Contention, not a crash: nothing was changed, and the caller can
+        # simply try again once the other command finishes.
+        print(f"error: {e}", file=sys.stderr)
+        return 1
     except vscode_cmd.UnknownFlavor as e:
         # A misconfigured editor build is fatal on purpose (see flavor()),
         # but it should read as a config mistake, not a crash.
@@ -622,6 +663,8 @@ def _dispatch_main(argv: list[str]) -> int:
         "python-list": list_cmd.list_python,
         "activate": activate_cmd.run,
         "deactivate": deactivate_cmd.run,
+        "run": run_cmd.run,
+        "which": which_cmd.run,
         "venv-default": default_venv_cmd.run,
         "auto-activate": auto_activate_cmd.run,
         "app-install": app_cmd.install,

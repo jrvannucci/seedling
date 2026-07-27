@@ -14,7 +14,7 @@ destructive action reads the same way (`remove-venv`, `remove-python`,
 | Family | Commands |
 |---|---|
 | Python interpreters *(structural — the base installs venvs are built from)* | `python [ver]` *(install)*, `python-list`, `remove-python` |
-| Venvs & packages *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `remove-venv`, `remove-venv-all` |
+| Venvs & packages *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `run`, `which`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `remove-venv`, `remove-venv-all` |
 | Python applications *(run, not imported — each in its own env)* | `app-install <name>` *(install)*, `app-list`, `app-remove` |
 | Command-line tools from conda-forge *(the non-Python tools)* | `tool <cmd>` *(run)*, `tool-install <name>` *(install)*, `tool-list`, `tool-remove` |
 | Offline utilities *(stage packages/tools for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>`, `download-tool <name...>` |
@@ -116,7 +116,7 @@ seed venv myproject
 seed venv myproject --python 311
 ```
 
-## `seed venv-list`
+## `seed venv-list [--json]`
 
 Lists every venv under `~/seedling/python/venvs`, showing the Python
 version each was created with (read straight from its `pyvenv.cfg`) and
@@ -131,6 +131,11 @@ Venvs in ~/seedling/python/venvs:
   myproject  [python 3.12.4]  (active)
   scratch    [python 3.11.9]
 ```
+
+`--json` emits the same venvs as data, with the `python_executable` path for
+each. The payload is byte-identical to the `venvs` array in `seed summary
+--json` — one definition of "a venv, as data", so a consumer never has to
+learn two shapes.
 
 ## `seed activate <name>`
 
@@ -153,6 +158,92 @@ defined. Prints a message instead of erroring if nothing is active.
 ```
 seed deactivate
 ```
+
+## `seed run [-n <venv>] -- <command> [args...]`
+
+Runs one command inside a venv **without activating anything**. This is the
+non-interactive sibling of `seed activate`: a Makefile recipe, a CI step and
+an AI agent each get a fresh process per command and have no shell to
+mutate, so `activate` can't help them.
+
+```
+seed run -- python -V
+seed run -n myproject -- pytest -q
+```
+
+Which venv it uses, most specific first:
+
+1. `-n/--venv <name>`, when you say outright. A name that doesn't resolve is
+   an error — never a silent fallback to a different environment.
+2. `VIRTUAL_ENV` — the venv active in this shell, the same one `seed
+   install` would install into.
+3. `default_venv`.
+
+Inside the child it makes exactly the three changes an activate script
+makes: sets `VIRTUAL_ENV`, prepends the venv's `bin`/`Scripts` to `PATH`,
+and clears `PYTHONHOME`. It is a launcher, not a sandbox — the command has
+every bit of reach you do.
+
+The command name is resolved **in the venv**, so `seed run -- python` is the
+venv's python and `seed run -- pytest` is the venv's pytest. (This is worth
+stating because it doesn't come free: on Windows, `CreateProcess` resolves a
+bare command name against the *calling* process's `PATH`, so a naive
+implementation sets the environment up correctly and then runs the system
+copy inside it.)
+
+Three guarantees worth relying on:
+
+- **The command's exit code is yours, verbatim.** `seed run -- pytest`
+  returns what pytest returned.
+- **stdout and stderr are the command's, untouched.** The child writes to
+  the real file descriptors, so its output does not pass through seedling's
+  logging tee and stays byte-exact and pipeable. The invocation is logged;
+  the child's output is not, deliberately.
+- **It's argv, not a shell.** No pipes, redirection, or glob expansion. Put
+  the command after `--` if it starts with a dash. For shell semantics, ask
+  for them explicitly: `seed run -- sh -c '...'`.
+
+A command that isn't installed in that venv exits **127**, matching shell
+convention.
+
+## `seed which [name] [--json]`
+
+Prints the absolute path to a venv's Python interpreter — and nothing else,
+so `$(seed which myproject)` works. Same resolution order as `seed run`.
+
+```
+seed which
+```
+```
+/home/you/seedling/python/venvs/myproject/bin/python
+```
+
+**stdout carries the path and only the path.** Every diagnostic goes to
+stderr, and a venv that can't be resolved is a non-zero exit rather than a
+message where a path should be. `--json` adds the surrounding facts:
+
+```
+seed which myproject --json
+```
+```json
+{
+  "schema": 1,
+  "found": true,
+  "name": "myproject",
+  "path": "/home/you/seedling/python/venvs/myproject",
+  "python_executable": "/home/you/seedling/python/venvs/myproject/bin/python",
+  "bin_dir": "/home/you/seedling/python/venvs/myproject/bin",
+  "source": "argument"
+}
+```
+
+`source` is which rule answered — `argument`, `VIRTUAL_ENV`, or
+`default_venv`. Under `--json` a failure is also JSON (`"found": false` with
+an `error`), so a consumer that always parses stdout never has to special-case
+it. The exit code is still 1.
+
+Scope is venvs only. For base interpreters, apps, tools or anything else,
+`seed summary --json` already answers the broader question.
 
 ## `seed venv-default [name]`
 
@@ -223,11 +314,16 @@ argument-forwarding and `VIRTUAL_ENV` warning behavior as `seed install`.
 seed uninstall requests
 ```
 
-## `seed package-list`
+## `seed package-list [--json]`
 
 Direct passthrough to `uv pip list` for the active venv. Anything after
-`package-list` is forwarded to `uv pip list` untouched (e.g. `--format
-json`, `--outdated`). Same `VIRTUAL_ENV` warning as `install`/`uninstall`.
+`package-list` is forwarded to `uv pip list` untouched (e.g. `--outdated`).
+Same `VIRTUAL_ENV` warning as `install`/`uninstall` — though under `--json`
+that note goes to stderr, so stdout stays parseable.
+
+`--json` is translated to uv's own `--format json`, so you don't have to
+remember which layer you're talking to; the output is uv's, unwrapped. An
+explicit `--format` is left alone.
 
 ```
 seed package-list
@@ -1013,7 +1109,7 @@ you pass `--sizes`, since computing them is the slow part.
 }
 ```
 
-## `seed health-check`
+## `seed health-check [--json]`
 
 The health check. Verifies each moving part and prints one line per check
 with three columns: a **STATUS** (`OK` / `WARN` / `FAIL`), a cyan **AREA**
@@ -1040,6 +1136,11 @@ installed yet, no git, etc.) and doesn't affect the exit code.
 ```
 seed health-check
 ```
+
+`--json` emits the same checks as data — `{schema, home, healthy, failures,
+warnings, checks[]}`, each check being `{status, area, detail}`. The
+rendering changes; the verdict doesn't, and the exit code is the same either
+way.
 
 ## `seed logs-viewer [--days N] [--no-open]`
 
@@ -1189,3 +1290,74 @@ seed config set vscode_flavor vscodium
 seed config set vscode_extensions "ms-python.python,charliermarsh.ruff"
 seed config unset default_venv
 ```
+
+---
+
+# Scripting & automation
+
+Most of seedling is written for a person at a terminal. This is the subset
+written for everything else — Makefiles, CI steps, provisioning scripts, and
+AI coding agents — collected in one place because that audience arrives
+looking for it, not for a particular noun.
+
+**Get an interpreter without a shell.** `seed activate` mutates the calling
+shell, which is useless to a caller that gets a fresh process each time. Use
+[`seed which`](#seed-which-name---json) to resolve the interpreter, or
+[`seed run`](#seed-run--n-venv----command-args) to execute in the venv
+directly:
+
+```sh
+"$(seed which myproject)" -m mytool     # explicit interpreter
+seed run -n myproject -- pytest -q      # or let seed set up the env
+```
+
+`seed run` passes the child's exit code through verbatim and leaves its
+stdout and stderr byte-exact — the child writes to the real file
+descriptors, so its output never passes through seedling's logging tee.
+
+**Read state as data.** `--json` is available on every read command, and the
+shapes agree with each other:
+
+| Command | Payload |
+|---|---|
+| `seed summary --json` | everything: tooling, interpreters, venvs, repos, settings |
+| `seed venv-list --json` | the `venvs` array, identical to summary's |
+| `seed python-list --json` | the `pythons` array, identical to summary's |
+| `seed which <name> --json` | one venv, plus which rule resolved it |
+| `seed health-check --json` | every check as `{status, area, detail}` |
+| `seed package-list --json` | uv's own `pip list --format json`, unwrapped |
+
+Every payload carries a `schema` integer. It bumps only when a field
+**changes meaning or is removed** — never when one is added — so pinning to
+a schema version is safe.
+
+**Never block on a prompt.** `--non-interactive` makes a command that would
+ask a question abort instead of waiting, and `-y`/`--yes` pre-answers it.
+`SEEDLING_NONINTERACTIVE=1` and `SEEDLING_YES=1` set the same two things for
+a whole session, which is usually what you want in CI:
+
+```sh
+export SEEDLING_NONINTERACTIVE=1
+export SEEDLING_YES=1
+```
+
+Without `-y`, a `--non-interactive` command that needs confirmation exits
+non-zero and says so — it never guesses.
+
+**Concurrency is handled.** Commands that mutate a venv (`install`,
+`uninstall`, `venv`, `remove-venv`) take an exclusive lock on that venv for
+the duration, so parallel CI jobs or several agents on one machine queue
+instead of corrupting a shared `site-packages`. Locks are per-venv, so
+unrelated environments never wait on each other; a command that waits says
+so on stderr, and one that waits too long fails rather than proceeding
+unsafely. See [DESIGN.md](DESIGN.md#concurrent-commands).
+
+**Set up an environment declaratively.** A [deployment
+profile](PROFILES.md) lists the interpreters, venvs, packages and repos a
+machine should end up with, and `seed apply` reaches that state
+idempotently — the right primitive for provisioning a fresh machine or
+bringing a stale one back in line.
+
+**Exit codes.** `0` success, `1` failure, `127` from `seed run` when the
+command isn't in the venv, `130` on interrupt. `seed health-check` exits `1`
+when any check FAILs (warnings don't count).

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from .. import uv_tool
+from .. import lock, uv_tool
 
 
 def run(args) -> int:
@@ -17,5 +17,8 @@ def run(args) -> int:
               "Run `seed activate <name>` first, or uv will fall back to "
               "whatever it can find (e.g. a .venv in the current directory).")
 
-    uv_tool.run(["pip", "install", *packages])
+    # Held for the whole install: two of these unpacking wheels into one
+    # site-packages can leave a half-written distribution behind.
+    with lock.active_venv_lock():
+        uv_tool.run(["pip", "install", *packages])
     return 0

@@ -10,6 +10,7 @@ removal did something unexpected, the reasoning is here.
 
 - [Why deletion is so defensive](#why-deletion-is-so-defensive)
 - [Non-interactive mode & previews](#non-interactive-mode--previews)
+- [Concurrent commands](#concurrent-commands)
 - [Command logging](#command-logging)
 - [Download verification](#download-verification)
 
@@ -152,6 +153,47 @@ shared flags:
   mode for scripts and CI, where a forgotten prompt would otherwise hang
   the job forever.
 
+## Concurrent commands
+
+Two `seed install` runs against the same venv have uv unpacking wheels into
+one `site-packages` at once, and the loser can leave a half-written
+distribution behind — one that imports but is missing modules. It is a quiet
+failure with a confusing symptom, and it stops being hypothetical the moment
+anything automated drives seedling: parallel CI jobs, a profile being applied
+while someone works, several AI agents sharing a machine.
+
+So the commands that mutate a venv (`install`, `uninstall`, `venv`,
+`remove-venv`) hold an exclusive lock on **that venv** for the duration.
+
+- **Per-venv, keyed by absolute path.** Installing into `web` while `ml`
+  builds is normal and must not serialize. Path rather than name because
+  `seed install` follows `VIRTUAL_ENV` wherever it points, including outside
+  `~/seedling`, and two unrelated `.venv` directories mustn't queue behind
+  each other for sharing a leaf name.
+- **OS file locks, not PID files.** A PID file has to answer "is the holder
+  still alive?", and every answer is wrong somewhere: PIDs get reused, a
+  killed process never cleans up, and the staleness timeout is either too
+  short (breaking a slow install) or too long (hanging after a crash). An OS
+  advisory lock has no such question — the kernel drops it when the holding
+  process dies, however it dies. `msvcrt.locking` on Windows and
+  `fcntl.flock` elsewhere; both stdlib, nothing to install.
+- **Waiting is visible.** A command that blocks says so on stderr (not
+  stdout, where a `--json` consumer is reading), because a silent multi-second
+  pause reads as a hang. After five minutes it fails rather than proceeding
+  unsafely.
+- **A lock it can't take is not a reason to refuse to work.** If the lock
+  file itself can't be created — read-only or full disk — the command runs
+  unlocked. Losing serialization is bad; refusing to run at all because a
+  zero-byte file couldn't be written is worse, and it matches how seedling
+  already treats its logs.
+
+The lock is advisory and seedling-scoped: it serializes `seed` commands
+against each other, and cannot stop someone running `uv pip install --python
+<that venv>` by hand. Lock files live in `~/seedling/system/locks/`, are
+empty, and are never deleted — only unlocked. Removing one is a race in its
+own right, since a process can hold a lock on a file another is about to
+unlink and recreate.
+
 ## Command logging
 
 Every `seed` invocation appends to a daily log file under
@@ -169,6 +211,12 @@ interferes with the command itself: if the log file can't be written, the
 command carries on unlogged. Set `SEEDLING_NO_LOG=1` to disable logging for
 a given call (the shell integration uses this itself for its startup
 `default_venv` query, so opening a terminal doesn't spam the log).
+
+One deliberate exception: `seed run` logs the invocation but **not** the
+child's output. The command it launches inherits the real file descriptors
+rather than seedling's tee, which is what keeps its stdout byte-exact and
+pipeable — a JSON-emitting tool run under `seed run` must not have seedling
+in the middle of it.
 
 ---
 

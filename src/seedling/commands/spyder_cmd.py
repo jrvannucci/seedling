@@ -31,9 +31,8 @@ import platform
 import re
 from pathlib import Path
 
-from .. import colors, config, paths
+from .. import colors, paths, venv_target
 from . import app_cmd, editors
-from .venv_cmd import _python_interpreter_path_venv
 
 APP_NAME = "spyder"
 DOWNLOAD_NOTE = "~200 MB download"
@@ -90,52 +89,36 @@ def _kernels_requirement() -> str | None:
     return f"spyder-kernels=={parts[0]}.{parts[1]}.*"
 
 
-def target_venv(args=None) -> tuple[str, object] | tuple[None, None]:
-    """The venv Spyder should run code in, most specific source first:
+def resolve_venv(args=None) -> tuple[object | None, str | None]:
+    """The venv Spyder should run code in, and whether a failure is fatal.
 
-      1. `--venv <name>`, when the user says outright.
-      2. VIRTUAL_ENV -- the venv active in THIS shell. `seed install`,
-         `venv-list` and `summary` all treat that as "the environment you're
-         working in", so Spyder does too: activate a venv, run `seed spyder`,
-         and you get that one. Because the kernel is prepared before Spyder
-         is launched, switching venvs and reopening switches the console with
-         it.
-      3. `default_venv` -- so this still works from a shell with nothing
-         activated.
+    The precedence -- `--venv <name>`, then VIRTUAL_ENV, then `default_venv`
+    -- is shared with `seed run` and `seed which` and lives in venv_target.
+    VIRTUAL_ENV is honored even when it points outside ~/seedling, because
+    `seed install` installs into whatever is active and it would be strange
+    for Spyder to disagree about what "the current environment" is. Because
+    the kernel is prepared before Spyder launches, switching venvs and
+    reopening switches the console with it.
 
-    Returns (display name, interpreter path), or (None, None) if nothing
-    usable was found.
+    What is Spyder's OWN is the policy when it doesn't resolve:
+
+      - An explicit `--venv <name>` that can't be honored is fatal. Opening
+        a DIFFERENT environment than the one asked for by name is worse
+        than not opening at all.
+      - Anything else degrades. Spyder is an editor, and refusing to launch
+        because `default_venv` names a deleted venv is the wrong trade --
+        it opens with its own interpreter and says so. That is why this
+        asks venv_target for `lenient` resolution, where `seed run` and
+        `seed which` take the strict default.
+
+    Returns (target, None) or (None, fatal message). A (None, None) result
+    means "no venv, but carry on".
     """
-    active = os.environ.get("VIRTUAL_ENV")
-    if active:
-        # Any active venv, not only a seedling-managed one: `seed install`
-        # installs into whatever is active, and it would be strange for
-        # Spyder to disagree with it about what "the current environment" is.
-        interpreter = _python_interpreter_path_venv(Path(active))
-        if interpreter is not None:
-            return Path(active).name, interpreter
-
-    name = config.get("default_venv")
-    if not name:
-        return None, None
-    interpreter = _python_interpreter_path_venv(paths.venv_dir(str(name)))
-    if interpreter is None:
-        return None, None
-    return str(name), interpreter
-
-
-def _requested_venv(args) -> tuple[str, object] | tuple[None, None] | None:
-    """Resolve an explicit `--venv <name>`. Returns None when the flag wasn't
-    given, (None, None) when it names something unusable -- an explicit
-    request that can't be honored is an error, never a silent fallback to a
-    different environment than the one asked for."""
-    chosen = getattr(args, "venv", None)
-    if not chosen:
-        return None
-    interpreter = _python_interpreter_path_venv(paths.venv_dir(str(chosen)))
-    if interpreter is None:
-        return None, None
-    return str(chosen), interpreter
+    target, failure = venv_target.resolve(getattr(args, "venv", None),
+                                          lenient=True)
+    if failure is not None and failure.source == venv_target.SOURCE_ARGUMENT:
+        return None, failure.message
+    return target, None
 
 
 def _site_packages(interpreter) -> list[Path]:
@@ -276,17 +259,15 @@ def _prepare(args) -> bool:
         print(colors.warn(_X86_ONLY_NOTE))
         return False
 
-    requested = _requested_venv(args)
-    if requested is not None:
-        name, interpreter = requested
-        if interpreter is None:
-            print(colors.warn(
-                f"No usable venv named '{getattr(args, 'venv', '')}'. "
-                "Nothing was changed."))
-            print("  See what exists with:  seed venv-list")
-            return False
-    else:
-        name, interpreter = target_venv(args)
+    target, fatal = resolve_venv(args)
+    if fatal is not None:
+        print(colors.warn(
+            f"No usable venv named '{getattr(args, 'venv', '')}'. "
+            "Nothing was changed."))
+        print("  See what exists with:  seed venv-list")
+        return False
+    name = target.name if target else None
+    interpreter = target.python if target else None
 
     if not app_cmd.ensure_installed(args, APP_NAME, note=DOWNLOAD_NOTE):
         return False

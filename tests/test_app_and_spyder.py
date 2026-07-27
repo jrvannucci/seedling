@@ -151,7 +151,7 @@ class TestSpyderVenvSelection:
     `venv-list` already treat an activated venv as "the current one"."""
 
     def _venv(self, home, name):
-        """A venv real enough for _python_interpreter_path_venv to accept."""
+        """A venv real enough for paths.venv_python to accept."""
         venv = home / "python" / "venvs" / name
         bindir = venv / ("Scripts" if os.name == "nt" else "bin")
         bindir.mkdir(parents=True)
@@ -165,17 +165,19 @@ class TestSpyderVenvSelection:
         config.set_value("default_venv", "configured")
         monkeypatch.setenv("VIRTUAL_ENV", str(active))
 
-        name, interpreter = spyder_cmd.target_venv()
-        assert name == "activated"
-        assert str(active) in str(interpreter)
+        target, fatal = spyder_cmd.resolve_venv()
+        assert fatal is None
+        assert target.name == "activated"
+        assert str(active) in str(target.python)
 
     def test_falls_back_to_default_when_nothing_active(self, home, monkeypatch):
         self._venv(home, "configured")
         config.set_value("default_venv", "configured")
         monkeypatch.delenv("VIRTUAL_ENV", raising=False)
 
-        name, _ = spyder_cmd.target_venv()
-        assert name == "configured"
+        target, fatal = spyder_cmd.resolve_venv()
+        assert fatal is None
+        assert target.name == "configured"
 
     def test_active_non_seedling_venv_is_still_honored(self, home, monkeypatch,
                                                         tmp_path):
@@ -187,18 +189,19 @@ class TestSpyderVenvSelection:
         (bindir / ("python.exe" if os.name == "nt" else "python")).write_text("")
         monkeypatch.setenv("VIRTUAL_ENV", str(outside))
 
-        name, interpreter = spyder_cmd.target_venv()
-        assert name == "elsewhere"
-        assert str(outside) in str(interpreter)
+        target, fatal = spyder_cmd.resolve_venv()
+        assert fatal is None
+        assert target.name == "elsewhere"
+        assert str(outside) in str(target.python)
 
     def test_explicit_venv_flag_beats_the_active_one(self, home, monkeypatch):
         self._venv(home, "chosen")
         active = self._venv(home, "activated")
         monkeypatch.setenv("VIRTUAL_ENV", str(active))
 
-        args = argparse.Namespace(venv="chosen")
-        name, _ = spyder_cmd._requested_venv(args)
-        assert name == "chosen"
+        target, fatal = spyder_cmd.resolve_venv(argparse.Namespace(venv="chosen"))
+        assert fatal is None
+        assert target.name == "chosen"
 
     def test_unknown_venv_flag_is_an_error_not_a_fallback(self, home,
                                                            monkeypatch):
@@ -207,9 +210,31 @@ class TestSpyderVenvSelection:
         active = self._venv(home, "activated")
         monkeypatch.setenv("VIRTUAL_ENV", str(active))
 
-        name, interpreter = spyder_cmd._requested_venv(
+        target, fatal = spyder_cmd.resolve_venv(
             argparse.Namespace(venv="nope"))
-        assert name is None and interpreter is None
+        assert target is None
+        assert fatal is not None and "nope" in fatal
+
+    def test_a_stale_default_venv_is_not_fatal(self, home, monkeypatch):
+        """Spyder's policy differs from `seed run`'s on purpose: an editor
+        that refuses to open because `default_venv` names a deleted venv is
+        worse than one that opens and says it has no environment."""
+        config.set_value("default_venv", "deleted")
+        monkeypatch.delenv("VIRTUAL_ENV", raising=False)
+
+        target, fatal = spyder_cmd.resolve_venv()
+        assert fatal is None      # launches anyway
+        assert target is None     # with its own interpreter
+
+    def test_a_broken_active_venv_falls_through_to_the_default(
+            self, home, monkeypatch, tmp_path):
+        self._venv(home, "configured")
+        config.set_value("default_venv", "configured")
+        monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "gone"))
+
+        target, fatal = spyder_cmd.resolve_venv()
+        assert fatal is None
+        assert target.name == "configured"
 
 
 class TestIpykernelDowngradeNotice:

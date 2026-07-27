@@ -50,7 +50,7 @@ def _install_into(venv_name: str, packages: list[str]) -> bool:
 
 def _venv_python(name: str):
     """The interpreter inside an existing venv, or None."""
-    return venv_cmd._python_interpreter_path_venv(paths.venv_dir(name))
+    return paths.venv_python(name)
 
 
 def _installed_packages(name: str) -> set[str]:
