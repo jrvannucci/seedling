@@ -580,10 +580,15 @@ packages; it says so.
 > the new interpreter, and Spyder rewrites its own config on exit — so it can
 > overwrite the setting seedling just wrote.
 
-- Installing `spyder-kernels` may **downgrade `ipykernel`** in that venv
-  (it requires `ipykernel<7`, and seedling's default venv packages install
-  a newer one). That's required for the console to work, and the downgrade
-  is reported in the output.
+- Installing `spyder-kernels` may **downgrade `ipykernel`** in that venv:
+  it requires `ipykernel<7`, and seedling's default venv packages install a
+  newer one, so this happens on a stock venv. It's required for Spyder's
+  console to work at all, and seedling says so explicitly when it happens —
+  including that anything else in that venv (Jupyter, VS Code notebooks)
+  gets the older version too. The cap is `spyder-kernels`', not Spyder's,
+  and upstream is already relaxing it (3.2 raises it to `<7.3`); because
+  seedling reads the required version from Spyder's own environment rather
+  than pinning one, that fixes itself when it ships.
 
 > **x86_64 only.** Spyder comes from PyPI, and PyQt5's Qt payload publishes
 > no arm64 wheels — so this can't work on Apple Silicon or ARM Linux. There,
