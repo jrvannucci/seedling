@@ -210,3 +210,56 @@ class TestSpyderVenvSelection:
         name, interpreter = spyder_cmd._requested_venv(
             argparse.Namespace(venv="nope"))
         assert name is None and interpreter is None
+
+
+class TestIpykernelDowngradeNotice:
+    """Preparing a venv for Spyder installs spyder-kernels, which caps
+    ipykernel below 7 -- so on a stock seedling venv it rolls ipykernel
+    BACK. That's required for the console to work, but it changes a package
+    the user may rely on elsewhere, so it has to be said out loud."""
+
+    def test_downgrade_is_reported(self, capsys):
+        spyder_cmd._warn_if_downgraded("work", "7.3.0", "6.31.0")
+        out = capsys.readouterr().out
+        assert "downgraded 7.3.0 -> 6.31.0" in out
+        assert "work" in out
+        assert "ipykernel<7" in out
+
+    def test_upgrade_is_silent(self, capsys):
+        """Only a step BACK is surprising; installing a newer one isn't."""
+        spyder_cmd._warn_if_downgraded("work", "6.29.3", "6.31.0")
+        assert capsys.readouterr().out == ""
+
+    def test_unchanged_is_silent(self, capsys):
+        spyder_cmd._warn_if_downgraded("work", "6.31.0", "6.31.0")
+        assert capsys.readouterr().out == ""
+
+    def test_missing_versions_are_silent(self, capsys):
+        """ipykernel absent before or after: nothing to compare, say nothing
+        rather than guess."""
+        spyder_cmd._warn_if_downgraded("work", None, "6.31.0")
+        spyder_cmd._warn_if_downgraded("work", "7.3.0", None)
+        assert capsys.readouterr().out == ""
+
+    def test_prerelease_versions_compare(self):
+        """'7.0.0rc1' must not blow up or read as older than 6.x."""
+        assert spyder_cmd._version_tuple("7.0.0rc1") > \
+               spyder_cmd._version_tuple("6.31.0")
+
+    def test_version_read_from_a_real_venv_layout(self, home):
+        """_venv_package_version reads dist-info off disk; it must find the
+        package in the layout uv actually creates."""
+        venv = home / "python" / "venvs" / "work"
+        if os.name == "nt":
+            site = venv / "Lib" / "site-packages"
+            interp = venv / "Scripts" / "python.exe"
+        else:
+            site = venv / "lib" / "python3.12" / "site-packages"
+            interp = venv / "bin" / "python"
+        site.mkdir(parents=True)
+        interp.parent.mkdir(parents=True, exist_ok=True)
+        interp.write_text("")
+        (site / "ipykernel-6.31.0.dist-info").mkdir()
+
+        assert spyder_cmd._venv_package_version(interp, "ipykernel") == "6.31.0"
+        assert spyder_cmd._venv_package_version(interp, "nothing") is None

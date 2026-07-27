@@ -138,7 +138,74 @@ def _requested_venv(args) -> tuple[str, object] | tuple[None, None] | None:
     return str(chosen), interpreter
 
 
-def _ensure_kernels(interpreter) -> bool:
+def _site_packages(interpreter) -> list[Path]:
+    """The site-packages directories of the venv `interpreter` belongs to."""
+    root = Path(interpreter).parent.parent
+    if os.name == "nt":
+        return [root / "Lib" / "site-packages"]
+    return list(root.glob("lib/python*/site-packages"))
+
+
+def _venv_package_version(interpreter, package: str) -> str | None:
+    """Version of `package` inside that venv, read from its dist-info.
+
+    Read off disk rather than by running `uv pip show`: this is called twice
+    around an install just to notice a version change, and two subprocesses
+    for a diagnostic message isn't a good trade."""
+    candidates = (package.replace("-", "_"), package)
+    for directory in _site_packages(interpreter):
+        if not directory.is_dir():
+            continue
+        for name in candidates:
+            for info in directory.glob(f"{name}-*.dist-info"):
+                found = re.search(r"-(\d[^-]*)\.dist-info$", info.name)
+                if found:
+                    return found.group(1)
+    return None
+
+
+def _version_tuple(version: str) -> tuple[int, ...]:
+    """'6.31.0' -> (6, 31, 0). Leading digits only, so '7.0.0rc1' still
+    compares as 7.0.0 -- enough to tell a downgrade from an upgrade."""
+    parts = []
+    for chunk in version.split("."):
+        digits = ""
+        for char in chunk:
+            if not char.isdigit():
+                break
+            digits += char
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts)
+
+
+def _warn_if_downgraded(venv_name: str, before: str | None,
+                        after: str | None) -> None:
+    """Say so when preparing the venv rolled ipykernel BACK.
+
+    spyder-kernels caps ipykernel below 7, while seedling's default venv
+    packages install a newer one -- so this fires on a stock venv. It is
+    required for Spyder's console to work at all, but it silently changes a
+    package the user may be relying on elsewhere (Jupyter, VS Code
+    notebooks), and everything else in seedling that costs something says so
+    first. Detected by comparing before/after rather than predicted from
+    metadata: the constraint lives upstream and is already being relaxed
+    (spyder-kernels 3.2 raises the cap), so hardcoding the expectation here
+    would start lying the moment that ships.
+    """
+    if not before or not after:
+        return
+    if _version_tuple(after) >= _version_tuple(before):
+        return
+    print(colors.warn(
+        f"Note: ipykernel was downgraded {before} -> {after} in "
+        f"'{venv_name}'."))
+    print("  spyder-kernels requires ipykernel<7, and Spyder's console "
+          "won't connect without it.")
+    print("  If you also use this venv for Jupyter or VS Code notebooks, "
+          "they get the older ipykernel too.")
+
+
+def _ensure_kernels(interpreter, venv_name: str = "") -> bool:
     """Install a compatible spyder-kernels into the target venv. Returns
     False only if the install was attempted and failed."""
     from .. import uv_tool
@@ -153,6 +220,7 @@ def _ensure_kernels(interpreter) -> bool:
         return True
 
     print(f"Preparing the venv for Spyder ({requirement}) ...")
+    before = _venv_package_version(interpreter, "ipykernel")
     result = uv_tool.run(
         ["pip", "install", "--python", str(interpreter), requirement],
         check=False)
@@ -161,6 +229,8 @@ def _ensure_kernels(interpreter) -> bool:
             f"Could not install {requirement} into the venv. Spyder will "
             "open, but its console won't connect to that environment."))
         return False
+    _warn_if_downgraded(venv_name, before,
+                        _venv_package_version(interpreter, "ipykernel"))
     return True
 
 
@@ -230,7 +300,7 @@ def _prepare(args) -> bool:
         return True
 
     print(f"Spyder will run code in the '{name}' venv.")
-    _ensure_kernels(interpreter)
+    _ensure_kernels(interpreter, str(name))
     _write_config(interpreter)
     return True
 
