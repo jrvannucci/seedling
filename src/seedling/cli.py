@@ -337,6 +337,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_spyder = sub.add_parser("spyder", help="Install (if needed) and open Spyder")
     p_spyder.add_argument("path", nargs="?", help="Path to open (defaults to cwd)")
+    # Spyder must be TOLD which interpreter to use (VS Code's extension
+    # discovers them itself), so which venv it targets is user-visible.
+    # Precedence: this flag, then the active VIRTUAL_ENV, then default_venv.
+    p_spyder.add_argument("--venv", dest="venv", default=None,
+                           help="Venv to run code in. Defaults to the one "
+                                "active in this shell, else the default venv.")
     p_spyder.add_argument("--no-open", dest="no_open", action="store_true",
                           help="Install (if needed) without opening a window")
     p_spyder.add_argument("-y", "--yes", action="store_true",
@@ -349,6 +355,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_spyder_repo = sub.add_parser("repo-spyder",
                                    help="Open a cloned repo in Spyder")
     p_spyder_repo.add_argument("name", nargs="?", help="Name of the repo to open")
+    p_spyder_repo.add_argument("--venv", dest="venv", default=None,
+                                help="Venv to run code in. Defaults to the one "
+                                     "active in this shell, else the default.")
     p_spyder_repo.add_argument("-y", "--yes", action="store_true",
                                help="Don't ask before downloading Spyder (~200 MB)")
     p_spyder_repo.add_argument("--non-interactive", dest="non_interactive",

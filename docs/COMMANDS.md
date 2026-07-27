@@ -534,7 +534,7 @@ seed vscode ./my-project
 seed vscode --reinstall
 ```
 
-## `seed spyder [path] [--no-open] [-y]`
+## `seed spyder [path] [--venv <name>] [--no-open] [-y]`
 
 Installs (once) and opens **Spyder**, the scientific Python IDE — the
 variable explorer, IPython console and plots pane that people coming from
@@ -549,18 +549,41 @@ know about:
   `~/.config/spyder-6` or `%APPDATA%`; seedling points it at
   `~/seedling/extensions/spyder-config` (`--conf-dir`), so `seed purge`
   still leaves nothing behind.
-- **It's pointed at your default venv.** Unlike VS Code, whose Python
-  extension discovers environments itself, Spyder has to be told. seedling
-  writes the interpreter into its `spyder.ini`, **merging** rather than
-  overwriting, so your own Spyder settings survive.
+- **It's pointed at a venv.** Unlike VS Code, whose Python extension
+  discovers environments itself, Spyder has to be told. seedling writes the
+  interpreter into its `spyder.ini`, **merging** rather than overwriting, so
+  your own Spyder settings survive.
 - **`spyder-kernels` is installed into that venv**, pinned to the minor
   series matching the installed Spyder (read from Spyder's own environment,
   never hardcoded). Without a compatible version, Spyder's console refuses
   to connect — the classic Spyder failure.
 
-Set the venv it uses with `seed venv-default <name>`. With no default venv,
+### Which venv it uses
+
+Most specific wins:
+
+1. **`--venv <name>`** — when you say outright. Naming a venv that doesn't
+   exist is an error, not a fall back to a different one.
+2. **The venv active in this shell** (`VIRTUAL_ENV`) — so `seed activate
+   analysis && seed spyder` gives you that environment, the same way
+   `seed install` targets it. Any active venv counts, seedling-managed or
+   not.
+3. **`default_venv`** — so it still works from a shell with nothing
+   activated.
+
+Because the kernel is prepared *before* Spyder launches, switching venvs and
+reopening switches the console with it. With nothing active and no default,
 Spyder still opens but runs on its own interpreter and won't see your
 packages; it says so.
+
+> **Close Spyder before switching venvs.** A running instance won't pick up
+> the new interpreter, and Spyder rewrites its own config on exit — so it can
+> overwrite the setting seedling just wrote.
+
+- Installing `spyder-kernels` may **downgrade `ipykernel`** in that venv
+  (it requires `ipykernel<7`, and seedling's default venv packages install
+  a newer one). That's required for the console to work, and the downgrade
+  is reported in the output.
 
 > **x86_64 only.** Spyder comes from PyPI, and PyQt5's Qt payload publishes
 > no arm64 wheels — so this can't work on Apple Silicon or ARM Linux. There,
@@ -568,8 +591,10 @@ packages; it says so.
 > spyder` says exactly that rather than failing with a dependency error.
 
 ```
-seed venv-default myproject
-seed spyder
+seed spyder                      # the active venv, else the default
+seed activate analysis
+seed spyder                      # now runs in 'analysis'
+seed spyder --venv scratch       # or name one outright
 ```
 
 ## `seed repo-spyder <name>`

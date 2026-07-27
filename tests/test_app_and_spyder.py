@@ -4,9 +4,11 @@ are stubbed, and everything else works off a faked app environment."""
 
 from __future__ import annotations
 
+import argparse
 import configparser
+import os
 
-from seedling import paths
+from seedling import config, paths
 # vscode_cmd imported for its registration side effect: editors are
 # registered at import, and this file asserts on the full family.
 from seedling.commands import app_cmd, editors, spyder_cmd, vscode_cmd  # noqa: F401
@@ -141,3 +143,70 @@ def test_help_rows_mark_what_is_installed(home):
     rows = {name: desc for name, _hint, desc in editors.help_rows()}
     assert "(installed)" in rows["spyder"]
     assert "~300 MB download" in rows["vscode"]   # not installed here
+
+
+class TestSpyderVenvSelection:
+    """Which environment Spyder runs code in. Precedence is
+    --venv > VIRTUAL_ENV > default_venv, matching how `seed install` and
+    `venv-list` already treat an activated venv as "the current one"."""
+
+    def _venv(self, home, name):
+        """A venv real enough for _python_interpreter_path_venv to accept."""
+        venv = home / "python" / "venvs" / name
+        bindir = venv / ("Scripts" if os.name == "nt" else "bin")
+        bindir.mkdir(parents=True)
+        exe = bindir / ("python.exe" if os.name == "nt" else "python")
+        exe.write_text("")
+        return venv
+
+    def test_active_venv_wins_over_the_default(self, home, monkeypatch):
+        self._venv(home, "configured")
+        active = self._venv(home, "activated")
+        config.set_value("default_venv", "configured")
+        monkeypatch.setenv("VIRTUAL_ENV", str(active))
+
+        name, interpreter = spyder_cmd.target_venv()
+        assert name == "activated"
+        assert str(active) in str(interpreter)
+
+    def test_falls_back_to_default_when_nothing_active(self, home, monkeypatch):
+        self._venv(home, "configured")
+        config.set_value("default_venv", "configured")
+        monkeypatch.delenv("VIRTUAL_ENV", raising=False)
+
+        name, _ = spyder_cmd.target_venv()
+        assert name == "configured"
+
+    def test_active_non_seedling_venv_is_still_honored(self, home, monkeypatch,
+                                                        tmp_path):
+        """`seed install` installs into whatever is active, seedling-managed
+        or not; Spyder must not disagree about what "current" means."""
+        outside = tmp_path / "elsewhere"
+        bindir = outside / ("Scripts" if os.name == "nt" else "bin")
+        bindir.mkdir(parents=True)
+        (bindir / ("python.exe" if os.name == "nt" else "python")).write_text("")
+        monkeypatch.setenv("VIRTUAL_ENV", str(outside))
+
+        name, interpreter = spyder_cmd.target_venv()
+        assert name == "elsewhere"
+        assert str(outside) in str(interpreter)
+
+    def test_explicit_venv_flag_beats_the_active_one(self, home, monkeypatch):
+        self._venv(home, "chosen")
+        active = self._venv(home, "activated")
+        monkeypatch.setenv("VIRTUAL_ENV", str(active))
+
+        args = argparse.Namespace(venv="chosen")
+        name, _ = spyder_cmd._requested_venv(args)
+        assert name == "chosen"
+
+    def test_unknown_venv_flag_is_an_error_not_a_fallback(self, home,
+                                                           monkeypatch):
+        """An explicit request that can't be honored must fail, never
+        silently open a DIFFERENT environment than the one asked for."""
+        active = self._venv(home, "activated")
+        monkeypatch.setenv("VIRTUAL_ENV", str(active))
+
+        name, interpreter = spyder_cmd._requested_venv(
+            argparse.Namespace(venv="nope"))
+        assert name is None and interpreter is None

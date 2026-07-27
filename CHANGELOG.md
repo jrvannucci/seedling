@@ -27,12 +27,23 @@ what a release involves.
   editor, alongside `seed vscode`. The install is `app-install spyder`
   underneath; the command exists for the three things a generic install
   can't know to do: keep Spyder's settings inside `~/seedling` (so `seed
-  purge` still leaves nothing), point Spyder at your default venv in its own
+  purge` still leaves nothing), point Spyder at a venv in its own
   `spyder.ini` (merging, never clobbering your settings), and install a
   **matching `spyder-kernels`** into that venv — the version read from
   Spyder's own environment rather than pinned, so it can't drift on upgrade.
   Without that last step Spyder's console silently refuses to connect, which
   is the failure this audience can least afford.
+
+  **It opens in whichever venv you have activated.** Precedence is `--venv
+  <name>`, then the venv active in this shell, then `default_venv` — the same
+  way `seed install` and `venv-list` treat `VIRTUAL_ENV` as "the environment
+  you're working in". The kernel is prepared before Spyder launches, so
+  activating a different venv and reopening switches the console with it.
+  Naming a venv that doesn't exist is an error, never a quiet fall back to a
+  different one. Close Spyder before switching: a running instance won't pick
+  up the change, and it rewrites its own config on exit. Note that installing
+  `spyder-kernels` can **downgrade `ipykernel`** in that venv (it requires
+  `ipykernel<7`); the downgrade is shown in the output.
 
   **x86_64 only**: PyQt5's Qt payload publishes no arm64 wheels, so on Apple
   Silicon and ARM Linux `seed spyder` says so and points at `seed
