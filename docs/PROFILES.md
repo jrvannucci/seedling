@@ -154,14 +154,38 @@ change out to anyone.
 
 ## What apply will and won't do
 
-**It will:** install missing interpreters, create missing venvs with their
-packages, clone missing repos, and write the settings you declared.
+**It will** install missing interpreters, create missing venvs with their
+packages, clone missing repos, install the conda-forge tools and the editor
+you named, and write the settings you declared.
 
-**It will not delete or recreate anything.** A venv that already exists is
-left exactly as it is, even if its packages have drifted from the profile —
-someone may have installed something they need. `--force` adds the profile's
-*missing* packages to an existing venv; it still never removes or rebuilds.
-Getting rid of something is `seed remove-venv`, run deliberately by a person.
+**Everything is create-if-missing**, with one exception (`[config]`, below).
+What that means per declaration, when the thing is already there:
+
+| Declaration | Already present → |
+|---|---|
+| `python` | skipped |
+| `[[venv]]` | left exactly as it is — never recreated, never deleted |
+| `[[venv]] packages` | **not touched** without `--force`; with it, only the profile's *missing* packages are installed |
+| `[[repo]]` | skipped if the clone directory exists — **no pull, no re-install** |
+| `tools` | skipped if that tool is already installed |
+| `editor` | skipped if that editor is already installed |
+| `[config]` / `default` venv | **overwritten** whenever the current value differs from the profile |
+
+**It will not delete or recreate anything.** An existing venv is left alone
+even if its packages have drifted from the profile — someone may have
+installed something they need. `--force` closes the gap in one direction only:
+it adds what's missing, never removes or rebuilds. Getting rid of something is
+`seed remove-venv`, run deliberately by a person.
+
+**An existing repo is never updated.** `apply` clones what's missing; it
+doesn't fetch, pull or re-run the dependency install for a clone that's
+already on disk. If upstream moved and the fleet needs the new commit, that's
+`git pull` in the repo (`seed repo-cd <name>`), not a profile change.
+
+**Settings are the one thing converged rather than filled in.** A key in
+`[config]`, and the `default` venv, are written whenever the machine's current
+value differs — that's how you change a fleet's default venv or VS Code flavor
+after the fact. Settings the profile doesn't mention are left alone.
 
 **Partial application is reported as failure.** If a step fails, `seed apply`
 exits non-zero and names what didn't finish, because a half-applied profile
