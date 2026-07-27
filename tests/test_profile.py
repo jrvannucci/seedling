@@ -443,3 +443,43 @@ class TestProfileEditorList:
         code, out = run_cli("apply", str(path), "--print-editor")
         assert code == 0
         assert set(out.split()) == {"vscode", "spyder"}
+
+
+def test_editor_validates_without_the_cli_having_been_imported():
+    """A profile can be loaded by something that never touches the CLI --
+    the offline bundler loads one long before it imports any editor module.
+
+    Editors register themselves at import time, so that path saw an EMPTY
+    registry and rejected every valid editor with 'Valid values: .'. Run in
+    a subprocess so the import state is genuinely cold; importing
+    seedling.profile alone must be enough.
+    """
+    import subprocess
+    import sys
+    from conftest import SRC
+
+    code = (
+        "import sys; sys.path.insert(0, r'%s')\n"
+        "from seedling import profile\n"
+        "p = profile.parse('editor = \"spyder\"')\n"
+        "assert p.editors == ['spyder'], p.editors\n"
+        "print('ok')\n" % str(SRC)
+    )
+    result = subprocess.run([sys.executable, "-c", code],
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert "ok" in result.stdout
+
+
+def test_every_documented_example_profile_is_valid():
+    """Every TOML block in the profile examples page must parse. They're
+    presented as copy-and-ship files, so a stale one is worse than no
+    example at all."""
+    import re
+    from conftest import REPO_ROOT
+
+    page = (REPO_ROOT / "docs" / "PROFILE-EXAMPLES.md").read_text(encoding="utf-8")
+    blocks = re.findall(r"```toml\n(.*?)```", page, re.S)
+    assert len(blocks) >= 5, "examples page lost its profiles?"
+    for block in blocks:
+        profile_mod.parse(block)      # raises ProfileError if invalid

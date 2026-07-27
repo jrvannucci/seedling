@@ -175,8 +175,7 @@ build of it**.
 A [deployment profile](PROFILES.md) can name the one everyone gets:
 
 ```toml
-editor = "spyder"                  # or "vscode"
-editor = ["vscode", "spyder"]      # or both, for a mixed team
+editor = "spyder"                  # or "vscode", or both in a list
 ```
 
 `seed apply` installs them last, since they're the largest step. **Spyder** suits
@@ -196,6 +195,9 @@ and `SEEDLING_AUTO_VSCODE` decides exactly as before.
 > **Spyder is x86_64 only.** Its Qt dependency publishes no arm64 wheels, so
 > on Apple Silicon or ARM Linux use `tools = ["spyder"]` (the conda-forge
 > build) instead of `editor = "spyder"`.
+
+For whole profiles built around each of these choices, see
+[profile examples](PROFILE-EXAMPLES.md).
 
 ### Which VS Code build
 

@@ -13,6 +13,39 @@ what a release involves.
 
 ### Added
 
+- **A new [profile examples](docs/PROFILE-EXAMPLES.md) page** — complete,
+  working deployment profiles for real situations rather than a syntax tour:
+  a research group (Spyder, separate collection and analysis venvs), a
+  software team (VS Code, repos cloned and installed), a mixed team, a
+  classroom (pinned, reproducible), an air-gapped fleet (openly licensed),
+  three *networked-but-restricted* variants — internal mirrors for
+  everything, an internal PyPI and nothing else (a partial bundle with a URL
+  and directory sources side by side), and the classroom case — plus three
+  air-gapped variants — one openly licensed (VSCodium, no
+  acknowledgement needed), one for an organization that holds Marketplace
+  rights and keeps Pylance, and an everything-at-once deployment: both
+  editors, conda-forge tools, several interpreters, cloned repos, a
+  corporate CA, and a multi-user share root, with a table of which bundle
+  artifact makes each capability work offline.
+
+  Every example opens with the **same eight-row assumptions table** — ✅/❌/⚠️
+  against internet access, official VS Code and the Marketplace, Spyder,
+  conda-forge tools, a corporate CA, bundled git, a multi-user share root, and
+  whether an offline bundle is needed — so two scenarios can be compared line
+  by line. Each closes with **what `vendor/` actually contains**, down to
+  filenames (`uv.exe`, `app/bin/code.cmd`, `micromamba.exe`, `cmd/git.exe`),
+  a table of where each folder installs to on the target, and a worked
+  `vendor/certs/` example including the PEM envelope and the
+  Base-64-not-DER trap that silently breaks a CA bundle. Each is a whole file to copy, with the reasoning
+  behind its shape. A test parses every example on the page, so they can't
+  drift from the schema.
+
+  The air-gapped examples also correct a misleading implication: which editor
+  build and extension set a bundle contains is decided by `seedling.conf` on
+  the build machine, not by the profile — the bundler stages the editor
+  before any profile is applied, and a pre-seeded editor short-circuits the
+  install that would otherwise apply the profile's extension list.
+
 - **A profile's `editor` accepts a list**, so one profile can deploy several:
   `editor = ["vscode", "spyder"]` for a mixed team — engineers on VS Code,
   analysts on Spyder. A bare string still works and is normalized to a
@@ -28,6 +61,14 @@ what a release involves.
   separate trees with separate commands; only the profile schema was
   restricting it to one.
 
+### Fixed
+
+- **A profile's `editor` was rejected by anything that hadn't imported the
+  CLI.** Editors register themselves at import time, so `seedling.profile`
+  validating against an empty registry refused every valid value with
+  "Valid values: ." — which the offline bundler hit, since it loads a
+  profile long before importing an editor module. Found while checking that
+  the new examples page actually parses.
 
 ## [0.9.0] - 2026-07-27
 
