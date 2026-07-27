@@ -83,6 +83,22 @@ def register(editor: Editor) -> None:
     REGISTRY[editor.key] = editor
 
 
+def ensure_registered() -> dict[str, Editor]:
+    """The registry, with the built-in editors guaranteed to be in it.
+
+    Editors register themselves at import time, which is fine for the CLI --
+    cli.py imports every command module. It is NOT fine for anything that
+    reaches the registry without going through the CLI: `seedling.profile`
+    validates a profile's `editor` key against it, and the offline bundler
+    loads a profile long before it imports any editor module. That saw an
+    EMPTY registry and rejected every valid editor with "Valid values: ."
+
+    Imported inside the function, not at module scope: the editor modules
+    import this one, so a top-level import would be circular."""
+    from . import spyder_cmd, vscode_cmd  # noqa: F401  (registers on import)
+    return REGISTRY
+
+
 def confirm_first_install(args, *, label: str, note: str,
                           installed: bool) -> bool:
     """Ask before an editor's first-run download. Returns False (having said

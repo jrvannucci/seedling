@@ -26,6 +26,11 @@ separate questions and are read at different times.
 
 ## A complete example
 
+> Looking for a profile for *your* situation — a research group, a software
+> team, a classroom, an air-gapped fleet? See
+> **[profile examples](PROFILE-EXAMPLES.md)**, which gives a whole working
+> file for each. The one below walks through the syntax key by key.
+
 ```toml
 # seedling-profile.toml -- the standard environment for the data team.
 schema = 1

@@ -227,6 +227,8 @@ For a fully disconnected network, see
   shared-machine installs, admin teardown, rollout, security review.
 - 🧩 **[Deployment profiles](docs/PROFILES.md)** — one file describing the
   venvs, packages and repos your users should end up with.
+- 📄 **[Profile examples](docs/PROFILE-EXAMPLES.md)** — complete profiles for
+  a research group, a software team, a classroom, an air-gapped fleet.
 - 📴 **[Offline / air‑gapped installs](docs/OFFLINE.md)** — running with no
   internet at all.
 - ⚖️ **[Licensing and redistribution](docs/LICENSING.md)** — seedling ships no

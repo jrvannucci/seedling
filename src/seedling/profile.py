@@ -209,7 +209,11 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
     declared = raw.get("editor")
     if declared is not None:
         from .commands import editors as _editors_registry
-        known = sorted(_editors_registry.REGISTRY)
+        # ensure_registered(), not REGISTRY directly: a profile can be loaded
+        # by something that never imports the editor modules (the offline
+        # bundler does exactly that), and an empty registry would reject
+        # every valid editor.
+        known = sorted(_editors_registry.ensure_registered())
         if isinstance(declared, str):
             declared = [declared]
         _require(isinstance(declared, list),
