@@ -573,8 +573,14 @@ if ($AutoSetup.ToLower() -eq "false") {
             $ProfileEditor = ""
         }
     }
+    # The profile may name several editors; skip the VS Code job only if it
+    # names some and VS Code isn't among them.
+    $SkipVscode = $false
+    if ($ProfileEditor) {
+        $SkipVscode = -not (($ProfileEditor -split '\s+') -contains "vscode")
+    }
     $VscodeJob = $null
-    if ($ProfileEditor -and $ProfileEditor -ne "vscode") {
+    if ($SkipVscode) {
         Info "Profile selects '$ProfileEditor' as the editor; skipping VS Code."
     } elseif ($AutoVscode.ToLower() -eq "false") {
         Info "Skipping VS Code install (SEEDLING_AUTO_VSCODE=$AutoVscode)."

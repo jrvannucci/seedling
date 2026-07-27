@@ -175,20 +175,23 @@ build of it**.
 A [deployment profile](PROFILES.md) can name the one everyone gets:
 
 ```toml
-editor = "spyder"     # or "vscode"
+editor = "spyder"                  # or "vscode"
+editor = ["vscode", "spyder"]      # or both, for a mixed team
 ```
 
-`seed apply` installs it, last, since it's the largest step. **Spyder** suits
+`seed apply` installs them last, since they're the largest step. **Spyder** suits
 teams doing analysis rather than software engineering — a variable explorer,
 an IPython console and a plots pane, wired automatically to the venv the user
 has activated. **VS Code** is the general-purpose default. Omit the key and
 `seed apply` installs no editor at all.
 
 **A profile's `editor` outranks `SEEDLING_AUTO_VSCODE`.** That setting
-defaults to `true` and installs VS Code during setup, but a profile naming a
-different editor turns it off for you — `editor = "spyder"` deploys Spyder
-and *only* Spyder, with no conf change needed. Leave the key out and
-`SEEDLING_AUTO_VSCODE` decides exactly as before.
+defaults to `true` and installs VS Code during setup, but a profile that
+names editors *without* VS Code among them turns it off for you —
+`editor = "spyder"` deploys Spyder and *only* Spyder, with no conf change
+needed. List VS Code among them and it's installed as usual (and still
+downloaded in parallel with the Python setup). Leave the key out entirely
+and `SEEDLING_AUTO_VSCODE` decides exactly as before.
 
 > **Spyder is x86_64 only.** Its Qt dependency publishes no arm64 wheels, so
 > on Apple Silicon or ARM Linux use `tools = ["spyder"]` (the conda-forge

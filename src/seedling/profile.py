@@ -75,9 +75,16 @@ class Profile:
     tools: list[str] = field(default_factory=list)
     # Which bundled editor this deployment standardizes on ("vscode",
     # "spyder"). None means the profile doesn't say, and `seed apply`
-    # installs no editor -- the install-time SEEDLING_AUTO_VSCODE setting
-    # keeps deciding that, so an existing profile behaves exactly as before.
-    editor: str | None = None
+    # Which bundled editors this deployment standardizes on. Empty means the
+    # profile doesn't say, and `seed apply` installs none -- the install-time
+    # SEEDLING_AUTO_VSCODE setting keeps deciding that, so a profile written
+    # before this existed behaves exactly as before.
+    #
+    # Plural because the underlying system genuinely supports several at once:
+    # the editors live in separate trees with separate commands, and nothing
+    # about `seed vscode` and `seed spyder` conflicts. A mixed team -- engineers
+    # on VS Code, analysts on Spyder -- is the case this exists for.
+    editors: list[str] = field(default_factory=list)
     settings: dict = field(default_factory=dict)
 
     def tool_set(self) -> list[str]:
@@ -189,17 +196,36 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
     # a second place to update. Unknown values are fatal for the same reason
     # an unknown vscode_flavor is: a typo would otherwise silently deploy a
     # different editor than the one the fleet was told it would get.
-    editor = raw.get("editor")
-    if editor is not None:
+    # `editor = "spyder"` or `editor = ["vscode", "spyder"]`. Both shapes are
+    # accepted and normalized to a list -- the same tolerance `extensions_for`
+    # already applies to vscode_extensions, and it keeps profiles written
+    # against the single-value form working unchanged.
+    #
+    # Validated against the editor registry rather than a list spelled out
+    # here, so registering an editor makes it profile-selectable with no
+    # second place to update. Unknown values are fatal for the same reason an
+    # unknown vscode_flavor is: a typo would otherwise silently deploy a
+    # different editor than the fleet was told it would get.
+    declared = raw.get("editor")
+    if declared is not None:
         from .commands import editors as _editors_registry
         known = sorted(_editors_registry.REGISTRY)
-        _require(isinstance(editor, str) and editor.strip(),
-                 "editor must be a non-empty string")
-        editor = editor.strip().lower()
-        _require(editor in known,
-                 f"editor = {editor!r} is not a bundled editor. "
-                 f"Valid values: {', '.join(known)}.")
-        profile.editor = editor
+        if isinstance(declared, str):
+            declared = [declared]
+        _require(isinstance(declared, list),
+                 "editor must be a string or a list of strings")
+        _require(bool(declared), "editor must name at least one editor")
+        seen: list[str] = []
+        for entry in declared:
+            _require(isinstance(entry, str) and entry.strip(),
+                     "every editor must be a non-empty string")
+            name = entry.strip().lower()
+            _require(name in known,
+                     f"editor = {name!r} is not a bundled editor. "
+                     f"Valid values: {', '.join(known)}.")
+            if name not in seen:
+                seen.append(name)
+        profile.editors = seen
 
     settings = raw.get("config", {})
     _require(isinstance(settings, dict), "[config] must be a table")

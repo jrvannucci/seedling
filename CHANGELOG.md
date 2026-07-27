@@ -11,6 +11,24 @@ what a release involves.
 
 ## [Unreleased]
 
+### Added
+
+- **A profile's `editor` accepts a list**, so one profile can deploy several:
+  `editor = ["vscode", "spyder"]` for a mixed team — engineers on VS Code,
+  analysts on Spyder. A bare string still works and is normalized to a
+  one-element list, the same tolerance `vscode_extensions` already has. The
+  editors install in the order given, and one bad entry fails the whole
+  profile rather than deploying the good half.
+
+  The installers' rule sharpens to match: the VS Code setup is skipped when
+  the profile names editors and VS Code isn't among them, so listing it
+  alongside Spyder keeps its download overlapped with the Python setup.
+
+  Nothing in the system changed to allow this — the editors always lived in
+  separate trees with separate commands; only the profile schema was
+  restricting it to one.
+
+
 ## [0.9.0] - 2026-07-27
 
 ### Changed

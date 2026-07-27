@@ -580,7 +580,16 @@ else
         if [ -n "$PROFILE_PATH" ]; then
             PROFILE_EDITOR="$(env SEEDLING_HOME="$SEEDLING_HOME" SEEDLING_NO_LOG=1                 "$SEED_CLI" apply "$PROFILE_PATH" --print-editor 2>/dev/null || true)"
         fi
-        if [ -n "$PROFILE_EDITOR" ] && [ "$PROFILE_EDITOR" != "vscode" ]; then
+        # The profile may name several editors; skip the VS Code job only if
+        # it names some and VS Code isn't among them.
+        SKIP_VSCODE=0
+        if [ -n "$PROFILE_EDITOR" ]; then
+            case " $PROFILE_EDITOR " in
+                *" vscode "*) SKIP_VSCODE=0 ;;
+                *)            SKIP_VSCODE=1 ;;
+            esac
+        fi
+        if [ "$SKIP_VSCODE" = "1" ]; then
             info "Profile selects '$PROFILE_EDITOR' as the editor; skipping VS Code."
         elif is_false "$AUTO_VSCODE"; then
             info "Skipping VS Code install (SEEDLING_AUTO_VSCODE=$AUTO_VSCODE)."
