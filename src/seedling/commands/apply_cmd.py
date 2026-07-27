@@ -175,6 +175,15 @@ def run(args) -> int:
         print(f"error: {path}: {e}")
         return 2
 
+    if getattr(args, "print_editor", False):
+        # Machine-readable, for the installers: the editor this profile
+        # declares, or nothing. Deliberately silent otherwise -- the caller
+        # is a shell capturing stdout, and an empty answer means "the
+        # profile doesn't say", which is what SEEDLING_AUTO_VSCODE is for.
+        if prof.editor:
+            print(prof.editor)
+        return 0
+
     print(f"Profile: {path}")
     force = getattr(args, "force", False)
     steps = _plan(prof, force=force)

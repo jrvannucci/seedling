@@ -184,11 +184,11 @@ an IPython console and a plots pane, wired automatically to the venv the user
 has activated. **VS Code** is the general-purpose default. Omit the key and
 `seed apply` installs no editor at all.
 
-> **If you choose Spyder, turn off the VS Code auto-install.** They are
-> independent: `SEEDLING_AUTO_VSCODE` defaults to `true` and sets up VS Code
-> during installation, so a profile naming Spyder would land *both* — about
-> 500 MB, half of it unwanted. Set `SEEDLING_AUTO_VSCODE="false"` in your
-> `seedling.conf` alongside `editor = "spyder"`.
+**A profile's `editor` outranks `SEEDLING_AUTO_VSCODE`.** That setting
+defaults to `true` and installs VS Code during setup, but a profile naming a
+different editor turns it off for you — `editor = "spyder"` deploys Spyder
+and *only* Spyder, with no conf change needed. Leave the key out and
+`SEEDLING_AUTO_VSCODE` decides exactly as before.
 
 > **Spyder is x86_64 only.** Its Qt dependency publishes no arm64 wheels, so
 > on Apple Silicon or ARM Linux use `tools = ["spyder"]` (the conda-forge

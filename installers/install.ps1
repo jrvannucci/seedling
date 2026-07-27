@@ -555,8 +555,28 @@ if ($AutoSetup.ToLower() -eq "false") {
     } else {
         "true"
     }
+    # A profile that names an editor OUTRANKS SEEDLING_AUTO_VSCODE: a
+    # deployment that asked for Spyder shouldn't also be handed ~300MB of VS
+    # Code it never mentioned. Asked here rather than after `seed apply`
+    # because the VS Code job starts first (it overlaps the Python setup), so
+    # the answer is needed before it launches. Empty means the profile doesn't
+    # say, and the conf setting decides as before. When the profile DOES say
+    # "vscode" the job still starts -- apply then finds it installed and
+    # skips, so the parallelism is kept.
+    $ProfileEditor = ""
+    if ($ProfilePath) {
+        try {
+            $env:SEEDLING_HOME = $SeedlingHome
+            $env:SEEDLING_NO_LOG = "1"
+            $ProfileEditor = (& $SeedCli apply $ProfilePath --print-editor | Out-String).Trim()
+        } catch {
+            $ProfileEditor = ""
+        }
+    }
     $VscodeJob = $null
-    if ($AutoVscode.ToLower() -eq "false") {
+    if ($ProfileEditor -and $ProfileEditor -ne "vscode") {
+        Info "Profile selects '$ProfileEditor' as the editor; skipping VS Code."
+    } elseif ($AutoVscode.ToLower() -eq "false") {
         Info "Skipping VS Code install (SEEDLING_AUTO_VSCODE=$AutoVscode)."
     } else {
         Info "Setting up VS Code in the background (continues while Python is set up) ..."

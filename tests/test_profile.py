@@ -338,3 +338,47 @@ class TestProfileEditor:
     def test_non_string_editor_is_rejected(self, tmp_path):
         with pytest.raises(profile_mod.ProfileError):
             profile_mod.load(self._write(tmp_path, 'editor = 3\n'))
+
+
+class TestProfileEditorQuery:
+    """`seed apply --print-editor` is how the installers learn a profile's
+    editor BEFORE deciding whether to start the VS Code background job. It
+    has to stay machine-readable: one bare token, or nothing at all."""
+
+    def _profile(self, tmp_path, body):
+        path = tmp_path / "p.toml"
+        path.write_text(body, encoding="utf-8")
+        return path
+
+    def test_prints_the_declared_editor_and_nothing_else(
+            self, run_cli, home, tmp_path):
+        path = self._profile(tmp_path, 'editor = "spyder"\n')
+        code, out = run_cli("apply", str(path), "--print-editor")
+        assert code == 0
+        assert out.strip() == "spyder"
+
+    def test_prints_nothing_when_the_profile_is_silent(
+            self, run_cli, home, tmp_path):
+        """Empty means 'the profile doesn't say', which is the installer's
+        signal to let SEEDLING_AUTO_VSCODE decide as it always has."""
+        path = self._profile(tmp_path, 'pythons = ["3.12"]\n')
+        code, out = run_cli("apply", str(path), "--print-editor")
+        assert code == 0
+        assert out.strip() == ""
+
+    def test_query_installs_nothing(self, run_cli, home, tmp_path, monkeypatch):
+        """It's a question, not an action -- the installers call it before
+        they've decided anything."""
+        # Editor is a frozen dataclass, so patch the module-level run() that
+        # each registration closes over -- the lambda resolves it at call
+        # time, so this still intercepts an install attempt.
+        from seedling.commands import spyder_cmd, vscode_cmd
+
+        def boom(*a, **k):
+            raise AssertionError("--print-editor must not install anything")
+
+        monkeypatch.setattr(spyder_cmd, "run", boom)
+        monkeypatch.setattr(vscode_cmd, "run", boom)
+        path = self._profile(tmp_path, 'editor = "spyder"\n')
+        code, _ = run_cli("apply", str(path), "--print-editor")
+        assert code == 0
