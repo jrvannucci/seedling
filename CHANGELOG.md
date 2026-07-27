@@ -11,6 +11,14 @@ what a release involves.
 
 ## [Unreleased]
 
+### Documentation
+
+- **`seed app-remove` removes the application, not what it installed in your
+  venvs.** `seed spyder` puts `spyder-kernels` into the venv it was pointed
+  at, and removing Spyder leaves it there — deliberately, since undoing it
+  would mean a `remove-*` command editing packages in a venv you may now
+  depend on. Now stated in the command reference and pinned by a test.
+
 ## [0.8.0] — 2026-07-26
 
 ### Added

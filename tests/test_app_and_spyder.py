@@ -263,3 +263,37 @@ class TestIpykernelDowngradeNotice:
 
         assert spyder_cmd._venv_package_version(interp, "ipykernel") == "6.31.0"
         assert spyder_cmd._venv_package_version(interp, "nothing") is None
+
+
+def test_app_remove_leaves_venv_packages_alone(home, monkeypatch):
+    """`app-remove` takes the application, NOT what it installed elsewhere.
+
+    `seed spyder` puts spyder-kernels into the target venv; removing Spyder
+    deliberately leaves it. Undoing it would mean a remove-* command editing
+    packages in a venv the user may now depend on, and deciding whether to
+    restore the ipykernel version it displaced. This pins that choice so it
+    can't be quietly reversed -- if someone later decides removal SHOULD
+    clean up, that's a deliberate change with a changelog entry, not a
+    refactor side effect.
+    """
+    # An installed app, plus the package it planted in a venv.
+    app_env = paths.APPS_DIR / "spyder"
+    app_env.mkdir(parents=True)
+    site = home / "python" / "venvs" / "work" / "Lib" / "site-packages"
+    site.mkdir(parents=True)
+    planted = site / "spyder_kernels-3.1.5.dist-info"
+    planted.mkdir()
+
+    calls = []
+    monkeypatch.setattr(app_cmd.uv_tool, "run",
+                        lambda *a, **k: calls.append(a) or _Ok())
+
+    rc = app_cmd.remove(argparse.Namespace(
+        name="spyder", yes=True, preview=False, non_interactive=False))
+
+    assert rc == 0
+    assert planted.is_dir(), "app-remove must not touch venv packages"
+
+
+class _Ok:
+    returncode = 0
