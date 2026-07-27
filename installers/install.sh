@@ -568,7 +568,21 @@ else
         VSCODE_PID=""
         VSCODE_OUT=""
         VSCODE_RC=""
-        if is_false "$AUTO_VSCODE"; then
+        # A profile that names an editor OUTRANKS SEEDLING_AUTO_VSCODE: a
+        # deployment that asked for Spyder shouldn't also be handed ~300MB of
+        # VS Code it never mentioned. Asked here rather than after `seed
+        # apply` because the VS Code job starts first (it overlaps the Python
+        # setup), so the answer is needed before it launches. An empty answer
+        # means the profile doesn't say, and the conf setting decides as
+        # before. When the profile DOES say "vscode", the job still starts --
+        # apply then finds it installed and skips, keeping the parallelism.
+        PROFILE_EDITOR=""
+        if [ -n "$PROFILE_PATH" ]; then
+            PROFILE_EDITOR="$(env SEEDLING_HOME="$SEEDLING_HOME" SEEDLING_NO_LOG=1                 "$SEED_CLI" apply "$PROFILE_PATH" --print-editor 2>/dev/null || true)"
+        fi
+        if [ -n "$PROFILE_EDITOR" ] && [ "$PROFILE_EDITOR" != "vscode" ]; then
+            info "Profile selects '$PROFILE_EDITOR' as the editor; skipping VS Code."
+        elif is_false "$AUTO_VSCODE"; then
             info "Skipping VS Code install (SEEDLING_AUTO_VSCODE=$AUTO_VSCODE)."
         else
             info "Setting up VS Code in the background (continues while Python is set up) ..."

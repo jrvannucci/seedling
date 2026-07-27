@@ -441,6 +441,10 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Profile file to apply. Omit to use the one "
                               "recorded at install time, else "
                               "seedling-profile.toml in this directory.")
+    # Used by the installers to learn a profile's editor BEFORE they decide
+    # whether to start the VS Code background job -- see apply_cmd.
+    p_apply.add_argument("--print-editor", dest="print_editor",
+                         action="store_true", help=argparse.SUPPRESS)
     p_apply.add_argument("--force", action="store_true",
                          help="Also install the profile's missing packages "
                               "into venvs that already exist. Never deletes "

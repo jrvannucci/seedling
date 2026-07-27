@@ -43,6 +43,15 @@ what a release involves.
   air-gapped — applications resolve from the same `wheels/` folder as
   everything else — which nothing had said.
 
+- **A profile's `editor` now outranks `SEEDLING_AUTO_VSCODE`.**
+  `editor = "spyder"` deploys Spyder and *only* Spyder: the installers ask
+  the profile which editor it wants before starting the VS Code background
+  job, and skip that job when the answer is something else. Previously a
+  Spyder deployment also got ~300 MB of VS Code it never asked for unless
+  the conf disabled it by hand. A profile that says `"vscode"`, or says
+  nothing, behaves exactly as before — including keeping the VS Code
+  download overlapped with the Python setup.
+
 - **The deployment guide covers choosing the editor, not just the VS Code
   build.** Its editor section presented the decision as `microsoft` vs
   `vscodium` and never mentioned that a profile can pick Spyder instead. It
