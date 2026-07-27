@@ -304,19 +304,22 @@ class TestProfileEditor:
         path.write_text(body, encoding="utf-8")
         return path
 
-    def test_editor_is_parsed(self, tmp_path):
+    def test_a_bare_string_still_works(self, tmp_path):
+        """The single-value form predates the list one, so profiles already
+        written against it must keep parsing -- normalized to a one-element
+        list rather than kept as a separate shape."""
         prof = profile_mod.load(self._write(tmp_path, 'editor = "spyder"\n'))
-        assert prof.editor == "spyder"
+        assert prof.editors == ["spyder"]
 
     def test_editor_is_optional(self, tmp_path):
         """Profiles written before this existed must behave exactly as they
         did: no editor declared means apply installs none."""
         prof = profile_mod.load(self._write(tmp_path, 'pythons = ["3.12"]\n'))
-        assert prof.editor is None
+        assert prof.editors == []
 
     def test_editor_is_normalized(self, tmp_path):
         prof = profile_mod.load(self._write(tmp_path, 'editor = "  SPYDER "\n'))
-        assert prof.editor == "spyder"
+        assert prof.editors == ["spyder"]
 
     def test_unknown_editor_is_fatal(self, tmp_path):
         """A typo must stop the profile, not quietly deploy a different
@@ -382,3 +385,61 @@ class TestProfileEditorQuery:
         path = self._profile(tmp_path, 'editor = "spyder"\n')
         code, _ = run_cli("apply", str(path), "--print-editor")
         assert code == 0
+
+
+class TestProfileEditorList:
+    """`editor` accepts a list as well as a single string. The system already
+    supports several editors installed at once -- separate trees, separate
+    commands -- so restricting the profile to one was an artificial limit."""
+
+    def _write(self, tmp_path, body):
+        path = tmp_path / "seedling-profile.toml"
+        path.write_text(body, encoding="utf-8")
+        return path
+
+    def test_a_list_is_accepted(self, tmp_path):
+        prof = profile_mod.load(
+            self._write(tmp_path, 'editor = ["vscode", "spyder"]\n'))
+        assert prof.editors == ["vscode", "spyder"]
+
+    def test_order_is_preserved(self, tmp_path):
+        """Apply installs in the order given, so it must not be sorted."""
+        prof = profile_mod.load(
+            self._write(tmp_path, 'editor = ["spyder", "vscode"]\n'))
+        assert prof.editors == ["spyder", "vscode"]
+
+    def test_duplicates_collapse(self, tmp_path):
+        prof = profile_mod.load(
+            self._write(tmp_path, 'editor = ["spyder", "spyder"]\n'))
+        assert prof.editors == ["spyder"]
+
+    def test_entries_are_normalized(self, tmp_path):
+        prof = profile_mod.load(
+            self._write(tmp_path, 'editor = [" VSCODE ", "Spyder"]\n'))
+        assert prof.editors == ["vscode", "spyder"]
+
+    def test_one_bad_entry_fails_the_whole_profile(self, tmp_path):
+        """A partly-valid list must not deploy its good half -- the fleet
+        would silently get an environment nobody specified."""
+        with pytest.raises(profile_mod.ProfileError) as e:
+            profile_mod.load(self._write(tmp_path, 'editor = ["vscode", "nope"]\n'))
+        assert "not a bundled editor" in str(e.value)
+
+    def test_empty_list_is_rejected(self, tmp_path):
+        """`editor = []` is almost certainly a mistake; omitting the key is
+        how you say 'no editor'."""
+        with pytest.raises(profile_mod.ProfileError):
+            profile_mod.load(self._write(tmp_path, 'editor = []\n'))
+
+    def test_non_string_entry_is_rejected(self, tmp_path):
+        with pytest.raises(profile_mod.ProfileError):
+            profile_mod.load(self._write(tmp_path, 'editor = ["vscode", 3]\n'))
+
+    def test_query_prints_all_of_them(self, run_cli, home, tmp_path):
+        """The installers read this to decide whether to skip the VS Code
+        job, so every declared editor has to appear."""
+        path = tmp_path / "p.toml"
+        path.write_text('editor = ["vscode", "spyder"]\n', encoding="utf-8")
+        code, out = run_cli("apply", str(path), "--print-editor")
+        assert code == 0
+        assert set(out.split()) == {"vscode", "spyder"}

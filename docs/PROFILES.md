@@ -38,10 +38,12 @@ python = ["3.12"]
 # key placed after a table belongs to that table, not the profile.
 tools = ["ripgrep", "pandoc"]
 
-# Which bundled editor everyone gets: "vscode" (default VS Code / VSCodium)
-# or "spyder". Omit it and `seed apply` installs no editor -- whether VS Code
-# is set up at install time stays SEEDLING_AUTO_VSCODE's decision.
+# Which bundled editor(s) everyone gets: "vscode" (VS Code / VSCodium) and/or
+# "spyder". A bare string or a list, whichever reads better. Omit it and
+# `seed apply` installs none -- whether VS Code is set up at install time
+# then stays SEEDLING_AUTO_VSCODE's decision.
 editor = "spyder"
+# editor = ["vscode", "spyder"]   # a mixed team
 
 [[venv]]
 name = "dev"
@@ -209,7 +211,7 @@ profile itself is invalid.
 | `[[venv]] default` | bool | Make this the venv new shells auto-activate. At most one. |
 | `[[venv]] default_packages` | bool | `false` skips `venv_default_packages` for this venv. |
 | `tools` | list | conda-forge command-line tools to install (e.g. `["ripgrep", "pandoc=3.2"]`). Top-level key — put it before any `[[table]]`. |
-| `editor` | string | The bundled editor this deployment standardizes on: `"vscode"` or `"spyder"`. Installed by `seed apply`, last, since it's the largest download. A value that isn't a bundled editor stops the profile rather than quietly deploying a different one. Omit for no editor. Top-level key. |
+| `editor` | string or list | The bundled editor(s) this deployment standardizes on: `"vscode"` and/or `"spyder"`. A bare string is treated as a one-element list. Installed by `seed apply` last, in the order given, since they're the largest downloads. Any value that isn't a bundled editor stops the whole profile rather than deploying part of it. Omit for no editor. Top-level key. |
 | `[[repo]] url` | string | **Required.** Git URL to clone. |
 | `[[repo]] install` | bool | Also install its dependencies, into the default venv. |
 | `[config]` | table | Settings to write. See below. |

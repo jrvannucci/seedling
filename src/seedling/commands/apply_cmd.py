@@ -133,12 +133,12 @@ def _plan(prof: profile_mod.Profile, *, force: bool) -> list[tuple[str, str]]:
     # The editor comes last of the installs: it's the biggest download by far
     # (hundreds of MB), so a profile that also fails somewhere cheap fails
     # before spending that rather than after.
-    if prof.editor:
-        entry = editors.REGISTRY.get(prof.editor)
+    for name in prof.editors:
+        entry = editors.REGISTRY.get(name)
         if entry is None:
             # Registry changed under a profile validated against an older
             # build. Report rather than crash -- everything else still applies.
-            steps.append(("skip", f"unknown editor {prof.editor!r}; skipped"))
+            steps.append(("skip", f"unknown editor {name!r}; skipped"))
         elif entry.is_installed():
             steps.append(("skip", f"{entry.label} already installed"))
         else:
@@ -180,8 +180,11 @@ def run(args) -> int:
         # declares, or nothing. Deliberately silent otherwise -- the caller
         # is a shell capturing stdout, and an empty answer means "the
         # profile doesn't say", which is what SEEDLING_AUTO_VSCODE is for.
-        if prof.editor:
-            print(prof.editor)
+        # Space-separated on one line: the callers are install.sh and
+        # install.ps1, and both find that easier to test for membership than
+        # multiple lines. Empty means "the profile doesn't say".
+        if prof.editors:
+            print(" ".join(prof.editors))
         return 0
 
     print(f"Profile: {path}")
@@ -275,8 +278,8 @@ def run(args) -> int:
         if tool_cmd.install(Namespace(spec=tool)) != 0:
             failed.append(f"tool {name}")
 
-    if prof.editor:
-        entry = editors.REGISTRY.get(prof.editor)
+    for name in prof.editors:
+        entry = editors.REGISTRY.get(name)
         if entry is not None and not entry.is_installed():
             # -y: apply is provisioning, and the profile declaring an editor
             # IS the consent the first-run prompt would otherwise ask for.
