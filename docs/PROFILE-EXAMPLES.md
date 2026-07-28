@@ -11,16 +11,16 @@ copy you distribute, and everyone who installs from it gets that environment.
 
 | Example | What it's for | Offline | Index | VS Code | Spyder | conda-forge | CA certs | Bundle | x86_64 |
 | --- | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| **[Research group](#a-research-group)** | Spyder; collection and analysis venvs kept apart | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| **[Software team](#a-software-team)** | VS Code; repos cloned and installed | ❌ | ⚠️ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| **[Mixed team](#a-mixed-team)** | both editors, one shared venv | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| **[Classroom](#a-classroom)** | pinned, reproducible, rebuildable in one command | ❌ | ❌ | ❌ | ✅ | ❌ | ⚠️ | ⚠️ | ✅ |
-| **[Restricted corporate network](#a-restricted-corporate-network)** | no internet, but internal mirrors reachable | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| **[Internal PyPI only](#an-internal-pypi-and-nothing-else)** | partial bundle; a URL plus bundled directories | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
-| **[Air-gapped](#an-air-gapped-deployment)** | VSCodium, no redistribution rights needed | ✅ | ✅ | ❌ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
-| **[Air-gapped + Marketplace rights](#an-air-gapped-deployment-with-marketplace-rights)** | official VS Code, keeps Pylance | ✅ | ✅ | ✅ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
-| **[Everything, air-gapped](#everything-air-gapped)** | every capability at once, multi-user share | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **[Just Python](#just-python)** | no editor; bring your own | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **[Research group](#research-group)** | Spyder, two venvs | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| **[Software team](#software-team)** | VS Code, repos cloned | ❌ | ⚠️ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| **[Both editors](#both-editors)** | One shared venv | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| **[Classroom](#classroom)** | Pinned, reproducible | ❌ | ❌ | ❌ | ✅ | ❌ | ⚠️ | ⚠️ | ✅ |
+| **[Internal mirrors](#internal-mirrors)** | No bundle needed | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| **[Internal PyPI only](#internal-pypi-only)** | Partial bundle | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
+| **[Air-gapped (VSCodium)](#air-gapped-vscodium)** | No redistribution rights | ✅ | ✅ | ❌ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
+| **[Air-gapped (VS Code)](#air-gapped-vs-code)** | Keeps Pylance | ✅ | ✅ | ✅ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
+| **[Air-gapped (everything)](#air-gapped-everything)** | Every capability at once | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **[Just Python](#just-python)** | Interpreters and venvs only | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ✅ needed / available  ·  ❌ not needed / unavailable  ·  ⚠️ depends — see the
 example
@@ -52,7 +52,7 @@ matter less often when choosing.
 
 ---
 
-## A research group
+## Research group
 
 Scientists who work in Spyder and want their data collection kept apart from
 their analysis. Two environments, because instrument drivers and analysis
@@ -119,7 +119,7 @@ Everything downloads on demand from PyPI.
 
 ---
 
-## A software team
+## Software team
 
 Engineers who live in VS Code, on a codebase that's already in git. The repos
 are cloned *and* their dependencies installed, so a new hire's first command
@@ -197,7 +197,7 @@ vscode_extensions = [
 
 ---
 
-## A mixed team
+## Both editors
 
 One department, two working styles. Both editors are installed; each person
 uses whichever they open.
@@ -244,7 +244,7 @@ default = true
 
 ---
 
-## A classroom
+## Classroom
 
 Thirty machines that must be identical, and a student who breaks one should
 be able to rebuild it in a single command. Everything pinned, nothing
@@ -297,12 +297,12 @@ default_packages = false
 
 **Vendor folder:** none, assuming the lab machines have internet during setup.
 If they don't, build a bundle instead — see
-[Everything, air-gapped](#everything-air-gapped) and take only the pieces you
+[Air-gapped (everything)](#air-gapped-everything) and take only the pieces you
 need.
 
 ---
 
-## A restricted corporate network
+## Internal mirrors
 
 The middle ground, and the most common enterprise shape: **no public
 internet, but working internal mirrors.** An Artifactory or Nexus proxying
@@ -452,7 +452,7 @@ a manual edit.
 
 ---
 
-## An internal PyPI, and nothing else
+## Internal PyPI only
 
 The awkward middle: IT runs an Artifactory that proxies **PyPI and only
 PyPI**. No conda mirror, no python-build-standalone mirror, no Marketplace,
@@ -658,7 +658,7 @@ a manual edit.
 
 ---
 
-## An air-gapped deployment
+## Air-gapped (VSCodium)
 
 A network with no internet, and a review that will ask what you redistributed.
 Pairs with an [offline bundle](OFFLINE.md).
@@ -713,7 +713,7 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ru
 - **The tradeoff is Pylance** — proprietary, and absent from Open VSX by
   design — so the Python extension falls back to its bundled Jedi server.
   If your organization *does* hold Marketplace rights, see
-  [the next example](#an-air-gapped-deployment-with-marketplace-rights).
+  [the next example](#air-gapped-vs-code).
 - The bundler reads the *profile* for everything else, so `build-offline`
   stages wheels for every package listed and a conda channel for every tool
   — no second hand-kept list. Build it with
@@ -778,7 +778,7 @@ a manual edit.
 
 ---
 
-## An air-gapped deployment, with Marketplace rights
+## Air-gapped (VS Code)
 
 The same disconnected network, but this organization has the agreements in
 place to redistribute the official VS Code build and Marketplace extensions
@@ -908,7 +908,7 @@ a manual edit.
 
 ---
 
-## Everything, air-gapped
+## Air-gapped (everything)
 
 A disconnected multi-user site that wants the lot: both editors, conda-forge
 tools, several interpreters, cloned repos, a corporate CA, and no internet
