@@ -11,6 +11,20 @@ what a release involves.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Wide tables no longer scroll sideways on the docs site.** The Sphinx
+  theme caps content at 800px and sets `white-space: nowrap` on table cells,
+  so 13 tables across the reference pages could only be read by scrolling —
+  the command families, the offline source table, and the new profile
+  comparison matrix among them. A `docs/_static/custom.css` widens the column
+  to 1100px and lets cells wrap; measured against the built site, that takes
+  the count from 13 to 0.
+
+  Widening alone would not have done it: with the theme's `nowrap` still in
+  place at 1100px, 9 tables still overflowed (one wanted 2615px). The
+  wrapping rule is the one that matters.
+
 ### Added
 
 - **A new [profile examples](docs/PROFILE-EXAMPLES.md) page** — complete,
