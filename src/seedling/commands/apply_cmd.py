@@ -21,9 +21,11 @@ who meant it.
 
 from __future__ import annotations
 
+import re
+import tomllib
 from argparse import Namespace
-
-import os
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from .. import colors, config, confirm, paths, profile as profile_mod, uv_tool
 from . import editors, python_cmd, repo_cmd, tool_cmd, venv_cmd
@@ -70,8 +72,15 @@ def _installed_packages(name: str) -> set[str]:
     for line in result.stdout.splitlines()[2:]:   # skip the table header
         part = line.split()
         if part:
-            found.add(part[0].strip().lower())
+            found.add(_canonical(part[0]))
     return found
+
+
+def _canonical(name: str) -> str:
+    """PEP 503 name normalization, so `ruff_lsp`, `Ruff-LSP` and `ruff.lsp`
+    all compare equal -- what's declared in a profile and what `uv pip list`
+    reports need not agree on punctuation."""
+    return re.sub(r"[-_.]+", "-", name.strip()).lower()
 
 
 def _requirement_name(spec: str) -> str:
@@ -79,13 +88,99 @@ def _requirement_name(spec: str) -> str:
     installed."""
     for sep in ("[", "=", ">", "<", "!", "~", " "):
         spec = spec.split(sep)[0]
-    return spec.strip().lower()
+    return _canonical(spec)
 
 
-def _plan(prof: profile_mod.Profile, *, force: bool) -> list[tuple[str, str]]:
+def _repo_dist_name(repo_dir: Path) -> str | None:
+    """The distribution an editable install of this repo would create, so
+    apply can tell whether a given venv already has it.
+
+    None when there's nothing to compare against: no pyproject.toml (a
+    requirements.txt-only repo installs no distribution of its own), or a
+    name computed at build time rather than written down. Callers fall back
+    to "install it when the venv is new", which is the pre-existing
+    behavior."""
+    pyproject = repo_dir / "pyproject.toml"
+    if not pyproject.exists():
+        return None
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8-sig"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    name = data.get("project", {}).get("name")
+    if isinstance(name, str) and name.strip():
+        return _canonical(name)
+    return None
+
+
+@dataclass
+class _RepoAction:
+    """What apply will do about one [[repo]]: clone it (or not), and which of
+    its venvs it still has to be installed into.
+
+    Computed ONCE, before any venv is created, and used by both the plan and
+    the run -- so a venv the profile is about to build looks equally "doesn't
+    have this repo yet" to `--preview` and to the real thing."""
+    repo: profile_mod.Repo
+    name: str
+    clone: bool
+    install: list[str] = field(default_factory=list)
+    satisfied: list[str] = field(default_factory=list)
+
+
+def _repo_actions(prof: profile_mod.Profile, *, force: bool) -> list[_RepoAction]:
+    """Resolve every [[repo]] against what's on disk right now.
+
+    A repo is installed into a target venv when that venv doesn't already
+    have it -- which covers the two cases that matter: a venv being created
+    for the first time, and a venv being REBUILT after `seed remove-venv`.
+    The clone survives a venv rebuild, so keying the install off the clone
+    (as this used to) left the new venv without the repo it was supposed to
+    have."""
+    probed: dict[str, set[str]] = {}
+
+    def installed_in(venv_name: str) -> set[str]:
+        if venv_name not in probed:
+            probed[venv_name] = _installed_packages(venv_name)
+        return probed[venv_name]
+
+    actions: list[_RepoAction] = []
+    for repo in prof.repos:
+        name = repo_cmd._derive_name(repo.url)
+        cloned = paths.repo_dir(name).exists()
+        # Only meaningful once the clone is on disk; a repo about to be
+        # cloned is installed into all of its targets regardless.
+        dist = _repo_dist_name(paths.repo_dir(name)) if cloned else None
+
+        action = _RepoAction(repo=repo, name=name, clone=not cloned)
+        for venv_name in repo.venvs:
+            if not cloned or force or not paths.venv_dir(venv_name).exists():
+                # Nothing worth probing: the repo is new, the venv is about
+                # to be (re)built, or --force says install regardless.
+                action.install.append(venv_name)
+            elif dist is not None and dist not in installed_in(venv_name):
+                action.install.append(venv_name)
+            else:
+                action.satisfied.append(venv_name)
+        actions.append(action)
+    return actions
+
+
+def _venv_list(names: list[str]) -> str:
+    label = "venv" if len(names) == 1 else "venvs"
+    return f"{label} " + ", ".join(repr(n) for n in names)
+
+
+def _plan(prof: profile_mod.Profile, *, force: bool,
+          repo_actions: list[_RepoAction] | None = None) -> list[tuple[str, str]]:
     """[(action, description)] for everything that would change. Built before
-    anything runs so --preview and the real run can never disagree."""
+    anything runs so --preview and the real run can never disagree.
+
+    `repo_actions` is passed in by run() so the repo decisions -- the only
+    ones that cost a subprocess to work out -- are made once and shared."""
     steps: list[tuple[str, str]] = []
+    if repo_actions is None:
+        repo_actions = _repo_actions(prof, force=force)
 
     for version in prof.pythons:
         if python_cmd.resolve_base(version.replace(".", "")) is None:
@@ -114,14 +209,21 @@ def _plan(prof: profile_mod.Profile, *, force: bool) -> list[tuple[str, str]]:
                 continue
         steps.append(("skip", f"venv {venv.name!r} already exists"))
 
-    for repo in prof.repos:
-        name = repo_cmd._derive_name(repo.url)
-        if (paths.REPO_DIR / name).exists():
-            steps.append(("skip", f"repo {name!r} already cloned"))
+    for action in repo_actions:
+        if action.clone:
+            detail = f"clone {action.repo.url}"
+            if action.install:
+                detail += f" and install it into {_venv_list(action.install)}"
+            steps.append(("repo", detail))
         else:
-            steps.append(("repo", f"clone {repo.url}"
-                                  + (" and install its dependencies"
-                                     if repo.install else "")))
+            steps.append(("skip", f"repo {action.name!r} already cloned"))
+            if action.install:
+                steps.append(("repo-install",
+                              f"install repo {action.name!r} into "
+                              f"{_venv_list(action.install)}"))
+        for venv_name in action.satisfied:
+            steps.append(("skip", f"repo {action.name!r} already installed "
+                                  f"in venv {venv_name!r}"))
 
     for tool in prof.tools:
         name = tool_cmd._spec_name(tool)
@@ -189,7 +291,11 @@ def run(args) -> int:
 
     print(f"Profile: {path}")
     force = getattr(args, "force", False)
-    steps = _plan(prof, force=force)
+    # Resolved before anything is created: a venv this run is about to build
+    # must still read as "doesn't have the repo yet" when the repos are
+    # reached, several steps later.
+    repo_actions = _repo_actions(prof, force=force)
+    steps = _plan(prof, force=force, repo_actions=repo_actions)
     changes = [s for s in steps if s[0] != "skip"]
 
     if confirm.preview_requested(args):
@@ -239,35 +345,25 @@ def run(args) -> int:
         if wanted and not _install_into(venv.name, list(wanted)):
             failed.append(f"packages for {venv.name}")
 
-    target_venv = next((v.name for v in prof.venvs if v.default), None)
-    for repo in prof.repos:
-        name = repo_cmd._derive_name(repo.url)
-        if (paths.REPO_DIR / name).exists():
+    for action in repo_actions:
+        if action.clone and repo_cmd.clone(
+                Namespace(url=action.repo.url)) != 0:
+            failed.append(f"repo {action.name}")
             continue
-        if repo_cmd.clone(Namespace(url=repo.url)) != 0:
-            failed.append(f"repo {name}")
-            continue
-        if not repo.install:
-            continue
-        # `seed repo-install` resolves its target from VIRTUAL_ENV, exactly
-        # as it would after `seed activate`. Nothing is activated during an
-        # apply, so point it at the profile's default venv for the duration
-        # of the call rather than letting uv guess.
-        if target_venv is None:
-            print(f"warning: {name!r} declares install = true but the profile "
-                  "has no default venv to install into; skipping.")
-            continue
-        previous = os.environ.get("VIRTUAL_ENV")
-        os.environ["VIRTUAL_ENV"] = str(paths.venv_dir(target_venv))
-        try:
-            rc = repo_cmd.install_repo(Namespace(name=name))
-        finally:
-            if previous is None:
-                os.environ.pop("VIRTUAL_ENV", None)
-            else:
-                os.environ["VIRTUAL_ENV"] = previous
-        if rc != 0:
-            failed.append(f"dependencies for {name}")
+        # Named explicitly rather than through VIRTUAL_ENV: a repo can target
+        # several venvs, and each install has to land in the one it was
+        # declared for regardless of what this shell has active.
+        for venv_name in action.install:
+            if not paths.venv_dir(venv_name).exists():
+                # Its creation failed earlier in this run and is already in
+                # `failed`; a second entry for the knock-on effect would only
+                # obscure the cause.
+                print(f"skipping {action.name!r} -> venv {venv_name!r}: "
+                      "that venv isn't there.")
+                continue
+            if repo_cmd.install_repo(
+                    Namespace(name=action.name, venv=venv_name)) != 0:
+                failed.append(f"{action.name} in venv {venv_name}")
 
     for tool in prof.tools:
         name = tool_cmd._spec_name(tool)

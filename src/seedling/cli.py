@@ -90,7 +90,7 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("repo-list", "", "List cloned repos"),
         ("repo-cd", "[name]", "cd into a cloned repo (or the repos folder)"),
         ("repo-open", "[name]", "Open a repo in the file manager"),
-        ("repo-install", "<name>", "Install a repo's dependencies into the active venv"),
+        ("repo-install", "<name>", "Install a repo's dependencies into a venv"),
     ]),
     # The editor family's rows are filled in from the editor registry at
     # print time (see _help_groups) -- an editor joins the family by
@@ -430,8 +430,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_install_repo = sub.add_parser(
         "repo-install",
-        help="Install a cloned repo's dependencies into the active venv")
+        help="Install a cloned repo's dependencies into a venv")
     p_install_repo.add_argument("name", nargs="?", help="Name of the repo to install")
+    p_install_repo.add_argument("-n", "--venv", dest="venv", metavar="NAME",
+                                default=None,
+                                help="Venv to install into. Defaults to the "
+                                     "active one (VIRTUAL_ENV).")
 
     sub.add_parser("remove-user", parents=[danger],
                    help="Delete everything seedling manages")

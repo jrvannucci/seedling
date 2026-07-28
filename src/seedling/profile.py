@@ -63,7 +63,10 @@ class Venv:
 @dataclass
 class Repo:
     url: str
-    install: bool = False
+    # The venvs this repo is installed into, in declared order. Empty means
+    # clone only -- there is no separate "install?" flag, because `install`
+    # names its targets outright and an empty list of targets IS "don't".
+    venvs: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -121,6 +124,54 @@ def _str_list(raw, where: str) -> list[str]:
                  f"{where} must contain non-empty strings")
         out.append(item.strip())
     return out
+
+
+def _repo_venvs(value, url: str) -> list[str]:
+    """Read a `[[repo]] install` value into the venvs to install into.
+
+        install = "analysis"      -- that venv
+        install = ["dev", "ml"]   -- each of them, in that order
+        (key omitted)             -- clone only
+
+    `install` is a list of venvs and nothing else. Neither bool is accepted,
+    though both once were:
+
+    `true` meant "the profile's default venv", which left where a fleet's
+    repo landed to a setting written elsewhere in the file -- change the
+    default venv and the repo silently moves with it. Naming the venv is
+    barely longer to write and says what will actually happen.
+
+    `false` was a second way to spell what an absent key already says. Two
+    spellings of "no" invite the question of whether they differ, and a key
+    whose value can be a venv name or a boolean is a key that has to be read
+    twice. Omitting it is the one way. String-or-list mirrors `editor`.
+    """
+    if value is None:                        # the key isn't there at all
+        return []
+    _require(value is not True,
+             f"repo {url!r}: install = true no longer says where to install "
+             f"-- name the venv instead: install = \"dev\", or "
+             f"install = [\"dev\", \"analysis\"] for several")
+    _require(value is not False,
+             f"repo {url!r}: install = false is no longer accepted -- leave "
+             f"the install key out to clone without installing")
+    if isinstance(value, str):
+        value = [value]
+    _require(isinstance(value, list),
+             f"repo {url!r}: install must be a venv name or a list of venv "
+             f"names")
+    _require(bool(value),
+             f"repo {url!r}: install = [] names no venv -- leave the install "
+             f"key out to clone without installing")
+    targets: list[str] = []
+    for item in value:
+        _require(isinstance(item, str) and item.strip(),
+                 f"repo {url!r}: every venv named by install must be a "
+                 f"non-empty string")
+        name = item.strip()
+        if name not in targets:
+            targets.append(name)
+    return targets
 
 
 def parse(text: str, *, path: Path | None = None) -> Profile:
@@ -183,10 +234,16 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
         url = entry.get("url")
         _require(isinstance(url, str) and url.strip(),
                  "every [[repo]] needs a non-empty url")
-        install = entry.get("install", False)
-        _require(isinstance(install, bool),
-                 f"repo {url!r}: install must be true or false")
-        profile.repos.append(Repo(url=url.strip(), install=install))
+        url = url.strip()
+        targets = _repo_venvs(entry.get("install"), url)
+        # A named venv must be one the profile declares. Otherwise the repo
+        # lands nowhere on every machine in the fleet, and the admin hears
+        # about it one user at a time -- the same reasoning as `default_venv`.
+        for target in targets:
+            _require(target in names,
+                     f"repo {url!r}: install names venv {target!r}, which "
+                     f"this profile doesn't declare")
+        profile.repos.append(Repo(url=url, venvs=targets))
 
     profile.tools = _str_list(raw.get("tools", []), "tools")
 

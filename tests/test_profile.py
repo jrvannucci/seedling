@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 
+from conftest import make_venv_dirs
 from seedling import config, paths, profile as profile_mod
 from seedling.commands import apply_cmd
 
@@ -45,7 +46,7 @@ def test_full_profile_round_trips():
 
         [[repo]]
         url = "https://git.corp/team/toolkit.git"
-        install = true
+        install = ["dev", "analysis"]
 
         [config]
         vscode_flavor = "vscodium"
@@ -55,7 +56,7 @@ def test_full_profile_round_trips():
     dev, analysis = prof.venvs
     assert dev.python == "312" and dev.default is True
     assert analysis.default_packages is False
-    assert prof.repos[0].install is True
+    assert prof.repos[0].venvs == ["dev", "analysis"]
     assert prof.tools == ["ripgrep", "pandoc=3.2"]
     assert prof.tool_set() == ["ripgrep", "pandoc=3.2"]
     assert prof.settings["vscode_flavor"] == "vscodium"
@@ -78,8 +79,14 @@ def test_whitespace_is_stripped():
     ('[[venv]]\nname="a"\n[[venv]]\nname="a"', "duplicate venv name"),
     ('[[venv]]\nname="a"\ndefault=true\n[[venv]]\nname="b"\ndefault=true',
      "only one venv may be default"),
-    ('[[repo]]\ninstall = true', "needs a non-empty url"),
-    ('[[repo]]\nurl = "x"\ninstall = "yes"', "must be true or false"),
+    ('[[repo]]\ninstall = "dev"', "needs a non-empty url"),
+    ('[[repo]]\nurl = "x"\ninstall = true', "no longer says where"),
+    ('[[repo]]\nurl = "x"\ninstall = false', "no longer accepted"),
+    ('[[repo]]\nurl = "x"\ninstall = 3', "install must be a venv name"),
+    ('[[repo]]\nurl = "x"\ninstall = []', "leave the install key out"),
+    ('[[repo]]\nurl = "x"\ninstall = ["dev"]', "this profile doesn't declare"),
+    ('[[venv]]\nname = "dev"\n[[repo]]\nurl = "x"\ninstall = [3]',
+     "must be a non-empty string"),
     ("[config]\nupdate_source = 'x'", "cannot be set from a profile"),
     ("[config]\nnative_tls = true", "cannot be set from a profile"),
     ('[config]\ndefault_venv = "ghost"', "names no venv"),
@@ -293,6 +300,212 @@ def test_plan_is_empty_for_an_already_satisfied_profile(home, tmp_path):
     config.set_value("vscode_flavor", "vscodium")
     prof = profile_mod.parse('[[venv]]\nname="dev"\n[config]\nvscode_flavor="vscodium"')
     assert all(action == "skip" for action, _ in apply_cmd._plan(prof, force=False))
+
+
+class TestRepoInstallTargets:
+    """`[[repo]] install` answers *where*: the venvs the repo goes into, and
+    nothing vaguer than that."""
+
+    def test_a_bare_venv_name_is_accepted(self):
+        prof = profile_mod.parse('''
+            [[venv]]
+            name = "analysis"
+            [[repo]]
+            url = "x"
+            install = "analysis"
+        ''')
+        assert prof.repos[0].venvs == ["analysis"]
+
+    def test_several_venvs_keep_their_order_and_de_duplicate(self):
+        prof = profile_mod.parse('''
+            [[venv]]
+            name = "dev"
+            default = true
+            [[venv]]
+            name = "analysis"
+            [[repo]]
+            url = "x"
+            install = ["analysis", "dev", "analysis"]
+        ''')
+        assert prof.repos[0].venvs == ["analysis", "dev"]
+
+    def test_whitespace_is_stripped(self):
+        prof = profile_mod.parse('''
+            [[venv]]
+            name = "dev"
+            [[repo]]
+            url = "x"
+            install = "  dev  "
+        ''')
+        assert prof.repos[0].venvs == ["dev"]
+
+    def test_omitting_install_clones_only(self):
+        prof = profile_mod.parse('''
+            [[venv]]
+            name = "dev"
+            default = true
+            [[repo]]
+            url = "x"
+        ''')
+        assert prof.repos[0].venvs == []
+
+    def test_true_is_rejected_and_the_message_says_what_to_write(self):
+        """It used to mean "the profile's default venv" -- so changing the
+        default venv silently moved the repo. A profile has to say where its
+        repos go, and the error has to be fixable without the docs open."""
+        with pytest.raises(profile_mod.ProfileError) as e:
+            profile_mod.parse('[[venv]]\nname = "dev"\ndefault = true\n'
+                              '[[repo]]\nurl = "x"\ninstall = true')
+        message = str(e.value)
+        assert "no longer says where" in message
+        assert 'install = "dev"' in message
+
+    def test_false_is_rejected_too(self):
+        """A second spelling of what an absent key already says. Two ways to
+        write "no" only invite the question of whether they differ."""
+        with pytest.raises(profile_mod.ProfileError) as e:
+            profile_mod.parse('[[repo]]\nurl = "x"\ninstall = false')
+        assert "leave the install key out" in str(e.value)
+
+
+def _fake_clone(home, name: str, *, dist: str | None = "toolkit",
+                requirements: bool = False):
+    """A repo directory as `seed repo-clone` would have left it."""
+    repo = home / "repo" / name
+    repo.mkdir(parents=True, exist_ok=True)
+    if dist:
+        (repo / "pyproject.toml").write_text(
+            f'[project]\nname = "{dist}"\n', encoding="utf-8")
+    if requirements:
+        (repo / "requirements.txt").write_text("requests\n", encoding="utf-8")
+    return repo
+
+
+class TestApplyInstallsReposIntoVenvs:
+    """Which venv a repo lands in, and when apply puts it there again.
+
+    The rule is one line: install into any target venv that doesn't already
+    have it. That covers the case this used to miss -- a venv REBUILT after
+    `seed remove-venv` kept its clone on disk, so nothing re-installed the
+    repo and the new venv came back without it.
+    """
+
+    PROFILE = '''
+        [[venv]]
+        name = "dev"
+        default = true
+        [[venv]]
+        name = "analysis"
+        [[repo]]
+        url = "https://git.corp/team/toolkit.git"
+        install = ["dev", "analysis"]
+    '''
+
+    def test_a_fresh_clone_is_installed_into_every_named_venv(self, home):
+        make_venv_dirs(home, "dev", "analysis")
+        prof = profile_mod.parse(self.PROFILE)
+        detail = [d for a, d in apply_cmd._plan(prof, force=False) if a == "repo"]
+        assert detail == ["clone https://git.corp/team/toolkit.git and install "
+                          "it into venvs 'dev', 'analysis'"]
+
+    def test_a_rebuilt_venv_gets_the_repo_again(self, home, monkeypatch):
+        """dev is being recreated this run; analysis already has it. Only
+        dev is installed into -- the clone staying on disk is not evidence
+        that the new venv has anything."""
+        _fake_clone(home, "toolkit")
+        make_venv_dirs(home, "analysis")          # dev is gone: to be rebuilt
+        monkeypatch.setattr(apply_cmd, "_installed_packages",
+                            lambda name: {"toolkit"})
+        prof = profile_mod.parse(self.PROFILE)
+        steps = apply_cmd._plan(prof, force=False)
+        assert ("repo-install", "install repo 'toolkit' into venv 'dev'") in steps
+        assert any("already installed in venv 'analysis'" in d
+                   for a, d in steps if a == "skip")
+
+    def test_a_venv_that_already_has_it_is_left_alone(self, home, monkeypatch):
+        _fake_clone(home, "toolkit")
+        make_venv_dirs(home, "dev", "analysis")
+        monkeypatch.setattr(apply_cmd, "_installed_packages",
+                            lambda name: {"toolkit"})
+        prof = profile_mod.parse(self.PROFILE)
+        steps = apply_cmd._plan(prof, force=False)
+        assert not [d for a, d in steps if a in ("repo", "repo-install")]
+        assert any("already installed in venv 'dev'" in d
+                   for a, d in steps if a == "skip")
+
+    def test_a_venv_missing_it_converges(self, home, monkeypatch):
+        """A repo added to the profile after the venvs were built still
+        reaches them -- the clone exists, the venv exists, the package
+        doesn't."""
+        _fake_clone(home, "toolkit")
+        make_venv_dirs(home, "dev", "analysis")
+        monkeypatch.setattr(apply_cmd, "_installed_packages",
+                            lambda name: {"ruff"})
+        prof = profile_mod.parse(self.PROFILE)
+        detail = [d for a, d in apply_cmd._plan(prof, force=False)
+                  if a == "repo-install"]
+        assert detail == ["install repo 'toolkit' into venvs 'dev', 'analysis'"]
+
+    def test_a_requirements_only_repo_is_not_reinstalled_on_every_apply(
+            self, home, monkeypatch):
+        """Nothing names a distribution to look for, so an existing venv is
+        taken as satisfied -- exactly what apply did before. A venv being
+        rebuilt is still installed into."""
+        _fake_clone(home, "toolkit", dist=None, requirements=True)
+        make_venv_dirs(home, "analysis")          # dev is being rebuilt
+        monkeypatch.setattr(apply_cmd, "_installed_packages", lambda name: set())
+        prof = profile_mod.parse(self.PROFILE)
+        steps = apply_cmd._plan(prof, force=False)
+        assert ("repo-install", "install repo 'toolkit' into venv 'dev'") in steps
+        assert any("already installed in venv 'analysis'" in d
+                   for a, d in steps if a == "skip")
+
+    def test_force_reinstalls_into_every_target(self, home, monkeypatch):
+        _fake_clone(home, "toolkit")
+        make_venv_dirs(home, "dev", "analysis")
+        monkeypatch.setattr(apply_cmd, "_installed_packages",
+                            lambda name: {"toolkit"})
+        prof = profile_mod.parse(self.PROFILE)
+        detail = [d for a, d in apply_cmd._plan(prof, force=True)
+                  if a == "repo-install"]
+        assert detail == ["install repo 'toolkit' into venvs 'dev', 'analysis'"]
+
+    def test_apply_installs_into_each_named_venv(self, run_cli, home, tmp_path,
+                                                 monkeypatch):
+        _fake_clone(home, "toolkit")
+        make_venv_dirs(home, "dev", "analysis")
+        monkeypatch.setattr(apply_cmd, "_installed_packages", lambda name: set())
+        installs = []
+        monkeypatch.setattr(apply_cmd.repo_cmd, "install_repo",
+                            lambda args: (installs.append((args.name, args.venv)), 0)[1])
+        prof = _write(tmp_path, self.PROFILE)
+
+        code, out = run_cli("apply", str(prof), "--preview")
+        assert code == 0 and not installs, "preview must not install anything"
+
+        code, out = run_cli("apply", str(prof))
+        assert code == 0
+        assert installs == [("toolkit", "dev"), ("toolkit", "analysis")]
+
+    def test_a_failed_install_is_reported_per_venv(self, run_cli, home,
+                                                   tmp_path, monkeypatch):
+        """Partial application is a failure, and the message has to name the
+        venv -- 'the repo failed' isn't actionable when it has three."""
+        _fake_clone(home, "toolkit")
+        make_venv_dirs(home, "dev", "analysis")
+        monkeypatch.setattr(apply_cmd, "_installed_packages", lambda name: set())
+        monkeypatch.setattr(apply_cmd.repo_cmd, "install_repo",
+                            lambda args: 0 if args.venv == "dev" else 1)
+        code, out = run_cli("apply", str(_write(tmp_path, self.PROFILE)))
+        assert code == 1
+        assert "toolkit in venv analysis" in out
+
+    def test_a_repo_with_no_install_is_only_cloned(self, home, tmp_path):
+        make_venv_dirs(home, "dev")
+        prof = profile_mod.parse('[[venv]]\nname = "dev"\n[[repo]]\nurl = "x"')
+        steps = apply_cmd._plan(prof, force=False)
+        assert ("repo", "clone x") in steps
+        assert not [d for a, d in steps if a == "repo-install"]
 
 
 class TestProfileEditor:

@@ -63,7 +63,9 @@ default_packages = false    # skip venv_default_packages for this one
 
 [[repo]]
 url = "https://git.corp/data-team/toolkit.git"
-install = true              # also install its dependencies
+install = "dev"             # editable-install it into the dev venv
+# install = ["dev", "analysis"]   # ...or into several
+# leave install out to clone without installing
 
 [config]
 vscode_extensions = ["ms-python.python", "charliermarsh.ruff"]
@@ -173,7 +175,7 @@ What that means per declaration, when the thing is already there:
 | `python` | skipped |
 | `[[venv]]` | left exactly as it is — never recreated, never deleted |
 | `[[venv]] packages` | **not touched** without `--force`; with it, only the profile's *missing* packages are installed |
-| `[[repo]]` | skipped if the clone directory exists — **no pull, no re-install** |
+| `[[repo]]` | the clone is skipped if the directory exists — **no pull**. The install is redone for any target venv that doesn't have it |
 | `tools` | skipped if that tool is already installed |
 | `editor` | skipped if that editor is already installed |
 | `[config]` / `default` venv | **overwritten** whenever the current value differs from the profile |
@@ -184,10 +186,22 @@ installed something they need. `--force` closes the gap in one direction only:
 it adds what's missing, never removes or rebuilds. Getting rid of something is
 `seed remove-venv`, run deliberately by a person.
 
-**An existing repo is never updated.** `apply` clones what's missing; it
-doesn't fetch, pull or re-run the dependency install for a clone that's
-already on disk. If upstream moved and the fleet needs the new commit, that's
-`git pull` in the repo (`seed repo-cd <name>`), not a profile change.
+**An existing clone is never updated.** `apply` clones what's missing; it
+doesn't fetch or pull for a clone that's already on disk. If upstream moved
+and the fleet needs the new commit, that's `git pull` in the repo (`seed
+repo-cd <name>`), not a profile change.
+
+**The install, though, follows the venv rather than the clone.** A repo is
+installed into any venv `install` names that doesn't already have it. So a
+venv rebuilt after `seed remove-venv dev` comes back with the repo in it, and
+a repo added to the profile later reaches venvs that already exist — without
+re-installing on every apply into venvs that are already correct.
+
+> Whether a venv "already has it" is answered by looking for the repo's own
+> distribution (the `[project] name` in its `pyproject.toml`). A repo with
+> only a `requirements.txt` installs no distribution of its own, so there's
+> nothing to look for: those are installed when the venv is new (or rebuilt),
+> and otherwise left alone until `seed apply --force`.
 
 **Settings are the one thing converged rather than filled in.** A key in
 `[config]`, and the `default` venv, are written whenever the machine's current
@@ -218,7 +232,7 @@ profile itself is invalid.
 | `tools` | list | conda-forge command-line tools to install (e.g. `["ripgrep", "pandoc=3.2"]`). Top-level key — put it before any `[[table]]`. |
 | `editor` | string or list | The bundled editor(s) this deployment standardizes on: `"vscode"` and/or `"spyder"`. A bare string is treated as a one-element list. Installed by `seed apply` last, in the order given, since they're the largest downloads. Any value that isn't a bundled editor stops the whole profile rather than deploying part of it. Omit for no editor. Top-level key. |
 | `[[repo]] url` | string | **Required.** Git URL to clone. |
-| `[[repo]] install` | bool | Also install its dependencies, into the default venv. |
+| `[[repo]] install` | string or list | The venv(s) to install the repo into after cloning (`uv pip install -e`, or its `requirements.txt`), in the order given. Every name must be a venv this profile declares. Leave the key out to clone without installing — `true` and `false` are **not** accepted: a profile either says where the repo goes or doesn't ask for it. |
 | `[config]` | table | Settings to write. See below. |
 
 `[config]` accepts only settings that make sense per-user and after install:
@@ -231,8 +245,9 @@ must be correct *before* seed-cli runs, so `seedling.conf` owns them; letting
 a profile rewrite them would create two sources of truth for one value.
 
 **Validation is strict.** An unknown key, a duplicate venv name, two default
-venvs, or a `default_venv` naming a venv the profile doesn't declare all
-reject the whole file with a message naming the problem. A profile goes to a
+venvs, or a `default_venv` — or a `[[repo]] install` — naming a venv the
+profile doesn't declare all reject the whole file with a message naming the
+problem. A profile goes to a
 whole fleet: a typo should fail once for you, not quietly for each user.
 
 ---

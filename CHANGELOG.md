@@ -11,7 +11,39 @@ what a release involves.
 
 ## [Unreleased]
 
+### Changed (breaking)
+
+- **`[[repo]] install` names the venvs a repo is installed into; it is no
+  longer a bool.** `true` meant one place — the profile's default venv —
+  which left where a fleet's repo landed to a setting written elsewhere in
+  the file (change the default venv and every repo silently moved with it),
+  and capped a repo at one environment, when a repo a team develops against
+  is routinely needed in more than one:
+
+  ```toml
+  [[repo]]
+  url = "https://git.corp/team/toolkit.git"
+  install = ["dev", "analysis"]     # or a single name: install = "dev"
+  ```
+
+  **To migrate:** replace `install = true` with the venv it was landing in
+  (your `default = true` venv, or `[config] default_venv`), and delete
+  `install = false` lines — an absent key already says "clone only", and two
+  spellings of "no" only invite the question of whether they differ. Both
+  bools are now rejected with a message naming the fix, rather than
+  reinterpreted: the whole point is that a profile says where its repos go.
+
+  A name that isn't a venv the profile declares rejects the whole file, like
+  `default_venv` already did — a repo that lands nowhere would otherwise be
+  discovered by users one at a time.
+
 ### Added
+
+- **`seed repo-install --venv <name>`** installs a cloned repo into a venv
+  you name, regardless of what this shell has active (`-n` for short). An
+  unknown name is an error rather than a quiet fallback to another
+  environment. This is also how `seed apply` now targets each venv, instead
+  of temporarily reassigning `VIRTUAL_ENV` around the call.
 
 - **A new [profile examples](docs/PROFILE-EXAMPLES.md) page** — ten complete,
   working deployment profiles for real situations, rather than a syntax tour.
@@ -73,6 +105,21 @@ what a release involves.
   restricting it to one.
 
 ### Fixed
+
+- **Rebuilding a venv no longer leaves the profile's repos out of it.**
+  `seed apply` keyed a repo's install off the *clone*: cloned already, so
+  nothing to do. But `seed remove-venv dev` followed by `seed apply` rebuilds
+  the venv while the clone stays on disk, so the new venv came back without
+  the repo it was supposed to have. The install now follows the venv — a repo
+  is installed into any venv `install` names that doesn't already have it,
+  which also means a repo added to a profile later reaches venvs that already
+  exist. Venvs that are already correct are still left alone, so applying
+  twice remains a no-op.
+
+- **A repo whose install fails no longer aborts the rest of the apply.**
+  `seed repo-install` let uv's failure escape as an exception; it now comes
+  back as an exit code, so apply names the step (per venv) and carries on
+  with the rest of the profile, as it does for every other step.
 
 - **Wide tables no longer scroll sideways on the docs site.** The Sphinx
   theme caps content at 800px and sets `white-space: nowrap` on table cells,
