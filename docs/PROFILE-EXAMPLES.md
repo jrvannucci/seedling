@@ -9,18 +9,18 @@ copy you distribute, and everyone who installs from it gets that environment.
 
 ## Contents
 
-| Example | Net | Index | VS Code | Spyder | conda | CA | Bundle | x86_64 |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| **[Research group](#a-research-group)** | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| **[Software team](#a-software-team)** | ✅ | ⚠️ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| **[Mixed team](#a-mixed-team)** | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| **[Classroom](#a-classroom)** | ✅ | ❌ | ❌ | ✅ | ❌ | ⚠️ | ⚠️ | ✅ |
-| **[Restricted corporate network](#a-restricted-corporate-network)** | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| **[Internal PyPI only](#an-internal-pypi-and-nothing-else)** | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
-| **[Air-gapped](#an-air-gapped-deployment)** | ❌ | ✅ | ❌ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
-| **[Air-gapped + Marketplace rights](#an-air-gapped-deployment-with-marketplace-rights)** | ❌ | ✅ | ✅ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
-| **[Everything, air-gapped](#everything-air-gapped)** | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **[Just Python](#just-python)** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Example | What it's for | Net | Index | VS Code | Spyder | conda | CA | Bundle | x86_64 |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| **[Research group](#a-research-group)** | Spyder; collection and analysis venvs kept apart | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| **[Software team](#a-software-team)** | VS Code; repos cloned and installed | ✅ | ⚠️ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| **[Mixed team](#a-mixed-team)** | both editors, one shared venv | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| **[Classroom](#a-classroom)** | pinned, reproducible, rebuildable in one command | ✅ | ❌ | ❌ | ✅ | ❌ | ⚠️ | ⚠️ | ✅ |
+| **[Restricted corporate network](#a-restricted-corporate-network)** | no internet, but internal mirrors reachable | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| **[Internal PyPI only](#an-internal-pypi-and-nothing-else)** | partial bundle; a URL plus bundled directories | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
+| **[Air-gapped](#an-air-gapped-deployment)** | VSCodium, no redistribution rights needed | ❌ | ✅ | ❌ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
+| **[Air-gapped + Marketplace rights](#an-air-gapped-deployment-with-marketplace-rights)** | official VS Code, keeps Pylance | ❌ | ✅ | ✅ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
+| **[Everything, air-gapped](#everything-air-gapped)** | every capability at once, multi-user share | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **[Just Python](#just-python)** | no editor; bring your own | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ✅ needed / available  ·  ❌ not needed / unavailable  ·  ⚠️ depends — see the
 example
@@ -35,17 +35,6 @@ not that you need an Artifactory.** For the networked examples it's a URL
 pointing at an internal mirror; for the air-gapped ones it's a *directory* of
 wheels on the share. Same setting, two very different deployments — the
 example says which.
-
-- **[Research group](#a-research-group)** — Spyder; collection and analysis venvs kept apart
-- **[Software team](#a-software-team)** — VS Code; repos cloned and installed
-- **[Mixed team](#a-mixed-team)** — both editors, one shared venv
-- **[Classroom](#a-classroom)** — pinned, reproducible, rebuildable in one command
-- **[Restricted corporate network](#a-restricted-corporate-network)** — no internet, but internal mirrors reachable
-- **[Internal PyPI only](#an-internal-pypi-and-nothing-else)** — partial bundle; a URL plus bundled directories
-- **[Air-gapped](#an-air-gapped-deployment)** — VSCodium, no redistribution rights needed
-- **[Air-gapped + Marketplace rights](#an-air-gapped-deployment-with-marketplace-rights)** — official VS Code, keeps Pylance
-- **[Everything, air-gapped](#everything-air-gapped)** — every capability at once, multi-user share
-- **[Just Python](#just-python)** — no editor; bring your own
 
 ---
 
