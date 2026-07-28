@@ -9,7 +9,7 @@ copy you distribute, and everyone who installs from it gets that environment.
 
 ## Contents
 
-| Example | What it's for | Offline | Index | VS Code | Spyder | conda-forge | CA certs | Bundle | x86_64 |
+| Example | What it's for | Offline | Index | VS Code | Spyder | conda-forge | CA certs | Bundle | x86_64 only |
 | --- | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | **[Research group](#research-group)** | Spyder, two venvs | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
 | **[Software team](#software-team)** | VS Code, repos cloned | ❌ | ⚠️ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
@@ -36,13 +36,13 @@ example
 | **conda-forge** | Does this install conda-forge command-line tools? | `tools` |
 | **CA certs** | Does this need a corporate CA certificate? | `vendor/certs/`, `SEEDLING_NATIVE_TLS` |
 | **Bundle** | Must you build an offline bundle first? | `build-offline` |
-| **x86_64** | Is this x86_64-only? | implied by Spyder |
+| **x86_64 only** | Does this rule out arm64 machines? | implied by Spyder |
 
 **Index** is the one to read carefully: ✅ means `package_index` is *set*, not
 that you need an Artifactory. For the networked examples it's a URL pointing
 at an internal mirror; for the air-gapped ones it's a *directory* of wheels on
 the share. Same setting, two very different deployments — the example says
-which. Likewise **x86_64** ✅ only ever comes from Spyder, whose Qt dependency
+which. Likewise **x86_64 only** ✅ comes solely from Spyder, whose Qt dependency
 publishes no arm64 wheels; every other piece runs on arm64 fine.
 
 Scanning down a column tells you which scenarios share your constraint. Each
