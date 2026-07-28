@@ -9,18 +9,18 @@ copy you distribute, and everyone who installs from it gets that environment.
 
 ## Contents
 
-| Example | What it's for | Net | Index | VS Code | Spyder | conda | CA | Bundle | x86_64 |
-|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| **[Research group](#a-research-group)** | Spyder; collection and analysis venvs kept apart | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| **[Software team](#a-software-team)** | VS Code; repos cloned and installed | ✅ | ⚠️ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| **[Mixed team](#a-mixed-team)** | both editors, one shared venv | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| **[Classroom](#a-classroom)** | pinned, reproducible, rebuildable in one command | ✅ | ❌ | ❌ | ✅ | ❌ | ⚠️ | ⚠️ | ✅ |
-| **[Restricted corporate network](#a-restricted-corporate-network)** | no internet, but internal mirrors reachable | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| **[Internal PyPI only](#an-internal-pypi-and-nothing-else)** | partial bundle; a URL plus bundled directories | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
-| **[Air-gapped](#an-air-gapped-deployment)** | VSCodium, no redistribution rights needed | ❌ | ✅ | ❌ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
-| **[Air-gapped + Marketplace rights](#an-air-gapped-deployment-with-marketplace-rights)** | official VS Code, keeps Pylance | ❌ | ✅ | ✅ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
-| **[Everything, air-gapped](#everything-air-gapped)** | every capability at once, multi-user share | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **[Just Python](#just-python)** | no editor; bring your own | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Example | What it's for | Offline | Index | VS Code | Spyder | conda-forge | CA certs | Bundle | x86_64 |
+| --- | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| **[Research group](#a-research-group)** | Spyder; collection and analysis venvs kept apart | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| **[Software team](#a-software-team)** | VS Code; repos cloned and installed | ❌ | ⚠️ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
+| **[Mixed team](#a-mixed-team)** | both editors, one shared venv | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| **[Classroom](#a-classroom)** | pinned, reproducible, rebuildable in one command | ❌ | ❌ | ❌ | ✅ | ❌ | ⚠️ | ⚠️ | ✅ |
+| **[Restricted corporate network](#a-restricted-corporate-network)** | no internet, but internal mirrors reachable | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| **[Internal PyPI only](#an-internal-pypi-and-nothing-else)** | partial bundle; a URL plus bundled directories | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
+| **[Air-gapped](#an-air-gapped-deployment)** | VSCodium, no redistribution rights needed | ✅ | ✅ | ❌ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
+| **[Air-gapped + Marketplace rights](#an-air-gapped-deployment-with-marketplace-rights)** | official VS Code, keeps Pylance | ✅ | ✅ | ✅ | ❌ | ✅ | ⚠️ | ✅ | ❌ |
+| **[Everything, air-gapped](#everything-air-gapped)** | every capability at once, multi-user share | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **[Just Python](#just-python)** | no editor; bring your own | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ✅ needed / available  ·  ❌ not needed / unavailable  ·  ⚠️ depends — see the
 example
@@ -29,12 +29,12 @@ example
 
 | Column | The question | Set by |
 |---|---|---|
-| **Net** | Do the machines need to reach the public internet? | — |
+| **Offline** | Do the machines run with no internet access? | — |
 | **Index** | Is a package source configured instead of pypi.org? | `SEEDLING_PACKAGE_INDEX` |
 | **VS Code** | Does this need official VS Code and the Marketplace? | `editor`, `SEEDLING_VSCODE_FLAVOR` |
 | **Spyder** | Does this install Spyder, from PyPI? | `editor` |
-| **conda** | Does this install conda-forge command-line tools? | `tools` |
-| **CA** | Does this need a corporate CA certificate? | `vendor/certs/`, `SEEDLING_NATIVE_TLS` |
+| **conda-forge** | Does this install conda-forge command-line tools? | `tools` |
+| **CA certs** | Does this need a corporate CA certificate? | `vendor/certs/`, `SEEDLING_NATIVE_TLS` |
 | **Bundle** | Must you build an offline bundle first? | `build-offline` |
 | **x86_64** | Is this x86_64-only? | implied by Spyder |
 
