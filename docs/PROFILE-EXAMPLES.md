@@ -25,16 +25,30 @@ copy you distribute, and everyone who installs from it gets that environment.
 ✅ needed / available  ·  ❌ not needed / unavailable  ·  ⚠️ depends — see the
 example
 
+**What each column asks**
+
+| Column | The question | Set by |
+|---|---|---|
+| **Net** | Do the machines need to reach the public internet? | — |
+| **Index** | Is a package source configured instead of pypi.org? | `SEEDLING_PACKAGE_INDEX` |
+| **VS Code** | Does this need official VS Code and the Marketplace? | `editor`, `SEEDLING_VSCODE_FLAVOR` |
+| **Spyder** | Does this install Spyder, from PyPI? | `editor` |
+| **conda** | Does this install conda-forge command-line tools? | `tools` |
+| **CA** | Does this need a corporate CA certificate? | `vendor/certs/`, `SEEDLING_NATIVE_TLS` |
+| **Bundle** | Must you build an offline bundle first? | `build-offline` |
+| **x86_64** | Is this x86_64-only? | implied by Spyder |
+
+**Index** is the one to read carefully: ✅ means `package_index` is *set*, not
+that you need an Artifactory. For the networked examples it's a URL pointing
+at an internal mirror; for the air-gapped ones it's a *directory* of wheels on
+the share. Same setting, two very different deployments — the example says
+which. Likewise **x86_64** ✅ only ever comes from Spyder, whose Qt dependency
+publishes no arm64 wheels; every other piece runs on arm64 fine.
+
 Scanning down a column tells you which scenarios share your constraint. Each
 example then answers eleven questions rather than these eight — the three
 omitted here (bundled git, a reachable git host, a multi-user share root)
 matter less often when choosing.
-
-One column needs a word of warning: **Index ✅ means `package_index` is set,
-not that you need an Artifactory.** For the networked examples it's a URL
-pointing at an internal mirror; for the air-gapped ones it's a *directory* of
-wheels on the share. Same setting, two very different deployments — the
-example says which.
 
 ---
 
