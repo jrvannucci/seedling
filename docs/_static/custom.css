@@ -34,7 +34,24 @@
     white-space: normal;
 }
 
-/* 3. Give the first column room -- on wide screens ONLY.
+/* 3. Header cells stay on one line.
+ *
+ * Rule 2 lets every cell wrap, which is right for body text and wrong for
+ * the header: below about 900px the short column names broke across two
+ * lines, so the header row was twice the height of the rows it labels and
+ * the grid stopped reading as a grid.
+ *
+ * Headers are short by nature, so pinning them costs little: measured
+ * across every table in the docs -- including the longest header there is,
+ * "What it makes work with no internet" -- nothing overflows at desktop or
+ * tablet width. Below ~680px a wide table does scroll, but those widths
+ * scrolled already; this just keeps the header legible while it does.
+ */
+.wy-table-responsive table thead th {
+    white-space: nowrap;
+}
+
+/* 4. Give the first column room -- on wide screens ONLY.
  *
  * In the comparison matrix the example name is the only cell with real
  * text; the rest are single glyphs. Without this the browser distributes
@@ -52,7 +69,7 @@
     }
 }
 
-/* 4. Wide literal blocks (the bundle layout trees) scroll on their own
+/* 5. Wide literal blocks (the bundle layout trees) scroll on their own
  *    rather than stretching the page.
  */
 .rst-content div[class^="highlight"] pre {
