@@ -11,36 +11,25 @@ what a release involves.
 
 ## [Unreleased]
 
-### Fixed
-
-- **Wide tables no longer scroll sideways on the docs site.** The Sphinx
-  theme caps content at 800px and sets `white-space: nowrap` on table cells,
-  so 13 tables across the reference pages could only be read by scrolling —
-  the command families, the offline source table, and the new profile
-  comparison matrix among them. A `docs/_static/custom.css` widens the column
-  to 1100px and lets cells wrap; measured against the built site, that takes
-  the count from 13 to 0.
-
-  Widening alone would not have done it: with the theme's `nowrap` still in
-  place at 1100px, 9 tables still overflowed (one wanted 2615px). The
-  wrapping rule is the one that matters.
-
 ### Added
 
-- **A new [profile examples](docs/PROFILE-EXAMPLES.md) page** — complete,
-  working deployment profiles for real situations rather than a syntax tour:
-  a research group (Spyder, separate collection and analysis venvs), a
-  software team (VS Code, repos cloned and installed), a mixed team, a
-  classroom (pinned, reproducible), an air-gapped fleet (openly licensed),
-  three *networked-but-restricted* variants — internal mirrors for
-  everything, an internal PyPI and nothing else (a partial bundle with a URL
-  and directory sources side by side), and the classroom case — plus three
-  air-gapped variants — one openly licensed (VSCodium, no
-  acknowledgement needed), one for an organization that holds Marketplace
-  rights and keeps Pylance, and an everything-at-once deployment: both
-  editors, conda-forge tools, several interpreters, cloned repos, a
-  corporate CA, and a multi-user share root, with a table of which bundle
-  artifact makes each capability work offline.
+- **A new [profile examples](docs/PROFILE-EXAMPLES.md) page** — ten complete,
+  working deployment profiles for real situations, rather than a syntax tour.
+  They span the axis that actually decides a profile's shape, which is how
+  packages reach the machine:
+
+  - *public internet* — a research group (Spyder, with collection and
+    analysis venvs kept apart), a software team (VS Code, repos cloned and
+    installed), a mixed team, and a classroom (pinned and reproducible);
+  - *no internet, but internal mirrors* — a restricted corporate network,
+    which needs **no bundle at all**, and an internal PyPI and nothing else,
+    a partial bundle mixing a URL with bundled directories;
+  - *fully air-gapped* — one openly licensed (VSCodium, no acknowledgement
+    needed), one for an organization holding Marketplace rights that keeps
+    Pylance, and an everything-at-once deployment with both editors,
+    conda-forge tools, several interpreters, repos, a corporate CA and a
+    multi-user share root;
+  - *neither* — just Python, with no editor at all.
 
   The page opens with a **comparison matrix** — the ten examples as rows,
   eight constraints as columns — so you can scan down a column for the
@@ -83,6 +72,18 @@ what a release involves.
   restricting it to one.
 
 ### Fixed
+
+- **Wide tables no longer scroll sideways on the docs site.** The Sphinx
+  theme caps content at 800px and sets `white-space: nowrap` on table cells,
+  so 13 tables across the reference pages could only be read by scrolling —
+  the command families, the offline source table, and the new profile
+  comparison matrix among them. A `docs/_static/custom.css` widens the column
+  to 1100px and lets cells wrap; measured against the built site, that takes
+  the count from 13 to 0.
+
+  Widening alone would not have done it: with the theme's `nowrap` still in
+  place at 1100px, 9 tables still overflowed (one wanted 2615px). The
+  wrapping rule is the one that matters.
 
 - **A profile's `editor` was rejected by anything that hadn't imported the
   CLI.** Editors register themselves at import time, so `seedling.profile`
