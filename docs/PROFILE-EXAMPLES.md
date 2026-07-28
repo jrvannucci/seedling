@@ -455,7 +455,7 @@ a manual edit.
 ## Internal PyPI only
 
 The awkward middle: IT runs an Artifactory that proxies **PyPI and only
-PyPI**. No conda mirror, no python-build-standalone mirror, no Marketplace,
+PyPI**. No conda-forge mirror, no python-build-standalone mirror, no Marketplace,
 and a proxy that re-signs HTTPS on the way through.
 
 This is a **partial bundle**, and it is the case that shows seedling's offline
@@ -479,7 +479,7 @@ you point the one you have at a URL and bundle the three you don't:
 | Internal package index | ✅ | **the only thing reachable** -- Artifactory proxying PyPI |
 | Official VS Code + Marketplace | ❌ | Marketplace blocked, so VS Code is **bundled** instead |
 | Spyder (from PyPI) | ✅ | installs from the internal PyPI -- no bundling needed |
-| conda-forge tools | ✅ | no conda mirror, so a **bundled** conda channel |
+| conda-forge tools | ✅ | no conda-forge mirror, so a **bundled** conda channel |
 | Corporate CA certificate | ✅ | **required** -- the proxy re-signs HTTPS |
 | Bundled git (MinGit) | ✅ | `--mingit`; no git host to clone from either |
 | A reachable git host | ❌ | no `[[repo]]` entries |
@@ -492,7 +492,7 @@ you point the one you have at a URL and bundle the three you don't:
 
 python = ["3.12"]
 
-# No conda mirror here, so these come from the bundled channel.
+# No conda-forge mirror here, so these come from the bundled channel.
 tools = ["ripgrep", "pandoc"]
 
 # Two editors, sourced two different ways: VS Code is pre-seeded into the
@@ -608,7 +608,7 @@ offline-bundle/                    -> copied to S:\seedling
 ├── python-builds/                 no PBS mirror internally, so bundled
 │   └── 20250115/
 │       └── cpython-3.12.8+2025...-x86_64-pc-windows-msvc-install_only.tar.gz
-├── conda-channel/                 no conda mirror internally, so bundled
+├── conda-channel/                 no conda-forge mirror internally, so bundled
 │   ├── noarch/repodata.json
 │   └── win-64/
 │       ├── repodata.json
