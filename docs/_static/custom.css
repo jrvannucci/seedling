@@ -1,0 +1,60 @@
+/* seedling docs -- layout tweaks on top of sphinx_rtd_theme.
+ *
+ * Both rules exist for the same reason: the reference pages are full of
+ * wide tables (the profile comparison matrix is nine columns, the command
+ * reference has a two-column table per command), and the stock theme makes
+ * every one of them scroll sideways. A table you have to scroll to read is
+ * a table nobody compares rows in, which is the whole point of having it.
+ */
+
+/* 1. Content column.
+ *
+ * The theme caps this at 800px, which was chosen for prose and is narrower
+ * than most of our tables want. 1100px fits the nine-column matrix without
+ * a scrollbar while keeping paragraphs short enough to read comfortably --
+ * removing the cap entirely would give 2000px lines on a wide monitor,
+ * which is worse than the problem being solved.
+ */
+.wy-nav-content {
+    max-width: 1100px;
+}
+
+/* 2. Table cells wrap.
+ *
+ * sphinx_rtd_theme sets `white-space: nowrap` on every cell, so a table
+ * grows to whatever its longest cell needs and the container scrolls. With
+ * normal wrapping, cells reflow and the scrollbar almost never appears.
+ *
+ * .wy-table-responsive keeps `overflow-x: auto` from the theme on purpose:
+ * it is now a fallback for content that genuinely cannot wrap (a long URL,
+ * an unbroken path) rather than the default experience.
+ */
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
+}
+
+/* 3. Give the first column room -- on wide screens ONLY.
+ *
+ * In the comparison matrix the example name is the only cell with real
+ * text; the rest are single glyphs. Without this the browser distributes
+ * width evenly and wraps the names for no reason.
+ *
+ * Behind a breakpoint because measuring it showed the opposite effect on a
+ * phone: at a 340px content width this floor forced tables wider than the
+ * screen and tripled the number that scroll (6 -> 19). Above 768px it costs
+ * nothing and reads better.
+ */
+@media screen and (min-width: 768px) {
+    .wy-table-responsive table td:first-child,
+    .wy-table-responsive table th:first-child {
+        min-width: 12em;
+    }
+}
+
+/* 4. Wide literal blocks (the bundle layout trees) scroll on their own
+ *    rather than stretching the page.
+ */
+.rst-content div[class^="highlight"] pre {
+    overflow-x: auto;
+}

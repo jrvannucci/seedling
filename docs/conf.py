@@ -59,6 +59,13 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 html_theme = "sphinx_rtd_theme"
 html_title = "seedling"
 
+# custom.css widens the content column and lets table cells wrap, so the
+# wide reference tables (the profile comparison matrix, the command
+# reference) render without a horizontal scrollbar. See the file for why
+# each rule is there.
+html_static_path = ["_static"]
+html_css_files = ["custom.css"]
+
 
 def _generate_home(*_args) -> None:
     """Write ``docs/index.md`` from the repo README, rewriting its
