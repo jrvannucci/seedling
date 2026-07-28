@@ -170,6 +170,21 @@ def make_venv_dirs(home: Path, *names: str) -> None:
         (venv / "pyvenv.cfg").write_text("version = 3.12.0\n")
 
 
+def fake_uv(monkeypatch, returncode: int = 0) -> list[list[str]]:
+    """Replace uv_tool.run with a recorder that returns a real
+    CompletedProcess, so callers that check the exit code behave as they
+    would against uv itself. Returns the list of argument lists seen."""
+    from seedling import uv_tool
+    calls: list[list[str]] = []
+
+    def _run(args, **kwargs):
+        calls.append(list(args))
+        return subprocess.CompletedProcess(list(args), returncode)
+
+    monkeypatch.setattr(uv_tool, "run", _run)
+    return calls
+
+
 def make_base_python(home: Path, tag: str, dirname: str) -> Path:
     """Fake base-python install with a matching alias file and a
     platform-appropriate interpreter -- python.exe on Windows, bin/python3 on

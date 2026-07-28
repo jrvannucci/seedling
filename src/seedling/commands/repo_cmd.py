@@ -4,7 +4,7 @@ import os
 import platform
 import subprocess
 
-from .. import confirm, paths, uv_tool, git_tool, fsutil
+from .. import confirm, lock, paths, uv_tool, git_tool, fsutil, venv_target
 from . import vscode_cmd
 
 
@@ -212,7 +212,7 @@ def vscode_repo(args) -> int:
 def install_repo(args) -> int:
     name = getattr(args, "name", None)
     if not name:
-        print("Usage: seed repo-install <name>")
+        print("Usage: seed repo-install <name> [--venv <name>]")
         return 1
 
     target = paths.repo_dir(name)
@@ -220,22 +220,50 @@ def install_repo(args) -> int:
         print(f"No repo named '{name}' found in {paths.REPO_DIR}")
         return 1
 
-    if not os.environ.get("VIRTUAL_ENV"):
+    # Which environment gets it. A named venv is resolved here and its
+    # interpreter passed to uv explicitly, so the answer can't depend on what
+    # happens to be active -- that's what lets `seed apply` install one repo
+    # into several venvs in a row. With no name this keeps following
+    # VIRTUAL_ENV exactly as `seed install` does.
+    requested = getattr(args, "venv", None)
+    venv_python = None
+    venv_path = None
+    if requested:
+        resolved, failure = venv_target.resolve(requested)
+        if failure is not None:
+            print(f"error: {failure}")
+            return 1
+        venv_python, venv_path = resolved.python, resolved.path
+    elif not os.environ.get("VIRTUAL_ENV"):
         print("Note: no venv looks active (VIRTUAL_ENV isn't set). "
               "Run `seed activate <name>` first, or uv will fall back to "
               "whatever it can find (e.g. a .venv in the current directory).")
+
+    where = f" into '{requested}'" if requested else ""
+    interpreter = ["--python", str(venv_python)] if venv_python else []
 
     pyproject = target / "pyproject.toml"
     requirements = target / "requirements.txt"
 
     if pyproject.exists():
-        print(f"Installing '{name}' (editable) via `uv pip install -e` ...")
-        uv_tool.run(["pip", "install", "-e", str(target)])
+        print(f"Installing '{name}' (editable){where} via `uv pip install -e` ...")
+        command = ["pip", "install", *interpreter, "-e", str(target)]
     elif requirements.exists():
-        print(f"Installing dependencies from {requirements} ...")
-        uv_tool.run(["pip", "install", "-r", str(requirements)])
+        print(f"Installing dependencies from {requirements}{where} ...")
+        command = ["pip", "install", *interpreter, "-r", str(requirements)]
     else:
         print(f"Nothing to install: no pyproject.toml or requirements.txt found in {target}.")
         return 1
 
+    # Serialized like every other write into a venv: unpacking two
+    # distributions into one site-packages can leave a half-written one behind.
+    guard = lock.venv_lock(venv_path) if venv_path else lock.active_venv_lock()
+    with guard:
+        result = uv_tool.run(command, check=False)
+    # check=False, then report: a failed install has to come back as an exit
+    # code so `seed apply` can name it and carry on with the rest of the
+    # profile, rather than aborting the whole run on an exception.
+    if result.returncode != 0:
+        print(f"Install of '{name}' failed.")
+        return 1
     return 0

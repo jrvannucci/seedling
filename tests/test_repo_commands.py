@@ -8,7 +8,7 @@ import subprocess
 
 import pytest
 
-from conftest import GIT, needs_git
+from conftest import GIT, fake_uv, make_venv_dirs, needs_git
 from seedling.commands import repo_cmd
 
 
@@ -73,13 +73,59 @@ def test_repo_install_picks_pyproject_over_requirements(run_cli, home, monkeypat
     repo.mkdir(parents=True)
     (repo / "pyproject.toml").write_text("[project]\nname='x'\n")
     (repo / "requirements.txt").write_text("requests\n")
-    calls = []
-    from seedling import uv_tool
-    monkeypatch.setattr(uv_tool, "run", lambda args, **kw: calls.append(args))
+    calls = fake_uv(monkeypatch)
     monkeypatch.setenv("VIRTUAL_ENV", "something")
     code, out = run_cli("repo-install", "proj")
     assert code == 0
     assert calls and calls[0][:3] == ["pip", "install", "-e"]
+
+
+def test_repo_install_reports_a_failed_uv_run(run_cli, home, monkeypatch):
+    """The exit code has to carry a failed install out: `seed apply` names
+    the step that didn't finish and carries on with the rest of the profile,
+    which it can't do if uv's failure escapes as an exception."""
+    repo = home / "repo" / "proj"
+    repo.mkdir(parents=True)
+    (repo / "requirements.txt").write_text("requests\n")
+    fake_uv(monkeypatch, returncode=1)
+    monkeypatch.setenv("VIRTUAL_ENV", "something")
+    code, out = run_cli("repo-install", "proj")
+    assert code == 1
+    assert "failed" in out
+
+
+class TestRepoInstallVenv:
+    """`--venv` names the environment outright, so the install can't depend
+    on what happens to be active -- what lets `seed apply` put one repo into
+    several venvs in a row."""
+
+    def _repo(self, home):
+        repo = home / "repo" / "proj"
+        repo.mkdir(parents=True)
+        (repo / "pyproject.toml").write_text("[project]\nname='proj'\n")
+        return repo
+
+    def test_named_venv_is_passed_to_uv_as_an_interpreter(
+            self, run_cli, home, monkeypatch):
+        self._repo(home)
+        make_venv_dirs(home, "analysis")
+        calls = fake_uv(monkeypatch)
+        # Deliberately active elsewhere: the flag must win.
+        monkeypatch.setenv("VIRTUAL_ENV", str(home / "python" / "venvs" / "dev"))
+        code, out = run_cli("repo-install", "proj", "--venv", "analysis")
+        assert code == 0
+        assert "--python" in calls[0]
+        target = calls[0][calls[0].index("--python") + 1]
+        assert "analysis" in target
+
+    def test_an_unknown_venv_is_an_error_not_a_fallback(
+            self, run_cli, home, monkeypatch):
+        self._repo(home)
+        calls = fake_uv(monkeypatch)
+        code, out = run_cli("repo-install", "proj", "--venv", "ghost")
+        assert code == 1
+        assert "no venv named 'ghost'" in out
+        assert not calls, "nothing may be installed into a guessed venv"
 
 
 @needs_git

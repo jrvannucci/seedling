@@ -167,11 +167,13 @@ packages = ["pytest", "requests"]
 
 [[repo]]
 url = "https://github.com/acme/platform.git"
-install = true          # editable install into the active venv
+install = "dev"         # editable install into the dev venv
 
+# The shared library is developed against from both environments, so it's
+# named for both rather than left to whichever venv happens to be the default.
 [[repo]]
 url = "https://github.com/acme/shared-lib.git"
-install = true
+install = ["dev", "legacy"]
 
 [config]
 vscode_extensions = [
@@ -187,9 +189,10 @@ vscode_extensions = [
 - `python = ["3.12", "3.11"]` first, then each venv names its base with
   `python = "312"` / `"311"`. A venv can only build from an interpreter the
   profile installs.
-- `install = true` runs the equivalent of `seed repo-install` after cloning —
-  an editable install when the repo has a `pyproject.toml`, otherwise its
-  `requirements.txt`.
+- `install` names the venvs to run the equivalent of `seed repo-install` in
+  after cloning — an editable install when the repo has a `pyproject.toml`,
+  otherwise its `requirements.txt`. One name or a list; rebuild one of those
+  venvs later and `seed apply` installs the repo into it again.
 - `vscode_extensions` **replaces** the built-in starter kit rather than adding
   to it, so list everything you want, including the Python extension.
 
@@ -348,7 +351,7 @@ default = true
 
 [[repo]]
 url = "https://gitlab.corp.example/data/toolkit.git"
-install = true
+install = "work"
 
 [config]
 default_venv = "work"
@@ -976,11 +979,13 @@ default_packages = false
 
 [[repo]]
 url = "https://git.corp.example/platform/toolkit.git"
-install = true
+install = "dev"
 
+# Each repo names the environment it belongs in, rather than following
+# whichever venv happens to be the default.
 [[repo]]
 url = "https://git.corp.example/platform/analysis-lib.git"
-install = true
+install = "analysis"
 
 # --- settings pushed to every machine -------------------------------------
 

@@ -802,9 +802,10 @@ seed repo-open some-project
 seed repo-open
 ```
 
-## `seed repo-install <name>`
+## `seed repo-install <name> [--venv NAME]`
 
-Installs a cloned repo's dependencies into the currently active venv:
+Installs a cloned repo's dependencies into a venv — the active one by
+default, or the one you name:
 
 - If the repo has a `pyproject.toml`, runs `uv pip install -e <repo>`
   (editable install — changes you make in the cloned repo take effect
@@ -813,12 +814,19 @@ Installs a cloned repo's dependencies into the currently active venv:
 - Otherwise, if it has a `requirements.txt`, runs
   `uv pip install -r <repo>/requirements.txt`.
 - If neither file exists, fails with a message rather than guessing.
-- Same `VIRTUAL_ENV` warning as `seed install` if nothing is active.
+- `--venv NAME` (`-n`) installs into that venv whatever this shell has
+  active, and fails if there's no such venv rather than falling back to
+  another one. Without it, the same `VIRTUAL_ENV` warning as `seed install`
+  if nothing is active.
 
 ```
 seed activate myproject
 seed repo-install some-project
+seed repo-install some-project --venv analysis
 ```
+
+A profile can declare the same thing for a fleet — see
+[`[[repo]] install`](PROFILES.md#reference).
 
 ## `seed remove-repo <name> [-y]`
 
@@ -1211,7 +1219,9 @@ organization has standardized on.
 - **Never destroys.** An existing venv is left exactly as it is. `--force`
   installs the profile's *missing* packages into it; nothing is ever removed
   or recreated. Deleting is `seed remove-venv`, run on purpose. An existing
-  repo is likewise never pulled or re-installed, only cloned when absent.
+  clone is likewise never pulled, only cloned when absent — though a repo the
+  profile installs is installed again into any of its venvs that doesn't have
+  it, so rebuilding a venv brings the repo back with it.
 - **Settings are the exception**: a key in the profile's `[config]`, and the
   default venv, are rewritten whenever this machine's value differs. See
   [what apply will and won't do](PROFILES.md#what-apply-will-and-wont-do)
