@@ -98,6 +98,23 @@ def test_run_inside_a_venv(home, tmp_path, monkeypatch, capfd):
     assert "FROM_THE_VENV" in capfd.readouterr().out
 
 
+def test_run_command_not_found_in_venv_is_an_error(run_cli, home, tmp_path):
+    """Distinct from an unknown venv: the venv resolves fine, but `run`'s
+    program isn't installed in it -- custom_cmd.py's own copy of this
+    message (run_cmd.py has an identical one for `seed run`, tested
+    separately)."""
+    make_venv_dirs(home, "dev")
+    _write_toml(tmp_path, '''
+        [[command]]
+        name = "probe"
+        run = ["definitely-not-a-real-executable"]
+        venv = "dev"
+    ''')
+    code, out = run_cli("custom", "probe")
+    assert code == 127
+    assert "command not found in venv 'dev': definitely-not-a-real-executable" in out
+
+
 def test_run_unknown_venv_is_an_error(run_cli, home, tmp_path):
     _write_toml(tmp_path, '''
         [[command]]
