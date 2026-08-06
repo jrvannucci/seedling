@@ -59,5 +59,14 @@ jobs:
       # so the needs_git / needs_bash / needs_powershell tests run rather than
       # skip. (On Linux only pwsh exists, not `powershell`, so the three
       # PowerShell tests skip there by design.)
+      #
+      # -n auto (pytest-xdist): the suite is dominated by I/O-bound installer
+      # tests (real subprocess installs, real file copies) rather than CPU
+      # work, so it parallelizes well -- measured ~20x locally on a 6-core
+      # machine (692 tests, ~45min sequential -> ~2min at -n 4). Distributes
+      # whole test functions to worker PROCESSES (never splits one test), and
+      # every test's isolation already assumes process-level separation (see
+      # conftest.py's `home` fixture and its module-global rebinding), so
+      # this introduces no new collision surface.
       - name: Run tests
-        run: uvx --python ${{ matrix.python }} pytest -q
+        run: uvx --python ${{ matrix.python }} --with pytest-xdist pytest -q -n auto

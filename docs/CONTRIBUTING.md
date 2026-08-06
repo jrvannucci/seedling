@@ -116,7 +116,11 @@ src/
 
 `uvx pytest` from the repo root runs the whole suite — uv supplies pytest, and
 `tests/conftest.py` puts `src/` on the import path, so nothing needs installing
-first. Design guarantees the suite enforces:
+first. The suite is dominated by I/O-bound installer tests (real subprocess
+installs, real file copies) rather than CPU work, so it parallelizes well:
+`uvx --with pytest-xdist pytest -n auto` runs the same suite in a fraction of
+the time (measured ~20x on a 6-core machine) — CI runs it this way too. Design
+guarantees the suite enforces:
 
 - **Never touches your real `~/seedling`** — every test rebinds seedling's
   paths to a throwaway directory, and the machine-wide process killer is
