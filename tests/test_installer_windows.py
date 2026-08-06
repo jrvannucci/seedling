@@ -16,6 +16,7 @@ can't be compiled.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -115,6 +116,58 @@ def test_offline_conf_is_seeded_into_settings(ps_install_env):
     settings = _settings(home)
     assert settings["package_index"] == r"S:\share\wheels"
     assert settings["vscode_flavor"] == "vscodium"
+
+
+def test_startup_commands_recorded_as_a_list(ps_install_env):
+    copy, home, fake_profile, run = ps_install_env
+    _write_conf(copy,
+                SEEDLING_STARTUP_COMMANDS="check-mirror, motd",
+                SEEDLING_AUTO_SETUP="false")
+    result = run()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _settings(home)["startup_commands"] == ["check-mirror", "motd"]
+
+
+def test_startup_commands_absent_when_unset(ps_install_env):
+    copy, home, fake_profile, run = ps_install_env
+    result = run({"SEEDLING_AUTO_SETUP": "false"})
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "startup_commands" not in (_settings(home) or {})
+
+
+def test_custom_commands_file_is_recorded(ps_install_env):
+    copy, home, fake_profile, run = ps_install_env
+    (copy / "custom-commands.toml").write_text(
+        '[[command]]\nname = "lint"\nrun = ["x"]\n', encoding="utf-8")
+    _write_conf(copy,
+                SEEDLING_CUSTOM_COMMANDS="custom-commands.toml",
+                SEEDLING_AUTO_SETUP="false")
+    result = run()
+    assert result.returncode == 0, result.stdout + result.stderr
+    settings = _settings(home)
+    assert settings["custom_commands"].endswith("custom-commands.toml")
+    assert "system" in settings["custom_commands"].replace("\\", "/")
+
+
+def test_conf_sourced_script_sibling_survives_the_copy(ps_install_env):
+    """A `script = "..."` entry resolves relative to wherever
+    custom-commands.toml itself ends up -- the conf-sourced path lives
+    inside the whole-repo copy install.ps1 already makes, so a sibling
+    script file rides along for free."""
+    copy, home, fake_profile, run = ps_install_env
+    (copy / "custom-commands.toml").write_text(
+        '[[command]]\nname = "greet"\nscript = "scripts/greet.py"\n',
+        encoding="utf-8")
+    (copy / "scripts").mkdir()
+    (copy / "scripts" / "greet.py").write_text("print('hi')\n")
+    _write_conf(copy,
+                SEEDLING_CUSTOM_COMMANDS="custom-commands.toml",
+                SEEDLING_AUTO_SETUP="false")
+    result = run()
+    assert result.returncode == 0, result.stdout + result.stderr
+    recorded = _settings(home)["custom_commands"]
+    script = Path(recorded).parent / "scripts" / "greet.py"
+    assert script.is_file(), f"expected the sibling script at {script}"
 
 
 # --- deployment profiles (the freshest, most intricate PS logic) -----------

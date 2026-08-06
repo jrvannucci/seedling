@@ -20,6 +20,7 @@ ALL_COMMANDS = [
     "install", "uninstall", "package-list",
     "app-install", "app-list", "app-remove",
     "tool", "tool-install", "tool-list", "tool-remove",
+    "custom",
     "download-whl", "download-requirements", "download-tool",
     "repo-clone", "repo-list", "repo-cd", "vscode-repo", "spyder-repo",
     "repo-open", "repo-install", "remove-repo",
@@ -229,6 +230,28 @@ def test_config_show_get_set_unset(run_cli, home):
     assert config.get("venv_default_packages") == ["ipython", "ruff", "ipykernel"]
     code, out = run_cli("config", "set", "bogus_key", "x")
     assert code == 1 and "Unknown key" in out
+
+
+def test_config_set_startup_commands_roundtrip(run_cli, home):
+    code, out = run_cli("config", "set", "startup_commands", "greet, sync")
+    assert code == 0
+    assert config.get("startup_commands") == ["greet", "sync"]
+    code, out = run_cli("config", "get", "startup_commands")
+    assert out.strip().endswith("greet,sync")
+    code, out = run_cli("config", "unset", "startup_commands")
+    assert config.get("startup_commands") == []
+
+
+def test_config_set_startup_commands_warns_on_unknown_name(run_cli, home):
+    """A name that isn't declared in custom_commands is a warning, not a
+    rejection -- the org may be about to declare it, and a typo here must
+    still leave the shell able to `seed config get` it back to see what's
+    actually stored."""
+    code, out = run_cli("config", "set", "startup_commands", "ghost")
+    assert code == 0
+    assert "not currently declared" in out
+    assert "ghost" in out
+    assert config.get("startup_commands") == ["ghost"]
 
 
 def test_auto_activate_toggles_and_shows(run_cli, home):

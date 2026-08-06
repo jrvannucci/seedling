@@ -94,6 +94,47 @@ def test_repo_install_reports_a_failed_uv_run(run_cli, home, monkeypatch):
     assert "failed" in out
 
 
+class TestRepoInstallExtras:
+    """`seed repo-install proj[gui]` -- extras spelled exactly as on a
+    package spec, and passed through to uv on the editable path."""
+
+    def _repo(self, home, manifest="pyproject.toml"):
+        repo = home / "repo" / "proj"
+        repo.mkdir(parents=True)
+        (repo / manifest).write_text("[project]\nname='proj'\n")
+        return repo
+
+    @pytest.mark.parametrize("spec", ["proj[gui", "proj[gui]x", "proj[]",
+                                      "proj[gui,]", "[gui]"])
+    def test_a_malformed_spec_installs_nothing(
+            self, spec, run_cli, home, monkeypatch):
+        self._repo(home)
+        calls = fake_uv(monkeypatch)
+        monkeypatch.setenv("VIRTUAL_ENV", "something")
+        code, out = run_cli("repo-install", spec)
+        assert code == 1 and "error:" in out
+        assert not calls
+
+    def test_extras_ride_on_the_editable_path(self, run_cli, home, monkeypatch):
+        repo = self._repo(home)
+        calls = fake_uv(monkeypatch)
+        monkeypatch.setenv("VIRTUAL_ENV", "something")
+        code, out = run_cli("repo-install", "proj[gui,dev]")
+        assert code == 0
+        assert calls[0][-1] == f"{repo}[gui,dev]"
+
+    def test_extras_on_a_requirements_only_repo_are_refused(
+            self, run_cli, home, monkeypatch):
+        """Dropping them silently would install something other than what
+        was asked for."""
+        self._repo(home, manifest="requirements.txt")
+        calls = fake_uv(monkeypatch)
+        monkeypatch.setenv("VIRTUAL_ENV", "something")
+        code, out = run_cli("repo-install", "proj[gui]")
+        assert code == 1 and "no extras" in out
+        assert not calls
+
+
 class TestRepoInstallVenv:
     """`--venv` names the environment outright, so the install can't depend
     on what happens to be active -- what lets `seed apply` put one repo into

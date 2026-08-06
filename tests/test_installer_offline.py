@@ -7,6 +7,7 @@ CA bundles, auto-setup, hook management. No network is touched anywhere.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -173,6 +174,69 @@ class TestOrgConf:
         assert "native_tls" not in s
         env_log = home / "system" / "bin" / "uv-env.log"
         assert "UV_NATIVE_TLS" not in (env_log.read_text() if env_log.exists() else "")
+
+
+class TestCustomCommandsAndStartup:
+    """SEEDLING_CUSTOM_COMMANDS and SEEDLING_STARTUP_COMMANDS, wired the
+    same way as SEEDLING_PROFILE (conf-sourced paths resolve against the
+    copied source tree; a plain comma list becomes a JSON array, same as
+    SEEDLING_VENV_DEFAULT_PACKAGES)."""
+
+    def test_custom_commands_file_is_recorded(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        (copy / "custom-commands.toml").write_text(
+            '[[command]]\nname = "lint"\nrun = ["x"]\n', encoding="utf-8")
+        _write_conf(
+            copy,
+            SEEDLING_CUSTOM_COMMANDS="custom-commands.toml",
+            SEEDLING_AUTO_SETUP="false",
+        )
+        result = run_install()
+        assert result.returncode == 0, result.stdout + result.stderr
+        settings = _settings(home)
+        assert settings["custom_commands"].endswith("custom-commands.toml")
+        # Recorded against the copy inside ~/seedling, like `profile` -- so
+        # it keeps working after the install share goes away.
+        assert "system" in settings["custom_commands"].replace("\\", "/")
+
+    def test_conf_sourced_script_sibling_survives_the_copy(self, install_env):
+        """A `script = "..."` entry is resolved relative to wherever
+        custom-commands.toml itself ends up -- proving that matters: the
+        conf-sourced path lives inside the whole-repo copy install.sh
+        already makes, so a sibling script file rides along for free, with
+        no separate directory setting to keep in sync."""
+        copy, fake_home, home, run_install = install_env
+        (copy / "custom-commands.toml").write_text(
+            '[[command]]\nname = "greet"\nscript = "scripts/greet.py"\n',
+            encoding="utf-8")
+        (copy / "scripts").mkdir()
+        (copy / "scripts" / "greet.py").write_text("print('hi')\n")
+        _write_conf(
+            copy,
+            SEEDLING_CUSTOM_COMMANDS="custom-commands.toml",
+            SEEDLING_AUTO_SETUP="false",
+        )
+        result = run_install()
+        assert result.returncode == 0, result.stdout + result.stderr
+        recorded = _settings(home)["custom_commands"]
+        script = Path(recorded).parent / "scripts" / "greet.py"
+        assert script.is_file(), f"expected the sibling script at {script}"
+
+    def test_startup_commands_recorded_as_a_list(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        _write_conf(
+            copy,
+            SEEDLING_STARTUP_COMMANDS="check-mirror, motd",
+            SEEDLING_AUTO_SETUP="false",
+        )
+        result = run_install()
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert _settings(home)["startup_commands"] == ["check-mirror", "motd"]
+
+    def test_startup_commands_absent_when_unset(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        run_install("SEEDLING_AUTO_SETUP=false")
+        assert "startup_commands" not in (_settings(home) or {})
 
 
 class TestProfile:

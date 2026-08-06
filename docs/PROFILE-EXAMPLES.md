@@ -171,9 +171,11 @@ install = "dev"         # editable install into the dev venv
 
 # The shared library is developed against from both environments, so it's
 # named for both rather than left to whichever venv happens to be the default.
+# Its test extra is wanted on 3.12 only -- extras attach to the venv they're
+# for, so one clone lands differently in each.
 [[repo]]
 url = "https://github.com/acme/shared-lib.git"
-install = ["dev", "legacy"]
+install = ["dev[test]", "legacy"]
 
 [config]
 vscode_extensions = [
@@ -195,6 +197,36 @@ vscode_extensions = [
   venvs later and `seed apply` installs the repo into it again.
 - `vscode_extensions` **replaces** the built-in starter kit rather than adding
   to it, so list everything you want, including the Python extension.
+
+**Team shortcuts, as [custom commands](CUSTOM-COMMANDS.md).** `ruff` and
+`pytest` are already in `dev`'s packages above — declaring `seed lint` and
+`seed test` as one-line wrappers means a new hire's first commands work
+without them ever discovering the underlying tool names:
+
+```toml
+# custom-commands.toml -- next to seedling-profile.toml in the distributed copy
+[[command]]
+name = "lint"
+run = ["ruff", "check", "."]
+venv = "dev"
+description = "Lint the current project"
+
+[[command]]
+name = "test"
+run = ["pytest", "-q"]
+venv = "dev"
+description = "Run the test suite"
+```
+
+Wired in `seedling.conf` next to `SEEDLING_PROFILE`:
+
+```sh
+SEEDLING_CUSTOM_COMMANDS="custom-commands.toml"
+```
+
+`venv = "dev"` pins both to the `dev` venv regardless of what's active in the
+caller's shell — the same reasoning `[[repo]] install` names venvs explicitly
+rather than trusting whatever happens to be the default.
 
 **Vendor folder:** none. Everything downloads on demand.
 
@@ -296,7 +328,46 @@ default_packages = false
 - `default_packages = false` keeps the environment to exactly what's listed.
   Note that `seed spyder` still adds `spyder-kernels` — that's required for
   its console to connect at all, not an extra.
-- Rebuilding a broken machine is `seed remove-venv phys201 && seed apply`.
+- Rebuilding a broken machine is `seed remove-venv phys201 && seed apply` --
+  or, with the [custom command](CUSTOM-COMMANDS.md) below, `seed reset`.
+
+**`seed reset`, so a student never has to remember the two-command recipe.**
+This is the [`script` shape](CUSTOM-COMMANDS.md#the-script-shape) rather
+than `run`, because it chains two `seed` operations rather than running a
+single fixed one — and `toplevel = true`
+([making a command top-level](CUSTOM-COMMANDS.md#making-a-command-top-level))
+means it really is just the one word to type, not `seed custom reset`:
+
+```toml
+# custom-commands.toml -- next to seedling-profile.toml
+[[command]]
+name = "reset"
+script = "reset.py"
+description = "Rebuild the phys201 venv from scratch"
+toplevel = true
+```
+
+```python
+# reset.py, next to custom-commands.toml
+import subprocess, sys
+
+def main(argv):
+    subprocess.run(["seed", "remove-venv", "phys201", "-y"], check=True)
+    subprocess.run(["seed", "apply"], check=True)
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
+```
+
+```sh
+# seedling.conf
+SEEDLING_CUSTOM_COMMANDS="custom-commands.toml"
+```
+
+No SDK, no special orchestration API — the script shells out to `seed`
+itself, the same two commands from the bullet point above, just one word for
+a student to type and remember: `seed reset`.
 
 **Vendor folder:** none, assuming the lab machines have internet during setup.
 If they don't, build a bundle instead — see
@@ -409,6 +480,33 @@ prone to:
 ```
 seed health-check
 ```
+
+**Make that check run for every user, every terminal, automatically.** This
+is the shape's real failure mode day-to-day: someone's VPN drops, or a
+mirror goes down for maintenance, and their `seed install` just times out
+with no obvious cause. A [startup command](CUSTOM-COMMANDS.md) turns
+"check it before rollout" into "it's already been checked by the time you
+notice something's wrong":
+
+```toml
+# custom-commands.toml -- next to seedling-profile.toml
+[[command]]
+name = "check-mirror"
+run = ["seed", "health-check"]
+description = "Verify the internal mirrors and CA bundle are reachable"
+```
+
+```sh
+# seedling.conf
+SEEDLING_CUSTOM_COMMANDS="custom-commands.toml"
+SEEDLING_STARTUP_COMMANDS="check-mirror"
+```
+
+Every new terminal now runs it automatically. If a mirror is unreachable,
+the shell still opens — a failing startup command warns and moves on, never
+locks anyone out — but the warning is right there when they open the
+terminal, not buried in a confusing `seed install` failure five minutes
+later.
 
 ---
 

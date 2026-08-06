@@ -25,7 +25,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import config
+from . import config, pkgspec
 
 # Bumped only when an older seed-cli could MISREAD a newer profile. Additive
 # keys don't need it; changed meanings do.
@@ -61,12 +61,32 @@ class Venv:
 
 
 @dataclass
+class RepoTarget:
+    """One venv a repo is installed into, and the extras it gets there.
+
+    Per-target rather than per-repo because that's how teams actually use one
+    repo: the venv the app runs in wants `[gui]`, the batch venv on a headless
+    box must not have it, and both are the same clone."""
+    venv: str
+    extras: list[str] = field(default_factory=list)
+
+    @property
+    def spec_suffix(self) -> str:
+        return f"[{','.join(self.extras)}]" if self.extras else ""
+
+
+@dataclass
 class Repo:
     url: str
-    # The venvs this repo is installed into, in declared order. Empty means
-    # clone only -- there is no separate "install?" flag, because `install`
-    # names its targets outright and an empty list of targets IS "don't".
-    venvs: list[str] = field(default_factory=list)
+    # Where this repo is installed, in declared order. Empty means clone only
+    # -- there is no separate "install?" flag, because `install` names its
+    # targets outright and an empty list of targets IS "don't".
+    targets: list[RepoTarget] = field(default_factory=list)
+
+    @property
+    def venvs(self) -> list[str]:
+        """Just the venv names, for the callers that don't care about extras."""
+        return [t.venv for t in self.targets]
 
 
 @dataclass
@@ -126,12 +146,19 @@ def _str_list(raw, where: str) -> list[str]:
     return out
 
 
-def _repo_venvs(value, url: str) -> list[str]:
-    """Read a `[[repo]] install` value into the venvs to install into.
+def _repo_targets(value, url: str) -> list[RepoTarget]:
+    """Read a `[[repo]] install` value into the targets to install into.
 
-        install = "analysis"      -- that venv
-        install = ["dev", "ml"]   -- each of them, in that order
-        (key omitted)             -- clone only
+        install = "analysis"           -- that venv
+        install = ["dev", "ml"]        -- each of them, in that order
+        install = ["dev[gui,test]"]    -- ...with those extras, there
+        (key omitted)                  -- clone only
+
+    Extras hang off the target rather than the repo because the same clone is
+    routinely wanted with different optional dependencies in different venvs.
+    They are spelled exactly as on the command line (`seed repo-install
+    plotpress[gui]`) and as in a requirements file, so there is one bracket
+    syntax to know rather than a profile-only one.
 
     `install` is a list of venvs and nothing else. Neither bool is accepted,
     though both once were:
@@ -163,14 +190,31 @@ def _repo_venvs(value, url: str) -> list[str]:
     _require(bool(value),
              f"repo {url!r}: install = [] names no venv -- leave the install "
              f"key out to clone without installing")
-    targets: list[str] = []
+    targets: list[RepoTarget] = []
     for item in value:
         _require(isinstance(item, str) and item.strip(),
                  f"repo {url!r}: every venv named by install must be a "
                  f"non-empty string")
-        name = item.strip()
-        if name not in targets:
-            targets.append(name)
+        try:
+            name, extras = pkgspec.split_extras(item.strip())
+        except pkgspec.BadExtras as e:
+            raise ProfileError(f"repo {url!r}: install {e}") from e
+        _require(bool(name),
+                 f"repo {url!r}: install entry {item.strip()!r} names no venv "
+                 f"-- extras go after the venv: \"dev[gui]\"")
+        existing = next((t for t in targets if t.venv == name), None)
+        if existing is not None:
+            # A repeat of the same venv still collapses, as it always has --
+            # but only when the two entries agree. Two different sets of
+            # extras for one venv have no first-listed-wins answer worth
+            # guessing at, and guessing would install something other than
+            # what one of the lines asks for.
+            _require(existing.extras == extras,
+                     f"repo {url!r}: install names venv {name!r} twice with "
+                     f"different extras -- put every extra for a venv in one "
+                     f"entry: \"{name}[a,b]\"")
+            continue
+        targets.append(RepoTarget(venv=name, extras=extras))
     return targets
 
 
@@ -235,15 +279,15 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
         _require(isinstance(url, str) and url.strip(),
                  "every [[repo]] needs a non-empty url")
         url = url.strip()
-        targets = _repo_venvs(entry.get("install"), url)
+        targets = _repo_targets(entry.get("install"), url)
         # A named venv must be one the profile declares. Otherwise the repo
         # lands nowhere on every machine in the fleet, and the admin hears
         # about it one user at a time -- the same reasoning as `default_venv`.
         for target in targets:
-            _require(target in names,
-                     f"repo {url!r}: install names venv {target!r}, which "
+            _require(target.venv in names,
+                     f"repo {url!r}: install names venv {target.venv!r}, which "
                      f"this profile doesn't declare")
-        profile.repos.append(Repo(url=url, venvs=targets))
+        profile.repos.append(Repo(url=url, targets=targets))
 
     profile.tools = _str_list(raw.get("tools", []), "tools")
 

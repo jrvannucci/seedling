@@ -41,6 +41,59 @@ what a release involves.
 
 ### Added
 
+- **`seed custom [name] [args...]`** — let an organization add its own
+  commands, one `[[command]]` entry per command in a single
+  `custom-commands.toml`: `run = [...]` (a fixed argv, an optional `venv`,
+  an optional `description`) for the simple case, or `script = "..."` (a
+  `.py`/`.sh`/`.ps1` file, resolved relative to the TOML file's own
+  directory) for anything that needs real logic or to chain several `seed`
+  subcommands together — orchestration scripts don't get a special API,
+  they just shell out to `seed` itself (`seed venv ...`, `seed run -n
+  <venv> -- ...`), the same thing `seed apply` already does internally. A
+  command marked `toplevel = true` also runs as bare `seed <name>`, with
+  built-in commands always winning any name collision. Configured via
+  `custom_commands`. See [docs/CUSTOM-COMMANDS.md](docs/CUSTOM-COMMANDS.md).
+
+- **`startup_commands`** — custom command names run automatically, in order,
+  by every new shell, for an offline organization that wants a standard
+  startup routine (a connectivity check, a sync, a reminder) with nothing
+  for users to remember or type: `seed config set startup_commands
+  "check-mirror,motd"`, or `SEEDLING_STARTUP_COMMANDS` in `seedling.conf`
+  for a whole fleet. Unlike `default_venv` auto-activation, this always
+  runs regardless of venv state. A failing command warns and does not stop
+  the rest, or the shell from opening. See [docs/CUSTOM-COMMANDS.md#running-
+  commands-at-startup](docs/CUSTOM-COMMANDS.md#running-commands-at-startup).
+
+- **`seed repo-install <name>[extras]`** — optional dependencies selected the
+  same way as on a package spec: `seed repo-install plotpress[gui]` runs
+  `uv pip install -e <repo>[gui]`, and `plotpress[gui,dev]` takes several. A
+  repo with only a `requirements.txt` has no extras to choose from, so asking
+  for them there is an error rather than a plain install of something other
+  than what was asked for.
+
+- **`[[repo]] install` takes those extras per venv**, because the same clone
+  is routinely wanted with different optional dependencies in each
+  environment it lands in — the venv the app runs from wants `[gui]`, the
+  batch venv on a headless box must not have it:
+
+  ```toml
+  [[repo]]
+  url = "https://git.corp/team/plotpress.git"
+  install = ["dev[gui,test]", "batch"]
+  ```
+
+  The brackets hang off the target rather than the repo for exactly that
+  reason, and are spelled as on the command line and in a requirements file,
+  so there's one syntax to know rather than a profile-only one. `--preview`
+  shows them (`install repo 'plotpress' into venvs 'dev[gui,test]', 'batch'`),
+  and a venv named twice with *different* extras rejects the file — an exact
+  repeat still collapses as before, but there's no first-listed-wins answer
+  worth guessing when the two lines disagree.
+
+  Adding an extra to a repo a venv already has needs `seed apply --force`:
+  whether a venv has the repo is answered by its distribution name, which
+  extras don't change. Same rule as `[[venv]] packages`.
+
 - **`seed repo-install --venv <name>`** installs a cloned repo into a venv
   you name, regardless of what this shell has active (`-n` for short). An
   unknown name is an error rather than a quiet fallback to another

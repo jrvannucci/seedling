@@ -7,6 +7,7 @@
 
 $script:SeedlingHome = "__SEEDLING_HOME_PLACEHOLDER__"
 $script:SeedlingCli = Join-Path $script:SeedlingHome "system\bin\seed-cli.exe"
+$script:SeedlingSettings = Join-Path $script:SeedlingHome "system\config\settings.json"
 
 # seed-cli itself resolves the seedling home from this variable (falling
 # back to ~/seedling). Setting it here is what makes a custom
@@ -143,7 +144,6 @@ function seed {
 # missing script), so correctness never depends on it.
 if (-not $env:VIRTUAL_ENV) {
     $script:SeedlingDefaultVenv = $null
-    $script:SeedlingSettings = Join-Path $script:SeedlingHome "system\config\settings.json"
     if (Test-Path $script:SeedlingSettings) {
         try {
             $script:SeedlingCfg = Get-Content -Raw $script:SeedlingSettings | ConvertFrom-Json
@@ -171,5 +171,31 @@ if (-not $env:VIRTUAL_ENV) {
         } else {
             seed activate $script:SeedlingDefaultVenv | Out-Null
         }
+    }
+}
+
+# Run configured startup commands (see docs/CUSTOM-COMMANDS.md), in order, in
+# EVERY new shell -- unlike default_venv auto-activation above, this is not
+# skipped just because a venv is already active: it is a deliberate hook for
+# an organization's own startup routine (a connectivity check, a sync, a
+# reminder), not tied to venv state at all. Each name is looked up the same
+# way `seed custom <name>` does, so a name doesn't have to be `toplevel` to
+# run here. A failing command warns and does not stop the rest, or the shell
+# from opening -- a typo in this list must not lock anyone out of their
+# terminal.
+$script:SeedlingStartupCommands = @()
+if (Test-Path $script:SeedlingSettings) {
+    try {
+        $script:SeedlingStartupCommands = @(
+            (Get-Content -Raw $script:SeedlingSettings | ConvertFrom-Json).startup_commands)
+    } catch {
+        $script:SeedlingStartupCommands = @()
+    }
+}
+foreach ($script:SeedlingStartupName in $script:SeedlingStartupCommands) {
+    if (-not $script:SeedlingStartupName) { continue }
+    & $script:SeedlingCli custom $script:SeedlingStartupName
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "seedling: startup command '$script:SeedlingStartupName' failed (exit $LASTEXITCODE)" -ForegroundColor Yellow
     }
 }

@@ -349,6 +349,62 @@ class TestRepoInstallTargets:
         ''')
         assert prof.repos[0].venvs == []
 
+    def test_extras_hang_off_the_venv_they_apply_to(self):
+        """The point of per-target extras: one clone, different optional
+        dependencies in each venv it lands in."""
+        prof = profile_mod.parse('''
+            [[venv]]
+            name = "dev"
+            [[venv]]
+            name = "batch"
+            [[repo]]
+            url = "x"
+            install = ["dev[gui,test]", "batch"]
+        ''')
+        targets = prof.repos[0].targets
+        assert [(t.venv, t.extras) for t in targets] == [
+            ("dev", ["gui", "test"]), ("batch", [])]
+        assert prof.repos[0].venvs == ["dev", "batch"], \
+            "venvs stays the plain name list for callers that don't care"
+
+    def test_extras_survive_a_bare_string_install(self):
+        prof = profile_mod.parse('''
+            [[venv]]
+            name = "dev"
+            [[repo]]
+            url = "x"
+            install = "dev[gui]"
+        ''')
+        assert prof.repos[0].targets[0].extras == ["gui"]
+
+    def test_the_venv_named_with_extras_is_still_validated(self):
+        with pytest.raises(profile_mod.ProfileError) as e:
+            profile_mod.parse('[[venv]]\nname = "dev"\n'
+                              '[[repo]]\nurl = "x"\ninstall = ["ghost[gui]"]')
+        assert "names venv 'ghost'" in str(e.value)
+
+    def test_a_malformed_extras_spec_rejects_the_profile(self):
+        with pytest.raises(profile_mod.ProfileError) as e:
+            profile_mod.parse('[[venv]]\nname = "dev"\n'
+                              '[[repo]]\nurl = "x"\ninstall = ["dev[gui"]')
+        assert "unbalanced brackets" in str(e.value)
+
+    def test_extras_with_no_venv_are_rejected(self):
+        with pytest.raises(profile_mod.ProfileError) as e:
+            profile_mod.parse('[[venv]]\nname = "dev"\n'
+                              '[[repo]]\nurl = "x"\ninstall = ["[gui]"]')
+        assert "names no venv" in str(e.value)
+
+    def test_one_venv_twice_with_different_extras_is_an_error(self):
+        """Repeats still collapse, but only when they agree -- first-listed
+        wins would install something other than what the other line asks."""
+        with pytest.raises(profile_mod.ProfileError) as e:
+            profile_mod.parse('[[venv]]\nname = "dev"\n[[repo]]\nurl = "x"\n'
+                              'install = ["dev[gui]", "dev"]')
+        message = str(e.value)
+        assert "twice with different extras" in message
+        assert '"dev[a,b]"' in message
+
     def test_true_is_rejected_and_the_message_says_what_to_write(self):
         """It used to mean "the profile's default venv" -- so changing the
         default venv silently moved the repo. A profile has to say where its
@@ -499,6 +555,39 @@ class TestApplyInstallsReposIntoVenvs:
         code, out = run_cli("apply", str(_write(tmp_path, self.PROFILE)))
         assert code == 1
         assert "toolkit in venv analysis" in out
+
+    EXTRAS_PROFILE = '''
+        [[venv]]
+        name = "dev"
+        default = true
+        [[venv]]
+        name = "analysis"
+        [[repo]]
+        url = "https://git.corp/team/toolkit.git"
+        install = ["dev[gui,test]", "analysis"]
+    '''
+
+    def test_the_plan_spells_out_the_extras_per_venv(self, home):
+        """Extras change what gets installed, so --preview has to show them
+        -- and shows them the way the profile writes them."""
+        make_venv_dirs(home, "dev", "analysis")
+        prof = profile_mod.parse(self.EXTRAS_PROFILE)
+        detail = [d for a, d in apply_cmd._plan(prof, force=False) if a == "repo"]
+        assert detail == ["clone https://git.corp/team/toolkit.git and install "
+                          "it into venvs 'dev[gui,test]', 'analysis'"]
+
+    def test_each_venv_gets_its_own_extras(self, run_cli, home, tmp_path,
+                                           monkeypatch):
+        """The whole point: one clone, the gui extra only where it's wanted."""
+        _fake_clone(home, "toolkit")
+        make_venv_dirs(home, "dev", "analysis")
+        monkeypatch.setattr(apply_cmd, "_installed_packages", lambda name: set())
+        installs = []
+        monkeypatch.setattr(apply_cmd.repo_cmd, "install_repo",
+                            lambda args: (installs.append((args.name, args.venv)), 0)[1])
+        code, out = run_cli("apply", str(_write(tmp_path, self.EXTRAS_PROFILE)))
+        assert code == 0
+        assert installs == [("toolkit[gui,test]", "dev"), ("toolkit", "analysis")]
 
     def test_a_repo_with_no_install_is_only_cloned(self, home, tmp_path):
         make_venv_dirs(home, "dev")

@@ -153,3 +153,42 @@ if [ -z "$VIRTUAL_ENV" ]; then
     fi
     unset __seedling_default_venv __seedling_settings
 fi
+
+# Run configured startup commands (see docs/CUSTOM-COMMANDS.md), in order, in
+# EVERY new shell -- unlike default_venv auto-activation above, this is not
+# skipped just because a venv is already active: it is a deliberate hook for
+# an organization's own startup routine (a connectivity check, a sync, a
+# reminder), not tied to venv state at all. Each name is looked up the same
+# way `seed custom <name>` does, so a name doesn't have to be `toplevel` to
+# run here. A failing command warns and does not stop the rest, or the shell
+# from opening -- a typo in this list must not lock anyone out of their
+# terminal.
+#
+# No `jq` assumed (this has to work on a bare offline machine): settings.json
+# is written by Python's json.dumps(indent=2, sort_keys=True), so its
+# formatting is deterministic and a plain sed extraction is reliable, the
+# same reasoning that already lets auto_activate above be a plain grep.
+__seedling_settings_startup="$__SEEDLING_HOME/system/config/settings.json"
+if [ -f "$__seedling_settings_startup" ]; then
+    __seedling_startup_names="$(sed -n '/"startup_commands": \[/,/\]/p' "$__seedling_settings_startup" \
+        | sed -n 's/^[[:space:]]*"\(.*\)"[,]*[[:space:]]*$/\1/p')"
+    if [ -n "$__seedling_startup_names" ]; then
+        __seedling_old_ifs=$IFS
+        IFS='
+'
+        for __seedling_startup_name in $__seedling_startup_names; do
+            IFS=$__seedling_old_ifs
+            [ -n "$__seedling_startup_name" ] || continue
+            "$__SEEDLING_CLI" custom "$__seedling_startup_name"
+            __seedling_startup_status=$?
+            if [ "$__seedling_startup_status" -ne 0 ]; then
+                echo "seedling: startup command '$__seedling_startup_name' failed (exit $__seedling_startup_status)"
+            fi
+            IFS='
+'
+        done
+        IFS=$__seedling_old_ifs
+    fi
+    unset __seedling_startup_names __seedling_startup_name __seedling_startup_status __seedling_old_ifs
+fi
+unset __seedling_settings_startup
