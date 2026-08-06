@@ -47,12 +47,14 @@ installer's default-environment setup uses.
 seed python 312
 ```
 
-## `seed python-list`
+## `seed python-list [--json]`
 
 Lists every base Python interpreter installed via `seed python`, showing
 the short tag, the real versioned directory it points to, which one is the
 default used by `seed venv`, and flags any alias whose target directory has
-gone missing (e.g. if it was deleted by hand).
+gone missing (e.g. if it was deleted by hand). `--json` prints the same
+data as machine-readable JSON instead — see
+[Scripting & automation](#scripting--automation).
 
 ```
 seed python-list
@@ -63,7 +65,7 @@ Base Python interpreters in ~/seedling/python/base:
   312      -> cpython-3.12.4-linux-x86_64-gnu  (default for `seed venv`)
 ```
 
-## `seed remove-python <tag> [-y]`
+## `seed remove-python <tag> [-y] [--preview] [--non-interactive]`
 
 Deletes a base Python **and every venv that was built from it** — venvs
 can't function without the interpreter they were created against, so this
@@ -74,6 +76,9 @@ cascades rather than leaving them broken.
   directory.
 - Lists exactly what it's about to delete (the base, plus each dependent
   venv by name) before asking for confirmation, unless `-y`/`--yes`.
+  `--preview` shows the same list and exits without deleting anything;
+  `--non-interactive` refuses to prompt and aborts instead of waiting — see
+  [Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews).
 - Closes whatever turns out to be holding files open, escalating only as
   far as needed (see *How a removal frees locked files*) — so nothing blocks
   deletion.
@@ -359,7 +364,7 @@ seed tool gh auth login
 seed tool rg "def install" src
 ```
 
-## `seed app-install <name>[==version] [--reinstall] [-y]`
+## `seed app-install <name>[==version] [--reinstall] [-y] [--non-interactive]`
 
 Installs a **Python application from PyPI into its own isolated
 environment** — Spyder, JupyterLab, httpie: things you *run* rather than
@@ -382,6 +387,9 @@ index or fully offline exactly like `seed install`.
   PATH — open a new terminal to run them by name.
 - Pin with `==`: `seed app-install spyder==6.1.5`.
 - `--reinstall` forces a fresh install of something already present.
+- `-y`/`--yes` skips the "install this now?" confirmation; `--non-interactive`
+  refuses to prompt and aborts instead — see
+  [Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews).
 - The app's environment is **separate from seed-cli's own** (`system/tool`),
   so `uv tool` operations on your apps can never touch the running CLI.
 
@@ -481,7 +489,7 @@ seed tool-remove ripgrep --preview
 seed tool-remove ripgrep -y
 ```
 
-## `seed download-tool <name>[=version] [--dest <dir>]`
+## `seed download-tool <name>[=version]... [--dest <dir>]`
 
 The conda-forge counterpart of `download-whl`: on a connected machine, resolve
 a tool **and all its dependencies** and write them into a local **conda
@@ -545,7 +553,7 @@ seed download-requirements requirements.txt
 seed download-requirements requirements.txt --dest ./bundle --python-version 311
 ```
 
-## `seed remove-venv <name> [-y]`
+## `seed remove-venv <name> [-y] [--preview] [--non-interactive]`
 
 Deletes a single venv from `~/seedling/python/venvs`. Force-closes
 Python/VS Code processes first (see `seed kill-processes`) so a running
@@ -554,7 +562,10 @@ doesn't block) if the target looks like the currently active venv
 (`VIRTUAL_ENV` matches its path) — it'll be force-closed along with
 everything else, and your shell deactivates it automatically once it's
 gone (see [Why `seed` is a shell function](GUIDE.md#why-seed-is-a-shell-function)).
-Prompts for confirmation unless `-y`/`--yes`.
+Prompts for confirmation unless `-y`/`--yes`; `--preview` shows what would
+be deleted without deleting it; `--non-interactive` refuses to prompt and
+aborts instead — see
+[Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews).
 
 Deletion itself uses a retrying, defensive helper shared by every
 `remove-*`/`purge` command — see
@@ -566,11 +577,14 @@ seed remove-venv myproject
 seed remove-venv myproject -y
 ```
 
-## `seed remove-venv-all [-y]`
+## `seed remove-venv-all [-y] [--preview] [--non-interactive]`
 
 Deletes **every** venv under `~/seedling/python/venvs`, with the same
 process-closing behavior as `seed remove-venv`. Lists them all before
-asking for confirmation (skippable with `-y`).
+asking for confirmation (skippable with `-y`); `--preview` lists them and
+exits without deleting; `--non-interactive` refuses to prompt and aborts
+instead — see
+[Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews).
 
 ```
 seed remove-venv-all
@@ -660,12 +674,18 @@ quietly than reaching it directly.
 seed vscode-repo some-project
 ```
 
-## `seed spyder [path] [--venv <name>] [--no-open] [-y]`
+## `seed spyder [path] [--venv <name>] [--no-open] [-y] [--non-interactive]`
 
 Installs (once) and opens **Spyder**, the scientific Python IDE — the
 variable explorer, IPython console and plots pane that people coming from
 MATLAB or R usually want. Same shape as `seed vscode`, and it asks before
 its first-time ~200 MB download in exactly the same way.
+
+`-y`/`--yes` skips the first-run "install this ~200 MB?" prompt;
+`--non-interactive` (or `SEEDLING_NONINTERACTIVE=1`) refuses to prompt at
+all and aborts instead — the same two shared confirmation knobs every
+consequential-but-not-destructive prompt in seedling honors (see
+[Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews)).
 
 Underneath it's `seed app-install spyder`, but the command exists because
 three things have to be arranged that a plain application install can't
@@ -728,14 +748,18 @@ seed spyder                      # now runs in 'analysis'
 seed spyder --venv scratch       # or name one outright
 ```
 
-## `seed spyder-repo <name>`
+## `seed spyder-repo <name> [--venv <name>] [-y] [--non-interactive]`
 
 Opens a cloned repo as a **Spyder project** (`--project`), the natural
-counterpart to `seed vscode-repo`. Same install-if-needed behavior and the
-same first-run prompt.
+counterpart to `seed vscode-repo`. Same install-if-needed behavior, the
+same first-run prompt (and the same `-y`/`--non-interactive` knobs for it),
+and the same [venv resolution](#which-venv-it-uses) as `seed spyder` —
+`--venv <name>` names one outright, otherwise the active venv or
+`default_venv` is used.
 
 ```
 seed spyder-repo some-project
+seed spyder-repo some-project --venv analysis
 ```
 
 ## `seed repo-clone <git-url>`
@@ -837,11 +861,12 @@ seed repo-install some-project[gui,dev] --venv analysis
 A profile can declare the same thing for a fleet — see
 [`[[repo]] install`](PROFILES.md#reference).
 
-## `seed remove-repo <name> [-y]`
+## `seed remove-repo <name> [-y] [--preview] [--non-interactive]`
 
 Deletes a cloned repo from `~/seedling/repo`. Same process-closing
 behavior as `seed remove-venv` before deletion, and the same confirmation
-prompt (skippable with `-y`).
+prompt (skippable with `-y`), `--preview`, and `--non-interactive` — see
+[Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews).
 
 ```
 seed remove-repo some-project
@@ -876,35 +901,46 @@ A configured `startup_commands` list runs these same commands automatically
 in every new shell — see [CUSTOM-COMMANDS.md#running-commands-at-
 startup](CUSTOM-COMMANDS.md#running-commands-at-startup).
 
-## `seed kill-processes [name] [--system] [-y]`
+## `seed kill-processes [name] [--system] [-y] [--preview] [--non-interactive]`
 
-An escape hatch for stuck scripts or a frozen VS Code window. Always
-prompts for confirmation first (skippable with `-y`), since it's
-machine-wide and destructive (unsaved work included).
+An escape hatch for stuck scripts or a frozen VS Code window. **Scoped to
+seedling by default** — bare `seed kill-processes` only force-closes
+processes belonging to the seedling tree (decided by executable path,
+command line, or working directory under `~/seedling`, never by name), on
+the reasoning that "something of mine is stuck" shouldn't close a
+colleague's editor or an unrelated job. Widening the blast radius takes an
+explicit flag:
 
+- `seed kill-processes` (no arguments) — seedling's own processes only.
+  Prompts for confirmation unless `-y`/`--yes`.
 - `seed kill-processes --system` — force-closes every process matching common
   Python interpreter names (`python`, `python3`, `python3.8`-`3.14`,
   `pythonw`) and VS Code/Electron process names (`code`, `Code`,
-  `Code Helper*`, `Electron`).
+  `Code Helper*`, `Electron`) **on the whole machine**, seedling-started or
+  not. Always prompts unless `-y`.
 - `seed kill-processes <name>` — force-closes every process with that
-  **exact** name (e.g. `seed kill-processes node`). On Windows, `.exe` is
-  appended automatically if you don't include it.
+  **exact** name, machine-wide (e.g. `seed kill-processes node`). On
+  Windows, `.exe` is appended automatically if you don't include it. Always
+  prompts unless `-y`.
+
+`--preview` lists exactly what would be closed without closing anything;
+`--non-interactive` refuses to prompt and aborts instead — see
+[Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews).
 
 Implementation notes:
-- **Not** seedling-scoped — this affects every matching process on the
-  machine, not just ones seedling started.
 - Uses only OS-builtin tools: `pgrep -x` + `kill`/`os.kill` on macOS/Linux,
   `taskkill /F /IM` on Windows. No third-party dependency like `psutil`.
 - Always excludes seedling's own running process (and its parent) from the
   kill list, so it can't terminate itself mid-cleanup — this matters
   because on macOS/Linux, `seed-cli`'s own process image is literally a
   `python3.x` process (its shebang execs the interpreter directly).
-- The underlying `kill_python_and_vscode()` helper is reused by
-  `seed remove-venv(-all)`, `seed remove-python`, `seed remove-repo`,
+- The underlying `kill_python_and_vscode()` helper (the `--system` sweep) is
+  reused by `seed remove-venv(-all)`, `seed remove-python`, `seed remove-repo`,
   `seed remove-user`, and `seed purge` — anything that deletes files is
   preceded by this same sweep, to avoid "file in use" failures.
 
 ```
+seed kill-processes                # just seedling's own stuck processes
 seed kill-processes --system
 seed kill-processes node -y
 ```
@@ -979,12 +1015,14 @@ seed update-commands
 seed update-commands --from-branch dev     # track a branch (git-URL sources)
 ```
 
-## `seed remove-user [-y]`
+## `seed remove-user [-y] [--preview] [--non-interactive]`
 
 Deletes `~/seedling` in its entirety — every base Python, every venv, VS
 Code and all its extensions/settings, every cloned repo, uv itself,
 everything. Prompts for confirmation (`yes` typed exactly) unless
-`-y`/`--yes` is passed.
+`-y`/`--yes` is passed; `--preview` shows what would be deleted without
+deleting it; `--non-interactive` refuses to prompt and aborts instead —
+see [Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews).
 
 Before deleting, it first force-closes every Python and VS Code process on
 the machine (the same sweep as `seed kill-processes --system`, with the same
@@ -1003,8 +1041,11 @@ profile — use `seed purge` (or `uninstall.cmd` --
 seed remove-user
 ```
 
-## `seed purge [-y]`
+## `seed purge [-y] [--preview] [--non-interactive]`
 
+Supports the same `-y`/`--preview`/`--non-interactive` trio as
+`seed remove-user` (see
+[Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews)).
 The full uninstall — everything `seed remove-user` does, **plus** removes
 the `seed` shell hook from every shell profile it can find:
 `~/.zshrc`, `~/.bashrc`, `~/.bash_profile`, `~/.profile`, and both the
@@ -1343,6 +1384,12 @@ setting with its current value and an explanation. The keys:
 - `python_mirror` / `package_index` — offline sources for interpreters
   and packages (a URL, or a plain directory on a share). Normally seeded
   from `seedling.conf` at install time; see [OFFLINE.md](OFFLINE.md).
+- `conda_channel` — where `seed tool-install` fetches conda-forge
+  command-line tools from (default: `conda-forge`). A URL or local
+  directory for an internal mirror or an offline network.
+- `shared_root` — the directory holding per-user seedling homes, recorded
+  automatically when `SEEDLING_HOME_DIR` used a `{user}` token. Only set on
+  shared multi-user installs; enables the `admin-*` commands.
 - `native_tls` / `ca_cert` — HTTPS trust for corporate-CA internal hosts:
   the OS trust store, or a PEM bundle (normally installed automatically
   from `vendor/certs/`). Applied to uv, git, and seedling's own downloads

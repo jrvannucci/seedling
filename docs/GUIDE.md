@@ -292,12 +292,16 @@ shell function, since a subprocess has no way to affect your shell.
 
 ## Help output & color
 
-`seed` (no arguments) or `seed -h`/`--help` shows commands grouped into
-Seedling Status / Python & venvs / Git repos / VS Code / Utilities / a
-"danger zone" for everything destructive — rather than argparse's default flat, alphabetized
-list, which stops being easy to scan once there are more than a handful of
-commands. Subcommand-specific help (`seed venv -h`, etc.) is unaffected and
-still uses argparse's normal per-command output.
+`seed` (no arguments) or `seed -h`/`--help` shows commands grouped by what
+they're for — status, Python interpreters, venvs & packages, PyPI
+applications, conda-forge tools, offline utilities, git repos, editors,
+your organization's own [custom commands](CUSTOM-COMMANDS.md) (only shown
+once something's configured), everyday utilities, and a "danger zone" for
+everything destructive (`seed help` prints the current, authoritative list)
+— rather than argparse's default flat, alphabetized list, which stops being
+easy to scan once there are more than a handful of commands.
+Subcommand-specific help (`seed venv -h`, etc.) is unaffected and still uses
+argparse's normal per-command output.
 
 Color (used for headers, warnings, and success messages) is automatically
 disabled when stdout isn't a real terminal — piped output, redirected to a
@@ -455,10 +459,12 @@ with `seed python <version>`.
 **`uv was not found in ~/seedling/system/bin or on PATH`** — re-run the
 installer; this means the uv bootstrap step didn't complete.
 
-**A venv or VS Code window is stuck / won't close** — `seed kill-processes
-all` (or targeting a specific process name) force-closes it, after
-confirmation. Every `remove-*` command and `seed purge` also do this
-automatically before deleting anything.
+**A venv or VS Code window is stuck / won't close** — `seed kill-processes`
+(or `seed kill-processes <name>` targeting a specific process name)
+force-closes it, after confirmation. `--system` widens the sweep to every
+Python/VS Code process on the machine, not just seedling's own — see
+[known limits](#known-limits) below. Every `remove-*` command and
+`seed purge` also do this automatically before deleting anything.
 
 **`git isn't installed, and seedling can't bundle a portable copy on
 <macOS/Linux>`** — install git through your OS's package manager (the error
@@ -479,7 +485,7 @@ into.
   other implementations aren't wired up.
 - `seed kill-processes --system` is machine-wide rather than
   seedling-scoped, by design — see
-  [the command reference](COMMANDS.md#seed-kill-processes-name---system--y).
+  [the command reference](COMMANDS.md#seed-kill-processes-name---system--y---preview---non-interactive).
 - `seed repo-clone`/`repo-install` need git; only Windows is auto-bootstrapped
   (via portable MinGit) — macOS/Linux still need system git already present,
   since neither has an equivalent official portable build.

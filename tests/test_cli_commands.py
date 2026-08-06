@@ -254,6 +254,20 @@ def test_config_set_startup_commands_warns_on_unknown_name(run_cli, home):
     assert config.get("startup_commands") == ["ghost"]
 
 
+def test_config_set_default_venv_warns_when_venv_doesnt_exist(run_cli, home):
+    code, out = run_cli("config", "set", "default_venv", "ghost")
+    assert code == 0
+    assert "no venv named 'ghost' exists yet" in out
+    assert config.get("default_venv") == "ghost"  # still stored, just warned
+
+
+def test_config_set_default_base_warns_when_python_not_installed(run_cli, home):
+    code, out = run_cli("config", "set", "default_base", "312")
+    assert code == 0
+    assert "no base Python '312' is installed yet" in out
+    assert config.get("default_base") == "312"
+
+
 def test_auto_activate_toggles_and_shows(run_cli, home):
     # Default is on.
     assert config.get("auto_activate") is True

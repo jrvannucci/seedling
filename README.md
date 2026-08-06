@@ -192,6 +192,10 @@ where the usual Python setup path doesn't work:
   [deployment profile](docs/PROFILES.md) lists the interpreters, named venvs,
   packages and repos your users should end up with — applied automatically at
   install, and re-applied with `seed apply` when the standard changes.
+- **Add your own verbs to `seed`.** [Custom commands](docs/CUSTOM-COMMANDS.md)
+  — `seed lint`, `seed bootstrap`, whatever your team wants — declared in one
+  TOML file, with an optional fast path to run one automatically in every new
+  shell.
 - **One install root, many users.** A `{user}` token gives each person a
   private, conflict-free folder — with an elevated `admin-*` family for
   cross-user teardown when a machine is decommissioned.
@@ -229,6 +233,8 @@ For a fully disconnected network, see
   venvs, packages and repos your users should end up with.
 - 📄 **[Profile examples](docs/PROFILE-EXAMPLES.md)** — complete profiles for
   a research group, a software team, a classroom, an air-gapped fleet.
+- 🔧 **[Custom commands](docs/CUSTOM-COMMANDS.md)** — add your organization's
+  own verbs to `seed`, and optionally run them automatically at shell startup.
 - 📴 **[Offline / air‑gapped installs](docs/OFFLINE.md)** — running with no
   internet at all.
 - ⚖️ **[Licensing and redistribution](docs/LICENSING.md)** — seedling ships no

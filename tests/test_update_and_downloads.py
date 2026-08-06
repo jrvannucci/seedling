@@ -131,6 +131,54 @@ def test_drift_report_ignores_settings_a_fresh_install_wouldnt_seed(
     assert "differently than" not in out
 
 
+def test_reports_drift_for_native_tls(run_cli, home, src_installed, tmp_path):
+    """_drift_native_tls: only "true" (case-insensitively) is drift; the
+    default (unset/false) is never reported, matching the installers' own
+    "only seed when true" rule."""
+    src, calls = src_installed
+    upstream = tmp_path / "share"
+    upstream.mkdir()
+    _make_source_tree(upstream, "v2")
+    (upstream / "seedling.conf").write_text('SEEDLING_NATIVE_TLS="true"\n')
+    config.set_value("update_source", str(upstream))
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert "native_tls: None -> True" in out
+    assert 'seed config set native_tls "True"' in out
+    assert config.get("native_tls") is None  # never applied automatically
+
+
+def test_reports_drift_for_vscode_extensions(run_cli, home, src_installed, tmp_path):
+    """_drift_vscode_extensions: a real list, and its "none" -> [] special
+    case (distinct from unset, which means "the flavor's own starter kit")."""
+    src, calls = src_installed
+    upstream = tmp_path / "share"
+    upstream.mkdir()
+    _make_source_tree(upstream, "v2")
+    (upstream / "seedling.conf").write_text(
+        'SEEDLING_VSCODE_EXTENSIONS="ms-python.python,charliermarsh.ruff"\n')
+    config.set_value("update_source", str(upstream))
+    config.set_value("vscode_extensions", ["ms-python.python"])
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert "vscode_extensions: ['ms-python.python'] -> " \
+           "['ms-python.python', 'charliermarsh.ruff']" in out
+    assert config.get("vscode_extensions") == ["ms-python.python"]
+
+
+def test_reports_drift_for_vscode_extensions_none(run_cli, home, src_installed, tmp_path):
+    src, calls = src_installed
+    upstream = tmp_path / "share"
+    upstream.mkdir()
+    _make_source_tree(upstream, "v2")
+    (upstream / "seedling.conf").write_text('SEEDLING_VSCODE_EXTENSIONS="none"\n')
+    config.set_value("update_source", str(upstream))
+    config.set_value("vscode_extensions", ["ms-python.python"])
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert "vscode_extensions: ['ms-python.python'] -> []" in out
+
+
 def test_directory_update_rejects_non_seedling_tree(run_cli, home, src_installed, tmp_path):
     bogus = tmp_path / "bogus"
     bogus.mkdir()
