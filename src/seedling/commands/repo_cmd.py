@@ -4,7 +4,7 @@ import os
 import platform
 import subprocess
 
-from .. import confirm, lock, paths, uv_tool, git_tool, fsutil, venv_target
+from .. import confirm, lock, paths, pkgspec, uv_tool, git_tool, fsutil, venv_target
 from . import vscode_cmd
 
 
@@ -210,9 +210,18 @@ def vscode_repo(args) -> int:
 
 
 def install_repo(args) -> int:
-    name = getattr(args, "name", None)
+    spec = getattr(args, "name", None)
+    if not spec:
+        print("Usage: seed repo-install <name>[extra,...] [--venv <name>]")
+        return 1
+
+    try:
+        name, extras = pkgspec.split_extras(spec)
+    except pkgspec.BadExtras as e:
+        print(f"error: {e}")
+        return 1
     if not name:
-        print("Usage: seed repo-install <name> [--venv <name>]")
+        print(f"error: no repo name in {spec!r} -- expected name[extra,...]")
         return 1
 
     target = paths.repo_dir(name)
@@ -246,9 +255,21 @@ def install_repo(args) -> int:
     requirements = target / "requirements.txt"
 
     if pyproject.exists():
-        print(f"Installing '{name}' (editable){where} via `uv pip install -e` ...")
-        command = ["pip", "install", *interpreter, "-e", str(target)]
+        # Extras ride on the path exactly as they would on a package spec:
+        # `uv pip install -e /path/to/repo[gui]`.
+        with_extras = f" with extras {', '.join(extras)}" if extras else ""
+        print(f"Installing '{name}' (editable){with_extras}{where} "
+              "via `uv pip install -e` ...")
+        command = ["pip", "install", *interpreter, "-e",
+                   pkgspec.join_extras(str(target), extras)]
     elif requirements.exists():
+        if extras:
+            # requirements.txt has no extras to select -- silently dropping
+            # them would install something other than what was asked for.
+            print(f"error: repo '{name}' has no pyproject.toml, only "
+                  f"{requirements.name}, which has no extras to choose from. "
+                  f"Re-run as `seed repo-install {name}`.")
+            return 1
         print(f"Installing dependencies from {requirements}{where} ...")
         command = ["pip", "install", *interpreter, "-r", str(requirements)]
     else:

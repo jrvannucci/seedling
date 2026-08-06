@@ -124,8 +124,8 @@ class _RepoAction:
     repo: profile_mod.Repo
     name: str
     clone: bool
-    install: list[str] = field(default_factory=list)
-    satisfied: list[str] = field(default_factory=list)
+    install: list[profile_mod.RepoTarget] = field(default_factory=list)
+    satisfied: list[profile_mod.RepoTarget] = field(default_factory=list)
 
 
 def _repo_actions(prof: profile_mod.Profile, *, force: bool) -> list[_RepoAction]:
@@ -153,15 +153,20 @@ def _repo_actions(prof: profile_mod.Profile, *, force: bool) -> list[_RepoAction
         dist = _repo_dist_name(paths.repo_dir(name)) if cloned else None
 
         action = _RepoAction(repo=repo, name=name, clone=not cloned)
-        for venv_name in repo.venvs:
+        for target in repo.targets:
+            venv_name = target.venv
             if not cloned or force or not paths.venv_dir(venv_name).exists():
                 # Nothing worth probing: the repo is new, the venv is about
                 # to be (re)built, or --force says install regardless.
-                action.install.append(venv_name)
+                action.install.append(target)
             elif dist is not None and dist not in installed_in(venv_name):
-                action.install.append(venv_name)
+                action.install.append(target)
             else:
-                action.satisfied.append(venv_name)
+                # Extras don't show up here: the probe answers "is this repo's
+                # distribution present", and adding an extra to a profile
+                # doesn't change that name. Widening extras on a venv that
+                # already has the repo is an `--force` job, like packages.
+                action.satisfied.append(target)
         actions.append(action)
     return actions
 
@@ -169,6 +174,13 @@ def _repo_actions(prof: profile_mod.Profile, *, force: bool) -> list[_RepoAction
 def _venv_list(names: list[str]) -> str:
     label = "venv" if len(names) == 1 else "venvs"
     return f"{label} " + ", ".join(repr(n) for n in names)
+
+
+def _target_list(targets: list[profile_mod.RepoTarget]) -> str:
+    """Targets as the plan shows them, spelled like the profile that asked
+    for them: `venvs 'dev[gui,test]', 'analysis'`. Extras belong in the
+    preview -- they change what gets installed."""
+    return _venv_list([t.venv + t.spec_suffix for t in targets])
 
 
 def _plan(prof: profile_mod.Profile, *, force: bool,
@@ -213,17 +225,17 @@ def _plan(prof: profile_mod.Profile, *, force: bool,
         if action.clone:
             detail = f"clone {action.repo.url}"
             if action.install:
-                detail += f" and install it into {_venv_list(action.install)}"
+                detail += f" and install it into {_target_list(action.install)}"
             steps.append(("repo", detail))
         else:
             steps.append(("skip", f"repo {action.name!r} already cloned"))
             if action.install:
                 steps.append(("repo-install",
                               f"install repo {action.name!r} into "
-                              f"{_venv_list(action.install)}"))
-        for venv_name in action.satisfied:
+                              f"{_target_list(action.install)}"))
+        for target in action.satisfied:
             steps.append(("skip", f"repo {action.name!r} already installed "
-                                  f"in venv {venv_name!r}"))
+                                  f"in venv {target.venv!r}"))
 
     for tool in prof.tools:
         name = tool_cmd._spec_name(tool)
@@ -353,7 +365,8 @@ def run(args) -> int:
         # Named explicitly rather than through VIRTUAL_ENV: a repo can target
         # several venvs, and each install has to land in the one it was
         # declared for regardless of what this shell has active.
-        for venv_name in action.install:
+        for target in action.install:
+            venv_name = target.venv
             if not paths.venv_dir(venv_name).exists():
                 # Its creation failed earlier in this run and is already in
                 # `failed`; a second entry for the knock-on effect would only
@@ -361,8 +374,12 @@ def run(args) -> int:
                 print(f"skipping {action.name!r} -> venv {venv_name!r}: "
                       "that venv isn't there.")
                 continue
+            # The repo's extras go through as the same `name[extras]` spec a
+            # user would type, so a profile can only ask for what `seed
+            # repo-install` already does.
+            spec = action.name + target.spec_suffix
             if repo_cmd.install_repo(
-                    Namespace(name=action.name, venv=venv_name)) != 0:
+                    Namespace(name=spec, venv=venv_name)) != 0:
                 failed.append(f"{action.name} in venv {venv_name}")
 
     for tool in prof.tools:

@@ -279,6 +279,37 @@ if ($env:SEEDLING_PROFILE) {
     }
 }
 
+# Custom commands (see docs/CUSTOM-COMMANDS.md): one TOML file naming every
+# command, including any `script = "..."` files -- wired exactly like the
+# profile above: env-var override (copied in, since its origin may not
+# survive) beats conf (left in place, since it already lives inside the
+# copied source tree -- any sibling script files ride along for free).
+# NOTE: the env-var branch copies only the TOML file itself, not its
+# directory (an arbitrary env-var path could be a whole home directory, not
+# a folder meant for this) -- a `script` entry with a RELATIVE path won't
+# resolve post-install that way. Use an absolute `script` path with the
+# env-var override, or prefer the conf-distributed form for anything with
+# script files.
+$CustomCommandsPath = ""
+if ($env:SEEDLING_CUSTOM_COMMANDS) {
+    $rawCC = $env:SEEDLING_CUSTOM_COMMANDS
+    $ccSrc = if ([System.IO.Path]::IsPathRooted($rawCC)) { $rawCC } else { Join-Path (Get-Location).Path $rawCC }
+    if (-not (Test-Path $ccSrc)) {
+        Die "SEEDLING_CUSTOM_COMMANDS=$rawCC was set, but no file exists at $ccSrc."
+    }
+    $CustomCommandsPath = Join-Path $SeedlingHome "system\config\custom-commands.toml"
+    Copy-Item -Force $ccSrc $CustomCommandsPath
+    Info "Using custom commands $ccSrc (copied to $CustomCommandsPath)"
+} elseif ($Conf["SEEDLING_CUSTOM_COMMANDS"]) {
+    $rawCC = $Conf["SEEDLING_CUSTOM_COMMANDS"]
+    $CustomCommandsPath = if ([System.IO.Path]::IsPathRooted($rawCC)) { $rawCC } else { Join-Path $SrcDir $rawCC }
+    if (-not (Test-Path $CustomCommandsPath)) {
+        Warn "SEEDLING_CUSTOM_COMMANDS=$rawCC was set, but no file was found at"
+        Warn "$CustomCommandsPath -- no custom commands."
+        $CustomCommandsPath = ""
+    }
+}
+
 $SrcGit = Join-Path $SrcDir ".git"
 if (Test-Path $SrcGit) { Remove-Item -Recurse -Force $SrcGit }
 
@@ -427,6 +458,11 @@ if (-not (Test-Path $SettingsFile)) {
         $seed["extension_gallery"] = $Conf["SEEDLING_EXTENSION_GALLERY"]
     }
     if ($ProfilePath) { $seed["profile"] = "$ProfilePath" }
+    if ($CustomCommandsPath) { $seed["custom_commands"] = "$CustomCommandsPath" }
+    if ($Conf["SEEDLING_STARTUP_COMMANDS"]) {
+        $startups = @($Conf["SEEDLING_STARTUP_COMMANDS"].Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        if ($startups.Count -gt 0) { $seed["startup_commands"] = $startups }
+    }
     if ($Conf["SEEDLING_VSCODE_EXTENSIONS"]) {
         $extsRaw = $Conf["SEEDLING_VSCODE_EXTENSIONS"].Trim()
         if ($extsRaw.ToLower() -eq "none") {

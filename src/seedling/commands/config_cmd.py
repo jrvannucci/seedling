@@ -22,7 +22,7 @@ import json
 
 from .. import colors, config, paths
 
-_LIST_KEYS = {"venv_default_packages"}
+_LIST_KEYS = {"venv_default_packages", "startup_commands"}
 _BOOL_KEYS = {"native_tls", "auto_activate"}
 
 
@@ -54,6 +54,12 @@ def _validate(key: str, value) -> str | None:
         if not paths.base_alias_file(value).exists():
             return (f"warning-only: no base Python '{value}' is installed yet "
                     f"(run `seed python {value}`)")
+    if key == "startup_commands" and isinstance(value, list) and value:
+        from . import custom_cmd
+        unknown = [name for name in value if name not in custom_cmd.known_names()]
+        if unknown:
+            return ("warning-only: not currently declared in "
+                     "custom_commands: " + ", ".join(unknown))
     return None
 
 

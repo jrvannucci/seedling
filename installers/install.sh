@@ -29,6 +29,8 @@ SEEDLING_AUTO_VSCODE_FROM_ENV="${SEEDLING_AUTO_VSCODE:-}"
 # there is no local conf to edit:
 #   curl -fsSL .../install.sh | SEEDLING_PROFILE=./team.toml sh
 SEEDLING_PROFILE_FROM_ENV="${SEEDLING_PROFILE:-}"
+# Same reasoning, for custom commands (see docs/CUSTOM-COMMANDS.md).
+SEEDLING_CUSTOM_COMMANDS_FROM_ENV="${SEEDLING_CUSTOM_COMMANDS:-}"
 # The directory the user invoked from, captured before any `cd`, so a
 # relative profile path resolves against where they actually are.
 SEEDLING_INVOKED_FROM="$(pwd)"
@@ -67,6 +69,8 @@ SEEDLING_VSCODE_FLAVOR=""
 SEEDLING_EXTENSION_GALLERY=""
 SEEDLING_VSCODE_EXTENSIONS=""
 SEEDLING_PROFILE=""
+SEEDLING_CUSTOM_COMMANDS=""
+SEEDLING_STARTUP_COMMANDS=""
 CONF_FILE=""
 if [ -f "$REPO_ROOT/seedling.conf" ]; then
     CONF_FILE="$REPO_ROOT/seedling.conf"
@@ -215,6 +219,39 @@ elif [ -n "$SEEDLING_PROFILE" ]; then
         warn "was found at $PROFILE_PATH -- falling back to the default setup."
         PROFILE_PATH=""
         SEEDLING_PROFILE=""
+    fi
+fi
+
+# Custom commands (see docs/CUSTOM-COMMANDS.md): one TOML file naming every
+# command, including any `script = "..."` files -- wired exactly like the
+# profile above: env-var override (copied in, since its origin may not
+# survive) beats conf (left in place, since it already lives inside the
+# copied source tree -- any sibling script files ride along for free).
+# NOTE: the env-var branch copies only the TOML file itself, not its
+# directory (an arbitrary env-var path could be a whole home directory, not
+# a folder meant for this) -- a `script` entry with a RELATIVE path won't
+# resolve post-install that way. Use an absolute `script` path with the
+# env-var override, or prefer the conf-distributed form for anything with
+# script files.
+CUSTOM_COMMANDS_PATH=""
+if [ -n "$SEEDLING_CUSTOM_COMMANDS_FROM_ENV" ]; then
+    case "$SEEDLING_CUSTOM_COMMANDS_FROM_ENV" in
+        /*|?:[\\/]*) CC_SRC="$SEEDLING_CUSTOM_COMMANDS_FROM_ENV" ;;
+        *)           CC_SRC="$SEEDLING_INVOKED_FROM/$SEEDLING_CUSTOM_COMMANDS_FROM_ENV" ;;
+    esac
+    [ -f "$CC_SRC" ] || die "SEEDLING_CUSTOM_COMMANDS=$SEEDLING_CUSTOM_COMMANDS_FROM_ENV was set, but no file exists at $CC_SRC."
+    CUSTOM_COMMANDS_PATH="$SEEDLING_HOME/system/config/custom-commands.toml"
+    cp "$CC_SRC" "$CUSTOM_COMMANDS_PATH"
+    info "Using custom commands $CC_SRC (copied to $CUSTOM_COMMANDS_PATH)"
+elif [ -n "$SEEDLING_CUSTOM_COMMANDS" ]; then
+    case "$SEEDLING_CUSTOM_COMMANDS" in
+        /*|?:[\\/]*) CUSTOM_COMMANDS_PATH="$SEEDLING_CUSTOM_COMMANDS" ;;
+        *)           CUSTOM_COMMANDS_PATH="$SRC_DIR/$SEEDLING_CUSTOM_COMMANDS" ;;
+    esac
+    if [ ! -f "$CUSTOM_COMMANDS_PATH" ]; then
+        warn "SEEDLING_CUSTOM_COMMANDS=$SEEDLING_CUSTOM_COMMANDS was set, but no file "
+        warn "was found at $CUSTOM_COMMANDS_PATH -- no custom commands."
+        CUSTOM_COMMANDS_PATH=""
     fi
 fi
 
@@ -397,6 +434,28 @@ if [ ! -f "$SETTINGS_FILE" ]; then
         [ -n "$entries" ] && entries="$entries,
 "
         entries="$entries  \"profile\": \"$(json_escape "$PROFILE_PATH")\""
+    fi
+    if [ -n "$CUSTOM_COMMANDS_PATH" ]; then
+        [ -n "$entries" ] && entries="$entries,
+"
+        entries="$entries  \"custom_commands\": \"$(json_escape "$CUSTOM_COMMANDS_PATH")\""
+    fi
+    startup_norm=$(printf '%s' "$SEEDLING_STARTUP_COMMANDS" | tr -d ' ')
+    if [ -n "$startup_norm" ]; then
+        startups=""
+        OLD_IFS=$IFS; IFS=,
+        for c in $SEEDLING_STARTUP_COMMANDS; do
+            c=$(printf '%s' "$c" | sed -e 's/^ *//' -e 's/ *$//')
+            [ -z "$c" ] && continue
+            [ -n "$startups" ] && startups="$startups, "
+            startups="$startups\"$(json_escape "$c")\""
+        done
+        IFS=$OLD_IFS
+        if [ -n "$startups" ]; then
+            [ -n "$entries" ] && entries="$entries,
+"
+            entries="$entries  \"startup_commands\": [$startups]"
+        fi
     fi
     exts_norm=$(printf '%s' "$SEEDLING_VSCODE_EXTENSIONS" | tr -d ' ')
     if [ "$exts_norm" = "none" ]; then

@@ -80,6 +80,26 @@ KNOWN_KEYS: dict[str, str] = {
         "this deployment expects. Recorded at install time from "
         "SEEDLING_PROFILE. Empty/null means `seed apply` looks for "
         "seedling-profile.toml in the current directory instead."),
+    "custom_commands": (
+        "Path to a TOML file declaring your organization's own `seed custom "
+        "<name>` commands -- one [[command]] entry each, run = [...] for a "
+        "fixed argv or script = \"...\" (a .py/.sh/.ps1 file, resolved "
+        "relative to this TOML file's own directory) for anything that "
+        "needs real logic. Recorded at install time from "
+        "SEEDLING_CUSTOM_COMMANDS. Empty/null means no custom commands. See "
+        "docs/CUSTOM-COMMANDS.md."),
+    "startup_commands": (
+        "Custom command names (list) run automatically, in order, by every "
+        "new shell -- for an offline org that wants a standard startup "
+        "routine (a connectivity check, a sync, a reminder) to run for every "
+        "user with nothing for them to remember or type. Each name must "
+        "already be declared via `custom_commands`. Runs unconditionally "
+        "(unlike default_venv auto-activation, this isn't skipped when a "
+        "venv is already active). A command that fails prints a warning and "
+        "does not stop the rest, or the shell from opening. Recorded at "
+        "install time from SEEDLING_STARTUP_COMMANDS; change it later with "
+        "`seed config set startup_commands \"a,b,c\"`. Empty/null means "
+        "nothing runs at startup. See docs/CUSTOM-COMMANDS.md."),
 }
 
 _DEFAULTS: dict[str, Any] = {
@@ -98,6 +118,8 @@ _DEFAULTS: dict[str, Any] = {
     "extension_gallery": None,
     "vscode_extensions": None,
     "profile": None,
+    "custom_commands": None,
+    "startup_commands": [],
 }
 
 

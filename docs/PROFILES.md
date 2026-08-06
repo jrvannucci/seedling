@@ -10,6 +10,11 @@ the difference.
 to set up once seedling works*. They are separate files because they answer
 separate questions and are read at different times.
 
+A third, optional file — [**custom commands**](CUSTOM-COMMANDS.md) — lets
+you add your own verbs to `seed` itself (`seed lint`, `seed reset`, ...).
+See it in use in the [software team](PROFILE-EXAMPLES.md#software-team) and
+[classroom](PROFILE-EXAMPLES.md#classroom) examples.
+
 ---
 
 ## Contents
@@ -64,7 +69,8 @@ default_packages = false    # skip venv_default_packages for this one
 [[repo]]
 url = "https://git.corp/data-team/toolkit.git"
 install = "dev"             # editable-install it into the dev venv
-# install = ["dev", "analysis"]   # ...or into several
+# install = ["dev", "analysis"]        # ...or into several
+# install = ["dev[gui]", "analysis"]   # ...with extras, per venv
 # leave install out to clone without installing
 
 [config]
@@ -203,6 +209,11 @@ re-installing on every apply into venvs that are already correct.
 > nothing to look for: those are installed when the venv is new (or rebuilt),
 > and otherwise left alone until `seed apply --force`.
 
+> The same probe is why **adding an extra to a repo already installed
+> somewhere needs `seed apply --force`**: extras don't change the
+> distribution's name, so the venv still looks like it has the repo. This
+> matches `[[venv]] packages`, which also only grows with `--force`.
+
 **Settings are the one thing converged rather than filled in.** A key in
 `[config]`, and the `default` venv, are written whenever the machine's current
 value differs — that's how you change a fleet's default venv or VS Code flavor
@@ -232,7 +243,7 @@ profile itself is invalid.
 | `tools` | list | conda-forge command-line tools to install (e.g. `["ripgrep", "pandoc=3.2"]`). Top-level key — put it before any `[[table]]`. |
 | `editor` | string or list | The bundled editor(s) this deployment standardizes on: `"vscode"` and/or `"spyder"`. A bare string is treated as a one-element list. Installed by `seed apply` last, in the order given, since they're the largest downloads. Any value that isn't a bundled editor stops the whole profile rather than deploying part of it. Omit for no editor. Top-level key. |
 | `[[repo]] url` | string | **Required.** Git URL to clone. |
-| `[[repo]] install` | string or list | The venv(s) to install the repo into after cloning (`uv pip install -e`, or its `requirements.txt`), in the order given. Every name must be a venv this profile declares. Leave the key out to clone without installing — `true` and `false` are **not** accepted: a profile either says where the repo goes or doesn't ask for it. |
+| `[[repo]] install` | string or list | The venv(s) to install the repo into after cloning (`uv pip install -e`, or its `requirements.txt`), in the order given. Every name must be a venv this profile declares. A name may carry extras — `"dev[gui,test]"` — which apply only to that venv, so one clone can land with different optional dependencies in each. Leave the key out to clone without installing — `true` and `false` are **not** accepted: a profile either says where the repo goes or doesn't ask for it. |
 | `[config]` | table | Settings to write. See below. |
 
 `[config]` accepts only settings that make sense per-user and after install:

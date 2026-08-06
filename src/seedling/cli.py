@@ -12,6 +12,7 @@ from .commands import (
     apply_cmd,
     auto_activate_cmd,
     config_cmd,
+    custom_cmd,
     deactivate_cmd,
     default_venv_cmd,
     download_cmd,
@@ -40,6 +41,7 @@ from .commands import (
 from .uv_tool import UvNotFound
 
 _EDITORS_GROUP_TITLE = "Editors & IDEs -- installed on demand, not up front"
+_CUSTOM_GROUP_TITLE = "Custom commands -- defined by your organization"
 
 # (command, args-hint, description) -- grouped for the custom help layout.
 # argparse's own auto-generated help lists every subcommand as one flat,
@@ -90,12 +92,16 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("repo-list", "", "List cloned repos"),
         ("repo-cd", "[name]", "cd into a cloned repo (or the repos folder)"),
         ("repo-open", "[name]", "Open a repo in the file manager"),
-        ("repo-install", "<name>", "Install a repo's dependencies into a venv"),
+        ("repo-install", "<name>[extras]", "Install a repo's dependencies into a venv"),
     ]),
     # The editor family's rows are filled in from the editor registry at
     # print time (see _help_groups) -- an editor joins the family by
     # registering itself, not by being listed again here.
     (_EDITORS_GROUP_TITLE, []),
+    # Populated from custom_cmd.help_rows() at print time, same as the
+    # editors group -- empty (and omitted entirely, see _help_groups) when
+    # nothing is configured.
+    (_CUSTOM_GROUP_TITLE, []),
     ("Utilities", [
         ("apply", "[profile] [--preview]", "Apply a deployment profile (venvs, packages, repos)"),
         ("config", "[get|set|unset]", "View or change seedling settings"),
@@ -145,6 +151,12 @@ def _help_groups() -> list[tuple[str, list[tuple[str, str, str]]]]:
     for title, commands in _HELP_GROUPS:
         if title == _EDITORS_GROUP_TITLE:
             commands = editors.help_rows()
+        elif title == _CUSTOM_GROUP_TITLE:
+            commands = custom_cmd.help_rows()
+            if not commands:
+                # No configured custom commands -- omit the group entirely
+                # rather than printing an empty "Custom commands:" heading.
+                continue
         groups.append((title, commands))
     return groups
 
@@ -273,6 +285,16 @@ def build_parser() -> argparse.ArgumentParser:
                              "available commands")
     p_tool.add_argument("toolargs", nargs=argparse.REMAINDER,
                         help="Arguments passed straight through to the tool")
+
+    p_custom = sub.add_parser(
+        "custom",
+        help="Run an organization's own custom command (see custom-commands.toml / "
+             "the custom commands folder)")
+    p_custom.add_argument("name", nargs="?",
+                          help="The custom command to run; omit to list "
+                               "available commands")
+    p_custom.add_argument("cmdargs", nargs=argparse.REMAINDER,
+                          help="Arguments passed straight through to the command")
 
     p_tool_install = sub.add_parser(
         "tool-install", help="Install a command-line tool from conda-forge")
@@ -431,7 +453,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_install_repo = sub.add_parser(
         "repo-install",
         help="Install a cloned repo's dependencies into a venv")
-    p_install_repo.add_argument("name", nargs="?", help="Name of the repo to install")
+    p_install_repo.add_argument("name", nargs="?", metavar="NAME[EXTRAS]",
+                                help="Repo to install, optionally with extras: "
+                                     "myrepo[gui] or myrepo[gui,dev]")
     p_install_repo.add_argument("-n", "--venv", dest="venv", metavar="NAME",
                                 default=None,
                                 help="Venv to install into. Defaults to the "
@@ -597,6 +621,23 @@ def _passthrough_handlers() -> dict:
     }
 
 
+def _reserved_command_names(parser: argparse.ArgumentParser) -> set[str]:
+    """Every top-level `seed <command>` name build_parser() already
+    registers -- the single source of truth a `toplevel` custom command must
+    never be allowed to shadow. There is no separate registry of built-in
+    names to import (they're spread across `_passthrough_handlers()`, the
+    `dispatch` dict below, and every `sub.add_parser(...)` call), so this
+    walks the parser's own subparsers action instead of hand-maintaining a
+    second list that would silently drift as commands are added or removed.
+    `argparse._SubParsersAction` is a private class, but introspecting it
+    this way is a well-established, stable pattern (argcomplete does the
+    same)."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            return set(action.choices)
+    return set()
+
+
 def _invoke(handler, args) -> int:
     """Run a command handler, turning the shared uv/subprocess failures into
     tidy one-line errors (and Ctrl-C into a clean 130)."""
@@ -651,6 +692,20 @@ def _dispatch_main(argv: list[str]) -> int:
         return _invoke(passthrough, ns)
 
     parser = build_parser()
+
+    # A `toplevel = true` custom command runs as bare `seed <name>`, in
+    # addition to `seed custom <name>`. Checked here, before argparse parses
+    # anything -- the name isn't known to build_parser() at all, it comes
+    # from an org's own custom-commands.toml/scripts folder. Built-ins
+    # always win: skipped entirely when argv[0] is already one of the
+    # reserved names every subparser below registers, so a custom command
+    # can never silently shadow (or break) a real `seed` command.
+    if argv[0] not in _reserved_command_names(parser):
+        cmd = custom_cmd.toplevel_map().get(argv[0])
+        if cmd is not None:
+            trailing = argv[1:]
+            return _invoke(lambda _args: custom_cmd.run_direct(cmd, trailing), None)
+
     args = parser.parse_args(argv)
 
     paths.ensure_layout()
@@ -679,6 +734,7 @@ def _dispatch_main(argv: list[str]) -> int:
         "tool-list": tool_cmd.list_tools,
         "tool-remove": tool_cmd.remove,
         "download-tool": tool_cmd.download_tool,
+        "custom": custom_cmd.run,
         "install": install_cmd.run,
         "uninstall": uninstall_cmd.run,
         "package-list": list_cmd.list_packages,

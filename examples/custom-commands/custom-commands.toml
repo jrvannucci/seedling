@@ -1,0 +1,44 @@
+# Example custom-commands.toml -- see docs/CUSTOM-COMMANDS.md.
+#
+# Try it: from a repo checkout,
+#   seed config set custom_commands ./examples/custom-commands/custom-commands.toml
+#   seed custom
+#   seed custom data-stack
+#   seed custom hello Jon
+
+[[command]]
+name = "data-stack"
+run = ["seed", "install", "pandas", "numpy", "matplotlib", "scikit-learn"]
+description = "Install the standard data-science package set into the active venv"
+# No `venv` key: plain `seed install` already targets whatever's active, so
+# omitting `venv` here and calling `seed install` IS "into the currently
+# activated venv." `seed custom data-stack --upgrade` becomes `seed install
+# ... --upgrade` for free, via the trailing-args rule.
+
+[[command]]
+name = "hello"
+run = ["python", "-c", "import sys; print('hello,', ' '.join(sys.argv[1:]) or 'world')"]
+description = "A trivial argv-passthrough demo"
+toplevel = true
+# toplevel = true also exposes this as bare `seed hello`.
+
+[[command]]
+name = "motd"
+run = ["python", "-c", "print('seedling: remember to pull the latest team scripts before you start.')"]
+description = "Message of the day -- a startup_commands worked example"
+# See startup_commands in seedling.conf / seed config set below: this one is
+# meant to run automatically in every new shell, not be typed by hand.
+
+[[command]]
+name = "quote"
+script = "quote.py"
+description = "Print a random quote"
+# script paths resolve relative to THIS file's own directory -- quote.py and
+# quotes.txt both live right here, no separate directory setting needed.
+
+[[command]]
+name = "bootstrap"
+script = "bootstrap.py"
+description = "Create a project venv and run first-time setup in it"
+toplevel = true
+# toplevel = true here too -- run and script both support it the same way.

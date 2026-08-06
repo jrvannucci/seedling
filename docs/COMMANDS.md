@@ -20,6 +20,7 @@ destructive action reads the same way (`remove-venv`, `remove-python`,
 | Offline utilities *(stage packages/tools for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>`, `download-tool <name...>` |
 | Repos | `repo-clone`, `repo-list`, `repo-cd`, `repo-open`, `repo-install`, `remove-repo` |
 | Editors & IDEs *(installed on demand)* | `vscode`, `vscode-repo`, `spyder`, `spyder-repo` |
+| Custom commands *(your organization's own — see [CUSTOM-COMMANDS.md](CUSTOM-COMMANDS.md))* | `custom <name>` *(run)* |
 | Everyday / singletons | `summary`, `health-check`, `logs-viewer`, `config`, `apply`, `where`, `kill-processes`, `update-commands`, `remove-user`, `purge`, `purge-and-reinstall` |
 
 **Python interpreters** — structural commands: the base installs that venvs
@@ -802,7 +803,7 @@ seed repo-open some-project
 seed repo-open
 ```
 
-## `seed repo-install <name> [--venv NAME]`
+## `seed repo-install <name>[extras] [--venv NAME]`
 
 Installs a cloned repo's dependencies into a venv — the active one by
 default, or the one you name:
@@ -814,6 +815,11 @@ default, or the one you name:
 - Otherwise, if it has a `requirements.txt`, runs
   `uv pip install -r <repo>/requirements.txt`.
 - If neither file exists, fails with a message rather than guessing.
+- `name[extra,...]` selects the repo's optional dependencies, same spelling
+  as a package spec: `seed repo-install plotpress[gui]` installs
+  `uv pip install -e <repo>[gui]`. Extras need a `pyproject.toml` to select
+  from — asking for them on a `requirements.txt`-only repo is an error, not
+  a silent plain install.
 - `--venv NAME` (`-n`) installs into that venv whatever this shell has
   active, and fails if there's no such venv rather than falling back to
   another one. Without it, the same `VIRTUAL_ENV` warning as `seed install`
@@ -822,7 +828,8 @@ default, or the one you name:
 ```
 seed activate myproject
 seed repo-install some-project
-seed repo-install some-project --venv analysis
+seed repo-install some-project[gui]
+seed repo-install some-project[gui,dev] --venv analysis
 ```
 
 A profile can declare the same thing for a fleet — see
@@ -837,6 +844,35 @@ prompt (skippable with `-y`).
 ```
 seed remove-repo some-project
 ```
+
+## `seed custom [name] [args...]`
+
+Runs an organization's own **custom command** — full details, including how
+to define one, are in **[CUSTOM-COMMANDS.md](CUSTOM-COMMANDS.md)**.
+
+Every command is one `[[command]]` entry in `custom-commands.toml`: either
+`run = [...]` (a fixed argv, an optional venv) for the simple case, or
+`script = "..."` (a `.py`/`.sh`/`.ps1` file next to the TOML file) for
+anything that needs real logic or to chain several `seed` subcommands
+together — a script orchestrates by shelling out to `seed` itself, the same
+thing `seed apply` already does internally, so there's no special API to
+learn.
+
+Everything after the command's own name is passed straight through. Run
+`seed custom` with no arguments to list what's configured. A command can
+also opt into running as bare `seed <name>` — see
+[Making a command top-level](CUSTOM-COMMANDS.md#making-a-command-top-level);
+a built-in `seed` command always wins any name collision.
+
+```
+seed custom lint
+seed custom lint --fix
+seed custom
+```
+
+A configured `startup_commands` list runs these same commands automatically
+in every new shell — see [CUSTOM-COMMANDS.md#running-commands-at-
+startup](CUSTOM-COMMANDS.md#running-commands-at-startup).
 
 ## `seed kill-processes [name] [--system] [-y]`
 
@@ -1274,6 +1310,13 @@ setting with its current value and an explanation. The keys:
   on every command.
 - `profile` — the [deployment profile](PROFILES.md) `seed apply` uses when
   given no path. Recorded at install time from `SEEDLING_PROFILE`.
+- `custom_commands` — path to the TOML file declaring your organization's
+  own [custom commands](CUSTOM-COMMANDS.md). Recorded at install time from
+  `SEEDLING_CUSTOM_COMMANDS`.
+- `startup_commands` — custom command names run automatically, in order, by
+  every new shell (list; takes comma-separated input). Recorded at install
+  time from `SEEDLING_STARTUP_COMMANDS`. See [CUSTOM-COMMANDS.md#running-
+  commands-at-startup](CUSTOM-COMMANDS.md#running-commands-at-startup).
 - `vscode_flavor` — which editor build `seed vscode` installs:
   `microsoft` (default) or `vscodium`. Affects the **next** install; use
   `seed vscode --reinstall` to switch an existing one.
