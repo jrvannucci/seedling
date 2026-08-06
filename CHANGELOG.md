@@ -11,6 +11,8 @@ what a release involves.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-05
+
 ### Added
 
 - **`seed custom [name] [args...]`** — let an organization add its own
