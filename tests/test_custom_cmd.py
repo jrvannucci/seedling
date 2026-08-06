@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import sys
 
-from conftest import make_venv_dirs
+from conftest import make_venv_dirs, needs_bash, needs_powershell
 
 from seedling import cli, config, paths
 from seedling.commands import custom_cmd
@@ -151,6 +151,26 @@ def test_script_missing_file_is_a_clear_error(run_cli, home, tmp_path):
     assert "script not found" in out
 
 
+@needs_bash
+def test_sh_script_command_runs_and_gets_args(home, tmp_path, capfd):
+    (tmp_path / "greet.sh").write_text(
+        '#!/bin/sh\necho "hi $1 from sh"\n')
+    _write_toml(tmp_path, '[[command]]\nname = "greet"\nscript = "greet.sh"\n')
+    code = cli.main(["custom", "greet", "Jon"])
+    assert code == 0
+    assert capfd.readouterr().out.strip() == "hi Jon from sh"
+
+
+@needs_powershell
+def test_ps1_script_command_runs_and_gets_args(home, tmp_path, capfd):
+    (tmp_path / "greet.ps1").write_text(
+        'param([string]$name)\nWrite-Output "hi $name from ps1"\n')
+    _write_toml(tmp_path, '[[command]]\nname = "greet"\nscript = "greet.ps1"\n')
+    code = cli.main(["custom", "greet", "Jon"])
+    assert code == 0
+    assert capfd.readouterr().out.strip() == "hi Jon from ps1"
+
+
 def test_toplevel_field_runs_as_bare_seed(home, tmp_path, capfd):
     (tmp_path / "greet.py").write_text("print('hi from toplevel')\n")
     _write_toml(tmp_path, '''
@@ -248,3 +268,73 @@ def test_known_names(home, tmp_path):
 def test_known_names_never_raises_on_bad_toml(home, tmp_path):
     _write_toml(tmp_path, "not valid toml [[[")
     assert custom_cmd.known_names() == set()
+
+
+# --- run_startup (the `seed custom --startup` fast path) ----------------
+# Collapses N seed-cli spawns (one per configured startup_commands name)
+# into one process that loops internally -- see custom_cmd.run_startup().
+
+def test_run_startup_runs_every_configured_name_in_order(home, tmp_path, capfd):
+    (tmp_path / "one.py").write_text("print('one')\n")
+    (tmp_path / "two.py").write_text("print('two')\n")
+    _write_toml(tmp_path, '''
+        [[command]]
+        name = "one"
+        script = "one.py"
+
+        [[command]]
+        name = "two"
+        script = "two.py"
+    ''')
+    config.set_value("startup_commands", ["one", "two"])
+    code = custom_cmd.run_startup()
+    assert code == 0
+    assert capfd.readouterr().out.splitlines() == ["one", "two"]
+
+
+def test_run_startup_is_a_noop_when_unconfigured(home):
+    assert config.get("startup_commands") == []
+    assert custom_cmd.run_startup() == 0
+
+
+def test_run_startup_warns_and_continues_past_a_failure(home, tmp_path, capfd):
+    (tmp_path / "boom.py").write_text("import sys; sys.exit(7)\n")
+    (tmp_path / "after.py").write_text("print('still ran')\n")
+    _write_toml(tmp_path, '''
+        [[command]]
+        name = "boom"
+        script = "boom.py"
+
+        [[command]]
+        name = "after"
+        script = "after.py"
+    ''')
+    config.set_value("startup_commands", ["boom", "after"])
+    code = custom_cmd.run_startup()
+    assert code == 0  # a startup routine must never block the shell
+    out = capfd.readouterr().out
+    assert "startup command 'boom' failed (exit 7)" in out
+    assert "still ran" in out
+
+
+def test_run_startup_warns_and_continues_past_an_unknown_name(home, tmp_path, capfd):
+    (tmp_path / "after.py").write_text("print('still ran')\n")
+    _write_toml(tmp_path, '[[command]]\nname = "after"\nscript = "after.py"\n')
+    config.set_value("startup_commands", ["ghost", "after"])
+    code = custom_cmd.run_startup()
+    assert code == 0
+    out = capfd.readouterr().out
+    assert "startup command 'ghost' not found" in out
+    assert "still ran" in out
+
+
+def test_custom_dash_dash_startup_flag_dispatches_through_the_cli(
+        home, tmp_path, capfd):
+    """The end-to-end path the shell hook actually invokes:
+    `seed custom --startup`."""
+    (tmp_path / "one.py").write_text("print('from cli')\n")
+    _write_toml(tmp_path, '[[command]]\nname = "one"\nscript = "one.py"\n')
+    config.set_value("startup_commands", ["one"])
+    code = cli.main(["custom", "--startup"])
+    assert code == 0
+    assert capfd.readouterr().out.strip() == "from cli"

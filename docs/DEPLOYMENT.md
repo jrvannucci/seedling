@@ -119,6 +119,14 @@ or environment variables:
   absolute) of a [deployment profile](PROFILES.md): the interpreters, named
   venvs, packages and repos your users should end up with. When set, the
   installer applies it instead of creating the built-in single `dev` venv.
+- `SEEDLING_CUSTOM_COMMANDS` (default: empty) — path (relative to this repo
+  copy, or absolute) of a [custom commands](CUSTOM-COMMANDS.md) TOML file:
+  your organization's own `seed <name>` verbs. Seeds the `custom_commands`
+  setting.
+- `SEEDLING_STARTUP_COMMANDS` (default: empty) — comma-separated custom
+  command names to run automatically, in order, in every new shell. Seeds
+  the `startup_commands` setting; see
+  [Running commands at startup](CUSTOM-COMMANDS.md#running-commands-at-startup).
 
 How it's applied: both installers read `seedling.conf` at the repo root
 (a piped install reads the copy inside the repo it just cloned). The
@@ -126,7 +134,10 @@ install source is always recorded as `update_source`, and other values
 that differ from the public defaults are written alongside it, into
 `~/seedling/system/config/settings.json` on **first install only** — an
 existing settings file is never overwritten, so later `seed config set`
-choices survive reinstalls. Resolution order for the install source:
+choices survive reinstalls. Changing `seedling.conf` later doesn't reach
+already-installed machines on its own; `seed update-commands` will *report*
+any drift it finds (see [its reference entry](COMMANDS.md#seed-update-commands))
+but never overwrite a setting for you. Resolution order for the install source:
 
 1. `SEEDLING_REPO` environment variable (one-run override)
 2. `SEEDLING_REPO_URL` from `seedling.conf`

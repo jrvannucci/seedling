@@ -94,7 +94,46 @@ def _print_available(index: dict, warnings: list[str]) -> None:
         print(f"  {name:<20} {cmd.description}{suffix}")
 
 
+def run_startup() -> int:
+    """`seed custom --startup` -- run every configured `startup_commands`
+    entry, IN ONE PROCESS, in order. This exists purely as a fast path: the
+    shell hook used to spawn one `seed custom <name>` (a full seed-cli cold
+    start) per configured name, per new shell; this collapses that to one
+    spawn total, regardless of how many names are configured. Behavior is
+    otherwise identical to what the shell hook used to do itself: a name
+    that fails (or isn't found) prints a warning and the rest still run --
+    a startup routine must never block a shell from opening. Always returns
+    0 for exactly that reason; per-command outcomes are the warnings, not
+    the exit code."""
+    names = config.get("startup_commands") or []
+    if not names:
+        return 0
+
+    index, warnings = _load_all()
+    for w in warnings:
+        print(f"warning: {w}")
+
+    if index:
+        paths.ensure_layout()
+        config.apply_runtime_env()
+
+    for name in names:
+        cmd = index.get(name)
+        if cmd is None:
+            print(f"seedling: startup command '{name}' not found "
+                  f"(declared in startup_commands, but not in "
+                  f"custom-commands.toml)")
+            continue
+        status = _run(cmd, [])
+        if status != 0:
+            print(f"seedling: startup command '{name}' failed (exit {status})")
+    return 0
+
+
 def run(args) -> int:
+    if getattr(args, "startup", False):
+        return run_startup()
+
     name = getattr(args, "name", None)
     trailing = getattr(args, "cmdargs", None) or []
 

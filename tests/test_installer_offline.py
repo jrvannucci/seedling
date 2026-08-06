@@ -222,6 +222,26 @@ class TestCustomCommandsAndStartup:
         script = Path(recorded).parent / "scripts" / "greet.py"
         assert script.is_file(), f"expected the sibling script at {script}"
 
+    def test_env_var_sourced_script_sibling_survives_the_copy(
+            self, install_env, tmp_path):
+        """The env-var override (the piped one-liner path) copies the TOML
+        file's WHOLE containing directory, not just the file, so a relative
+        `script` entry's sibling survives here too."""
+        copy, fake_home, home, run_install = install_env
+        mine_dir = tmp_path / "my-commands"
+        mine_dir.mkdir()
+        (mine_dir / "custom-commands.toml").write_text(
+            '[[command]]\nname = "greet"\nscript = "scripts/greet.py"\n',
+            encoding="utf-8")
+        (mine_dir / "scripts").mkdir()
+        (mine_dir / "scripts" / "greet.py").write_text("print('hi')\n")
+        toml_path = (mine_dir / "custom-commands.toml").as_posix()
+        result = run_install(f"SEEDLING_CUSTOM_COMMANDS='{toml_path}'")
+        assert result.returncode == 0, result.stdout + result.stderr
+        recorded = _settings(home)["custom_commands"]
+        script = Path(recorded).parent / "scripts" / "greet.py"
+        assert script.is_file(), f"expected the sibling script at {script}"
+
     def test_startup_commands_recorded_as_a_list(self, install_env):
         copy, fake_home, home, run_install = install_env
         _write_conf(

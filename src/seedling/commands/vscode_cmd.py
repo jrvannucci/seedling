@@ -313,7 +313,13 @@ def _write_default_settings() -> None:
     user_dir.mkdir(parents=True, exist_ok=True)
     settings_file = user_dir / "settings.json"
     if not settings_file.exists():
-        settings_file.write_text(json.dumps(DEFAULT_SETTINGS, indent=2))
+        # python.venvPath is the one setting that can't be a static literal
+        # in DEFAULT_SETTINGS -- it's an absolute, machine-specific path.
+        # Pointing it at seedling's own venvs folder is what makes every
+        # `seed venv` show up in VS Code's interpreter picker without the
+        # user ever pointing VS Code at one by hand.
+        settings = dict(DEFAULT_SETTINGS, **{"python.venvPath": str(paths.VENVS_DIR)})
+        settings_file.write_text(json.dumps(settings, indent=2))
 
 
 def _product_json(app_dir: Path) -> Path | None:

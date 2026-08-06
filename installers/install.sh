@@ -227,12 +227,14 @@ fi
 # profile above: env-var override (copied in, since its origin may not
 # survive) beats conf (left in place, since it already lives inside the
 # copied source tree -- any sibling script files ride along for free).
-# NOTE: the env-var branch copies only the TOML file itself, not its
-# directory (an arbitrary env-var path could be a whole home directory, not
-# a folder meant for this) -- a `script` entry with a RELATIVE path won't
-# resolve post-install that way. Use an absolute `script` path with the
-# env-var override, or prefer the conf-distributed form for anything with
-# script files.
+# The env-var branch copies the file's WHOLE containing directory, not just
+# the file, so a relative `script = "..."` entry's sibling files (and their
+# own companion data, like a script's own quotes.txt) survive too -- the
+# same thing the conf-distributed form already gets for free from the
+# source-tree copy. This assumes the directory holding the TOML file is
+# scoped to this deployment (as it should be for anything with script
+# files); point SEEDLING_CUSTOM_COMMANDS at a dedicated folder, not
+# somewhere with unrelated large content, if using the env-var override.
 CUSTOM_COMMANDS_PATH=""
 if [ -n "$SEEDLING_CUSTOM_COMMANDS_FROM_ENV" ]; then
     case "$SEEDLING_CUSTOM_COMMANDS_FROM_ENV" in
@@ -240,8 +242,12 @@ if [ -n "$SEEDLING_CUSTOM_COMMANDS_FROM_ENV" ]; then
         *)           CC_SRC="$SEEDLING_INVOKED_FROM/$SEEDLING_CUSTOM_COMMANDS_FROM_ENV" ;;
     esac
     [ -f "$CC_SRC" ] || die "SEEDLING_CUSTOM_COMMANDS=$SEEDLING_CUSTOM_COMMANDS_FROM_ENV was set, but no file exists at $CC_SRC."
-    CUSTOM_COMMANDS_PATH="$SEEDLING_HOME/system/config/custom-commands.toml"
-    cp "$CC_SRC" "$CUSTOM_COMMANDS_PATH"
+    CC_SRC_DIR=$(dirname "$CC_SRC")
+    CC_BASENAME=$(basename "$CC_SRC")
+    CC_DEST_DIR="$SEEDLING_HOME/system/config/custom-commands"
+    rm -rf "$CC_DEST_DIR"
+    cp -R "$CC_SRC_DIR" "$CC_DEST_DIR"
+    CUSTOM_COMMANDS_PATH="$CC_DEST_DIR/$CC_BASENAME"
     info "Using custom commands $CC_SRC (copied to $CUSTOM_COMMANDS_PATH)"
 elif [ -n "$SEEDLING_CUSTOM_COMMANDS" ]; then
     case "$SEEDLING_CUSTOM_COMMANDS" in

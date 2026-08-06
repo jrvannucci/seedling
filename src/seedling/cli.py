@@ -288,13 +288,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_custom = sub.add_parser(
         "custom",
-        help="Run an organization's own custom command (see custom-commands.toml / "
-             "the custom commands folder)")
+        help="Run an organization's own custom command (see custom-commands.toml)")
     p_custom.add_argument("name", nargs="?",
                           help="The custom command to run; omit to list "
                                "available commands")
     p_custom.add_argument("cmdargs", nargs=argparse.REMAINDER,
                           help="Arguments passed straight through to the command")
+    # Internal: the shell hook's startup-commands block uses this to run
+    # every configured startup_commands entry in ONE seed-cli process
+    # instead of spawning one per command -- see custom_cmd.run_startup().
+    p_custom.add_argument("--startup", action="store_true", help=argparse.SUPPRESS)
 
     p_tool_install = sub.add_parser(
         "tool-install", help="Install a command-line tool from conda-forge")

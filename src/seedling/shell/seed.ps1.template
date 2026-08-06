@@ -178,24 +178,32 @@ if (-not $env:VIRTUAL_ENV) {
 # EVERY new shell -- unlike default_venv auto-activation above, this is not
 # skipped just because a venv is already active: it is a deliberate hook for
 # an organization's own startup routine (a connectivity check, a sync, a
-# reminder), not tied to venv state at all. Each name is looked up the same
-# way `seed custom <name>` does, so a name doesn't have to be `toplevel` to
-# run here. A failing command warns and does not stop the rest, or the shell
-# from opening -- a typo in this list must not lock anyone out of their
-# terminal.
+# reminder), not tied to venv state at all. A failing command warns and does
+# not stop the rest, or the shell from opening -- a typo in this list must
+# not lock anyone out of their terminal.
+#
+# The settings.json check below is a native-PowerShell short-circuit so an
+# org that hasn't configured this pays nothing at all; ONLY the actual
+# running of the list is handed to seed-cli, and as ONE process
+# (`seed custom --startup`, which loops internally) rather than one seed-cli
+# cold start per configured name -- terminal-open latency shouldn't scale
+# with how many startup commands an org has.
 $script:SeedlingStartupCommands = @()
 if (Test-Path $script:SeedlingSettings) {
     try {
-        $script:SeedlingStartupCommands = @(
-            (Get-Content -Raw $script:SeedlingSettings | ConvertFrom-Json).startup_commands)
+        # `.startup_commands` is $null when the key is absent (older
+        # settings files, or nothing configured) -- and @($null) is a
+        # ONE-element array in PowerShell, not an empty one, so wrapping
+        # with @() must happen AFTER this truthiness check, never before,
+        # or an absent key would look like one configured command.
+        $script:SeedlingStartupCommandsRaw = (Get-Content -Raw $script:SeedlingSettings | ConvertFrom-Json).startup_commands
+        if ($script:SeedlingStartupCommandsRaw) {
+            $script:SeedlingStartupCommands = @($script:SeedlingStartupCommandsRaw)
+        }
     } catch {
         $script:SeedlingStartupCommands = @()
     }
 }
-foreach ($script:SeedlingStartupName in $script:SeedlingStartupCommands) {
-    if (-not $script:SeedlingStartupName) { continue }
-    & $script:SeedlingCli custom $script:SeedlingStartupName
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "seedling: startup command '$script:SeedlingStartupName' failed (exit $LASTEXITCODE)" -ForegroundColor Yellow
-    }
+if ($script:SeedlingStartupCommands.Count -gt 0) {
+    & $script:SeedlingCli custom --startup
 }
