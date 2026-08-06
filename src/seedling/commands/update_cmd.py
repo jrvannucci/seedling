@@ -22,6 +22,7 @@ refreshed templates so shell-side changes ship with updates too.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -30,6 +31,128 @@ from .. import colors, config, fsutil, paths, shell_integration, uv_tool, git_to
 
 # Suffix for the rename-aside trick below; also what the sweep looks for.
 _ASIDE_MARKER = ".old-"
+
+# A git URL (scheme:// or git's scp-like user@host:path). Anything else --
+# a drive letter, a UNC share, a leading slash, a bare hostname-free path --
+# reads as a filesystem path that just isn't reachable right now, not
+# something to hand to `git clone`. Used only to pick the right WORDING for
+# an unreachable update_source; `_refresh_from_url` still does the honest
+# thing (fails cleanly, falls back) if this heuristic is ever wrong.
+_GIT_URL_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+.-]*://|[^/\\:]+@[^/\\:]+:)")
+
+# Matches the installers' own KEY="value" reader (install.ps1's
+# Read-SeedlingConf regex). One value per line, always double-quoted.
+_CONF_LINE_RE = re.compile(r'^\s*([A-Z_]+)\s*=\s*"([^"]*)"\s*$')
+
+
+def _split_list(raw: str) -> list[str]:
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _drift_list(raw: str):
+    items = _split_list(raw)
+    return items or None
+
+
+def _drift_plain(raw: str):
+    return raw if raw.strip() else None
+
+
+def _drift_native_tls(raw: str):
+    return True if raw.strip().lower() == "true" else None
+
+
+def _drift_conda_channel(raw: str):
+    v = raw.strip()
+    return v if v and v != "conda-forge" else None
+
+
+def _drift_vscode_flavor(raw: str):
+    v = raw.strip().lower()
+    return v if v and v != "microsoft" else None
+
+
+def _drift_vscode_extensions(raw: str):
+    v = raw.strip()
+    if v.lower() == "none":
+        return []
+    return _split_list(v) or None
+
+
+# (conf key, settings.json key, raw-string -> seedable-value or None). Only
+# the VALUE-shaped settings a fresh install seeds unconditionally from a
+# plain transform of the conf string -- deliberately excludes update_source,
+# profile, custom_commands, and shared_root, which are FILE PATHS an
+# installer resolves (and sometimes copies) relative to its own invocation
+# context; replicating that faithfully from here, after the fact, risks
+# reporting drift that was never really there. Those four still need a
+# person to notice and re-run `seed config set` by hand.
+_DRIFT_CHECKS = [
+    ("SEEDLING_VENV_DEFAULT_PACKAGES", "venv_default_packages", _drift_list),
+    ("SEEDLING_PYTHON_MIRROR", "python_mirror", _drift_plain),
+    ("SEEDLING_PACKAGE_INDEX", "package_index", _drift_plain),
+    ("SEEDLING_CONDA_CHANNEL", "conda_channel", _drift_conda_channel),
+    ("SEEDLING_NATIVE_TLS", "native_tls", _drift_native_tls),
+    ("SEEDLING_VSCODE_FLAVOR", "vscode_flavor", _drift_vscode_flavor),
+    ("SEEDLING_EXTENSION_GALLERY", "extension_gallery", _drift_plain),
+    ("SEEDLING_VSCODE_EXTENSIONS", "vscode_extensions", _drift_vscode_extensions),
+    ("SEEDLING_STARTUP_COMMANDS", "startup_commands", _drift_list),
+]
+
+
+def _parse_conf(text: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        m = _CONF_LINE_RE.match(line)
+        if m:
+            values[m.group(1)] = m.group(2)
+    return values
+
+
+def report_conf_drift(refreshed_src: Path) -> None:
+    """After refreshing from `update_source`, check whether the org's
+    seedling.conf now asks for something different than what's already
+    configured on this machine, and say so -- never applies anything.
+
+    `seed update-commands` only ever refreshes seed-cli's own code; it has
+    never re-seeded settings.json from a changed seedling.conf (settings
+    are seeded once, at install time). An org moving a share path or
+    changing an index previously left every existing user's machine
+    silently out of sync with no way to discover it short of something
+    breaking. This closes the DISCOVERY gap without touching the
+    auto-apply-vs-respect-local-customization tradeoff: it tells you
+    exactly what changed and the command to apply it, and stops there."""
+    conf_path = refreshed_src / "seedling.conf"
+    if not conf_path.is_file():
+        return
+    try:
+        conf = _parse_conf(conf_path.read_text(encoding="utf-8-sig"))
+    except OSError:
+        return
+
+    drifted: list[tuple[str, object, object]] = []
+    for conf_key, settings_key, transform in _DRIFT_CHECKS:
+        raw = conf.get(conf_key)
+        if raw is None:
+            continue
+        new_value = transform(raw)
+        if new_value is None:
+            continue
+        if config.get(settings_key) != new_value:
+            drifted.append((settings_key, config.get(settings_key), new_value))
+
+    if not drifted:
+        return
+
+    print()
+    print(colors.warn(
+        "The organization's seedling.conf now sets these differently than "
+        "what's configured on this machine (settings are only ever seeded "
+        "at install time, never re-applied automatically):"))
+    for key, current, new in drifted:
+        print(f"  {key}: {current!r} -> {new!r}")
+        value = ",".join(new) if isinstance(new, list) else new
+        print(f"    seed config set {key} \"{value}\"")
 
 
 def _swap_in(src: Path, tmp: Path) -> bool:
@@ -172,6 +295,17 @@ def run(args) -> int:
                     f"({source_dir}) is a directory, not a git URL."))
             if not _refresh_from_directory(src, source_dir):
                 return 1
+        elif not _GIT_URL_RE.match(str(update_source)):
+            # Looks like a filesystem path (a drive letter, a UNC share, a
+            # leading slash), not a git URL -- most likely a network share
+            # that isn't mounted right now, not something to `git clone`.
+            # Saying so plainly beats the confusing "Downloading the latest
+            # seedling from S:\..." that _refresh_from_url would print for
+            # what's actually a path.
+            print(colors.warn(
+                f"update_source ({update_source}) looks like a directory, "
+                f"but isn't reachable right now -- is the share mounted?"))
+            print("Reinstalling from the current local copy instead.")
         else:
             if not _refresh_from_url(src, str(update_source), branch=branch):
                 return 1
@@ -209,6 +343,8 @@ def run(args) -> int:
         print("Refreshing shell integration ...")
         print("(takes effect in new shells; or re-source "
               f"{refreshed[0]} in this one)")
+
+    report_conf_drift(src)
 
     print(colors.ok("Done. Your `seed` commands are up to date."))
     return 0

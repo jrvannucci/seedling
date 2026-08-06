@@ -284,12 +284,13 @@ if ($env:SEEDLING_PROFILE) {
 # profile above: env-var override (copied in, since its origin may not
 # survive) beats conf (left in place, since it already lives inside the
 # copied source tree -- any sibling script files ride along for free).
-# NOTE: the env-var branch copies only the TOML file itself, not its
-# directory (an arbitrary env-var path could be a whole home directory, not
-# a folder meant for this) -- a `script` entry with a RELATIVE path won't
-# resolve post-install that way. Use an absolute `script` path with the
-# env-var override, or prefer the conf-distributed form for anything with
-# script files.
+# The env-var branch copies the file's WHOLE containing directory, not just
+# the file, so a relative `script = "..."` entry's sibling files (and their
+# own companion data) survive too -- the same thing the conf-distributed
+# form already gets for free from the source-tree copy. This assumes the
+# directory holding the TOML file is scoped to this deployment; point
+# SEEDLING_CUSTOM_COMMANDS at a dedicated folder, not somewhere with
+# unrelated large content, if using the env-var override.
 $CustomCommandsPath = ""
 if ($env:SEEDLING_CUSTOM_COMMANDS) {
     $rawCC = $env:SEEDLING_CUSTOM_COMMANDS
@@ -297,8 +298,12 @@ if ($env:SEEDLING_CUSTOM_COMMANDS) {
     if (-not (Test-Path $ccSrc)) {
         Die "SEEDLING_CUSTOM_COMMANDS=$rawCC was set, but no file exists at $ccSrc."
     }
-    $CustomCommandsPath = Join-Path $SeedlingHome "system\config\custom-commands.toml"
-    Copy-Item -Force $ccSrc $CustomCommandsPath
+    $ccSrcDir = Split-Path -Parent $ccSrc
+    $ccBasename = Split-Path -Leaf $ccSrc
+    $ccDestDir = Join-Path $SeedlingHome "system\config\custom-commands"
+    if (Test-Path $ccDestDir) { Remove-Item -Recurse -Force $ccDestDir }
+    Copy-Item -Recurse -Force $ccSrcDir $ccDestDir
+    $CustomCommandsPath = Join-Path $ccDestDir $ccBasename
     Info "Using custom commands $ccSrc (copied to $CustomCommandsPath)"
 } elseif ($Conf["SEEDLING_CUSTOM_COMMANDS"]) {
     $rawCC = $Conf["SEEDLING_CUSTOM_COMMANDS"]
@@ -746,23 +751,51 @@ $seedPs1 = Join-Path $SeedlingHome "system\shell\seed.ps1"
 Set-Content -Path $seedPs1 -Value $content -Encoding UTF8
 
 $hookLine = ". `"$seedPs1`""
-if (-not (Test-Path $PROFILE)) {
-    New-Item -ItemType File -Force -Path $PROFILE | Out-Null
+
+function Add-SeedlingHook($ProfilePath) {
+    if (-not (Test-Path $ProfilePath)) {
+        New-Item -ItemType File -Force -Path $ProfilePath | Out-Null
+    }
+    # Drop hook lines left by older seedling layouts (e.g. ~\seedling\shell\
+    # before it moved under system\) before adding the current one, so a
+    # reinstall never leaves a stale line erroring in every new shell.
+    $lines = @(Get-Content $ProfilePath -ErrorAction SilentlyContinue)
+    $cleaned = @($lines | Where-Object {
+        -not ($_.Contains($SeedlingHome) -and ($_ -match "seed\.(ps1|sh)") -and $_ -ne $hookLine)
+    })
+    if ($cleaned.Count -ne $lines.Count) {
+        Set-Content -Path $ProfilePath -Value $cleaned
+        Info "Removed stale seedling hook line(s) from $ProfilePath"
+    }
+    if (-not ($cleaned -contains $hookLine)) {
+        Add-Content -Path $ProfilePath -Value "`n# seedling`n$hookLine"
+        Info "Added seedling to $ProfilePath"
+    }
 }
-# Drop hook lines left by older seedling layouts (e.g. ~\seedling\shell\
-# before it moved under system\) before adding the current one, so a
-# reinstall never leaves a stale line erroring in every new shell.
-$lines = @(Get-Content $PROFILE -ErrorAction SilentlyContinue)
-$cleaned = @($lines | Where-Object {
-    -not ($_.Contains($SeedlingHome) -and ($_ -match "seed\.(ps1|sh)") -and $_ -ne $hookLine)
-})
-if ($cleaned.Count -ne $lines.Count) {
-    Set-Content -Path $PROFILE -Value $cleaned
-    Info "Removed stale seedling hook line(s) from $PROFILE"
-}
-if (-not ($cleaned -contains $hookLine)) {
-    Add-Content -Path $PROFILE -Value "`n# seedling`n$hookLine"
-    Info "Added seedling to $PROFILE"
+
+Add-SeedlingHook $PROFILE
+
+# Windows PowerShell (5.1, "Desktop" edition) and PowerShell (6+, "Core")
+# keep SEPARATE profile files under Documents\WindowsPowerShell\ and
+# Documents\PowerShell\ -- $PROFILE only ever points at the one for the
+# edition currently running the installer. Hook the OTHER edition's profile
+# too, so `seed` isn't missing just because someone opened the PowerShell
+# they didn't install from. Derived by swapping the folder name WITHIN
+# $PROFILE's own path (rather than recomputing Documents independently) so
+# a test overriding $PROFILE to a throwaway path is naturally respected --
+# the swap is simply a no-op if that path doesn't contain either folder
+# name, which also means it never touches a REAL profile the test didn't
+# ask for. 5.1 always ships on Windows, so its profile is always worth
+# hooking; the 7+ profile is only hooked if `pwsh` is actually on PATH --
+# writing one for an edition that isn't installed would be clutter, not a
+# convenience.
+if ($PSVersionTable.PSEdition -eq "Core" -and $PROFILE -match "\\PowerShell\\") {
+    $siblingProfile = $PROFILE -replace "\\PowerShell\\", "\WindowsPowerShell\"
+    Add-SeedlingHook $siblingProfile
+} elseif ($PSVersionTable.PSEdition -ne "Core" -and $PROFILE -match "\\WindowsPowerShell\\" `
+          -and (Get-Command pwsh -ErrorAction SilentlyContinue)) {
+    $siblingProfile = $PROFILE -replace "\\WindowsPowerShell\\", "\PowerShell\"
+    Add-SeedlingHook $siblingProfile
 }
 
 Info "seedling is installed."

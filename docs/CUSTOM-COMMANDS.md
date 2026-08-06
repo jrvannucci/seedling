@@ -227,6 +227,13 @@ Each name is looked up exactly the way `seed custom <name>` does, whether
 it's `toplevel` or not, and run in the listed order, every time a new shell
 opens.
 
+**All of it happens in one seed-cli process, not one per command.** The
+shell hook checks `settings.json` natively (no process spawned at all when
+nothing is configured), then, if there's anything to run, spawns seed-cli
+exactly once (`seed custom --startup`) and loops internally — so
+terminal-open latency stays flat whether you have one startup command or
+five.
+
 **This is deliberately unconditional.** `default_venv` auto-activation is
 skipped when a venv is already active (it would be wrong to override a
 choice you already made); `startup_commands` is not tied to venv state at
@@ -271,13 +278,15 @@ gets refreshed. `startup_commands` is a plain list, recorded once into
 `seed.sh`) itself, not by `seed-cli` — see [running commands at
 startup](#running-commands-at-startup).
 
-**One caveat, for the piped-one-liner install** (`SEEDLING_CUSTOM_COMMANDS`
-set as an *environment variable* rather than in `seedling.conf`): only the
-TOML file itself is copied into the install, not its whole directory — an
-env-var path could point anywhere, including a directory much bigger than
-one meant for this. A relative `script` path won't resolve after an
-install done that way; give `script` an absolute path instead, or use the
-conf-distributed form (the normal case for anything with script files).
+**One thing to know about the piped-one-liner install** (`SEEDLING_CUSTOM_COMMANDS`
+set as an *environment variable* rather than in `seedling.conf`): the
+installer copies the TOML file's **whole containing directory**, not just
+the file, so relative `script` entries and their own companion files
+survive — the same thing the conf-distributed form already gets for free
+from the source-tree copy. That does mean the directory holding
+`custom-commands.toml` should be scoped to just this deployment's files;
+point the env var at a dedicated folder, not somewhere with a lot of
+unrelated content, since all of it gets copied in.
 
 You can also change either setting on an existing install without a
 fleet-wide rollout:

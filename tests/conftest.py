@@ -206,11 +206,13 @@ UV = shutil.which("uv")
 GIT = shutil.which("git")
 BASH = shutil.which("bash")
 POWERSHELL = shutil.which("powershell")
+PWSH = shutil.which("pwsh")
 
 needs_uv = pytest.mark.skipif(UV is None, reason="uv not on PATH")
 needs_git = pytest.mark.skipif(GIT is None, reason="git not on PATH")
 needs_bash = pytest.mark.skipif(BASH is None, reason="bash not on PATH")
 needs_powershell = pytest.mark.skipif(POWERSHELL is None, reason="powershell not on PATH")
+needs_pwsh = pytest.mark.skipif(PWSH is None, reason="pwsh (PowerShell 7+) not on PATH")
 windows_only = pytest.mark.skipif(os.name != "nt", reason="Windows-only behavior")
 
 
@@ -340,11 +342,17 @@ def plant_stub_uv_windows(home: Path) -> Path:
 
 
 def run_powershell_install(copy: Path, seedling_home: Path, fake_profile: Path,
-                           env_extra: dict | None = None, timeout: int = 300):
+                           env_extra: dict | None = None, timeout: int = 300,
+                           exe: str | None = None):
     """Execute install.ps1 against an isolated home and a FAKE $PROFILE, so
     the hook line never touches the real user profile. $PROFILE is only read
     by the installer, so overriding it in the calling scope redirects the
-    write. SEEDLING_*/UV_* are scrubbed from the environment first."""
+    write. SEEDLING_*/UV_* are scrubbed from the environment first.
+
+    `exe` picks the PowerShell edition running the installer -- POWERSHELL
+    (5.1, "Desktop") by default; pass PWSH to run it under 6+ ("Core")
+    instead, e.g. to exercise the sibling-profile-hook branch that only
+    fires under Core."""
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("SEEDLING_", "UV_"))
            and k not in ("SSL_CERT_FILE", "GIT_SSL_CAINFO")}
@@ -354,5 +362,5 @@ def run_powershell_install(copy: Path, seedling_home: Path, fake_profile: Path,
     script = copy / "installers" / "install.ps1"
     cmd = f"$PROFILE = '{fake_profile}'; & '{script}'"
     return subprocess.run(
-        [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", cmd],
+        [exe or POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", cmd],
         capture_output=True, text=True, timeout=timeout, env=env)

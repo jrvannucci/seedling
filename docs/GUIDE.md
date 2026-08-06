@@ -319,6 +319,12 @@ or from the tool underneath.
 seedling is deliberately designed so that **nothing updates the `seed`
 command without you explicitly asking it to.**
 
+This section is entirely about the `seed` command's own code. If what's out
+of date is your *environment* instead — venvs, packages, or repos drifting
+from an organization's [deployment profile](PROFILES.md) — that's
+[`seed apply`](COMMANDS.md#seed-apply-profile---preview---force), a
+separate command covered on its own page. Neither updates the other.
+
 The installer doesn't install `seed-cli` from wherever you ran it from — it
 clones/copies the source into `~/seedling/system/src` first, and installs
 from *that* private copy. Concretely:
@@ -347,6 +353,13 @@ If no source is recorded, it just reinstalls from whatever's currently in
 hand-edited something. Note that updating *overwrites* the private copy —
 hand-edits there don't survive an update (edit and reinstall from a real
 checkout instead if you're developing seedling itself).
+
+After refreshing, it also re-reads the now-current `seedling.conf` and
+reports (never applies) any *setting* it would now seed differently than
+what's actually configured — see
+[`seed update-commands`](COMMANDS.md#seed-update-commands) for the
+full explanation. Settings are otherwise seeded once, at install time,
+and never re-applied on their own.
 
 The installers accept the same flexibility up front: `SEEDLING_REPO` may
 be a git URL *or* a directory containing a copy of this repo. When it's a

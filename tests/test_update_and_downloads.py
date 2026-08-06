@@ -55,6 +55,82 @@ def test_directory_update_excludes_git_and_vendor(run_cli, home, src_installed, 
     assert not (src / "vendor").exists()
 
 
+def test_unreachable_directory_share_gives_a_clear_message(run_cli, home, src_installed):
+    """A directory-shaped update_source (drive letter, UNC, leading slash)
+    that isn't currently reachable must say so plainly, rather than being
+    treated as a git URL and printing a misleading "Downloading the latest
+    seedling from ..." for what's actually an unmounted share."""
+    _src, calls = src_installed
+    config.set_value("update_source", r"/mnt/nonexistent-share/seedling")
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert "isn't reachable right now" in out
+    assert "Downloading the latest seedling from" not in out
+    # Still falls back gracefully to reinstalling the local copy.
+    assert calls and calls[0][:2] == ["tool", "install"]
+
+
+# --- report_conf_drift: settings.json is seeded once, at install time, and
+# never re-applied by `seed update-commands` -- these prove the DISCOVERY
+# report that closes the gap without silently overwriting local changes.
+
+def test_reports_drift_when_conf_changed_upstream(run_cli, home, src_installed, tmp_path):
+    src, calls = src_installed
+    upstream = tmp_path / "share"
+    upstream.mkdir()
+    _make_source_tree(upstream, "v2")
+    (upstream / "seedling.conf").write_text(
+        'SEEDLING_VENV_DEFAULT_PACKAGES="ipython,ruff,pandas"\n')
+    config.set_value("update_source", str(upstream))
+    config.set_value("venv_default_packages", ["ipython", "ruff"])  # the OLD value
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert "venv_default_packages: ['ipython', 'ruff'] -> " \
+           "['ipython', 'ruff', 'pandas']" in out
+    assert 'seed config set venv_default_packages "ipython,ruff,pandas"' in out
+    # Never applied automatically -- only reported.
+    assert config.get("venv_default_packages") == ["ipython", "ruff"]
+
+
+def test_no_drift_report_when_conf_already_matches(run_cli, home, src_installed, tmp_path):
+    src, calls = src_installed
+    upstream = tmp_path / "share"
+    upstream.mkdir()
+    _make_source_tree(upstream, "v2")
+    (upstream / "seedling.conf").write_text(
+        'SEEDLING_VENV_DEFAULT_PACKAGES="ipython,ruff"\n')
+    config.set_value("update_source", str(upstream))
+    config.set_value("venv_default_packages", ["ipython", "ruff"])
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert "differently than" not in out
+
+
+def test_no_drift_report_when_no_conf_in_refreshed_source(run_cli, home, src_installed):
+    """Repair mode (no update_source) or a source tree with no
+    seedling.conf at its root must not crash -- just nothing to report."""
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert "differently than" not in out
+
+
+def test_drift_report_ignores_settings_a_fresh_install_wouldnt_seed(
+        run_cli, home, src_installed, tmp_path):
+    """conda_channel/vscode_flavor are only seeded when they differ from
+    their hardcoded default -- the same rule the installers themselves
+    apply, so a conf explicitly naming the default isn't "drift"."""
+    src, calls = src_installed
+    upstream = tmp_path / "share"
+    upstream.mkdir()
+    _make_source_tree(upstream, "v2")
+    (upstream / "seedling.conf").write_text(
+        'SEEDLING_CONDA_CHANNEL="conda-forge"\nSEEDLING_VSCODE_FLAVOR="microsoft"\n')
+    config.set_value("update_source", str(upstream))
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert "differently than" not in out
+
+
 def test_directory_update_rejects_non_seedling_tree(run_cli, home, src_installed, tmp_path):
     bogus = tmp_path / "bogus"
     bogus.mkdir()

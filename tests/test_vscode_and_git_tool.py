@@ -28,6 +28,25 @@ def _preseed_vscode(home):
         code.chmod(0o755)
 
 
+def test_default_settings_point_python_venvpath_at_seedlings_venvs(home):
+    """So every `seed venv` shows up in VS Code's interpreter picker without
+    anyone pointing VS Code at it by hand."""
+    vscode_cmd._write_default_settings()
+    settings_file = (paths.VSCODE_APP_DIR / "data" / "user-data" / "User"
+                      / "settings.json")
+    settings = json.loads(settings_file.read_text())
+    assert settings["python.venvPath"] == str(paths.VENVS_DIR)
+
+
+def test_default_settings_never_overwrite_an_existing_file(home):
+    settings_file = (paths.VSCODE_APP_DIR / "data" / "user-data" / "User"
+                      / "settings.json")
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(json.dumps({"user.customized": True}))
+    vscode_cmd._write_default_settings()
+    assert json.loads(settings_file.read_text()) == {"user.customized": True}
+
+
 def test_install_short_circuits_when_preseeded(home, monkeypatch):
     _preseed_vscode(home)
     def boom(*a, **k):

@@ -11,6 +11,59 @@ what a release involves.
 
 ## [Unreleased]
 
+### Added
+
+- **`seed update-commands` now reports drift between the organization's
+  current `seedling.conf` and this machine's settings**, after refreshing.
+  Settings are seeded from `seedling.conf` once, at install time, and never
+  re-applied automatically — an org changing a share path or an index later
+  previously left every existing machine silently out of sync, with no way
+  to discover it short of something breaking. This is a report, never an
+  apply: a value changed by hand with `seed config set` is a real
+  customization and must never be silently overwritten, so the command
+  prints exactly what differs and the `seed config set` to apply it, and
+  stops there. Covers the plain VALUE settings (`venv_default_packages`,
+  `python_mirror`, `package_index`, `conda_channel`, `native_tls`,
+  `vscode_flavor`, `extension_gallery`, `vscode_extensions`,
+  `startup_commands`) — not `update_source`/`profile`/`custom_commands`,
+  which are file paths an installer resolves relative to its own
+  invocation and sometimes copies, so replicating that faithfully
+  after the fact would risk reporting drift that was never really there.
+
+- **`python.venvPath`** is now part of the editor's default settings, so
+  every `seed venv` shows up in VS Code's interpreter picker without
+  anyone pointing VS Code at `~/seedling/python/venvs` by hand.
+
+- Installing on Windows now hooks **both** PowerShell editions' profiles,
+  not just whichever one ran the installer — Windows PowerShell 5.1
+  ("Desktop") and PowerShell 6+ ("Core") keep separate profile files, so
+  `seed` used to be missing from whichever edition wasn't used to install.
+  5.1 is always hooked (it always ships on Windows); the 7+ profile is
+  only hooked when `pwsh` is actually on PATH.
+
+### Fixed
+
+- **Updating from an unreachable directory `update_source`** (an unmounted
+  network share) no longer prints the misleading "Downloading the latest
+  seedling from S:\..." — that wording is for git URLs, and a path that
+  merely isn't reachable right now got the same message as one being
+  cloned. Falls back the same way either way; only the wording changed.
+
+- **`startup_commands` no longer spawns one seed-cli process per configured
+  command, per new shell.** The shell hook now spawns seed-cli once
+  (`seed custom --startup`, which loops internally) only when something is
+  actually configured, instead of once per name — terminal-open latency no
+  longer scales with how many startup commands an organization has. Also
+  fixes a real bug this surfaced: in PowerShell, `@($null)` produces a
+  ONE-element array, not an empty one, so a `settings.json` with no
+  `startup_commands` key at all was incorrectly spawning seed-cli anyway.
+
+- **The env-var-sourced `SEEDLING_CUSTOM_COMMANDS` install path** (the
+  piped one-liner override) now copies the TOML file's whole containing
+  directory, not just the file, so a relative `script = "..."` entry's
+  sibling files survive — the same thing the conf-distributed form already
+  got for free from the source-tree copy.
+
 ## [0.11.0] - 2026-08-05
 
 ### Added

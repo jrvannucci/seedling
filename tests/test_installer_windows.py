@@ -21,8 +21,10 @@ from pathlib import Path
 import pytest
 
 from conftest import (
+    PWSH,
     make_repo_copy,
     needs_ps_installer,
+    needs_pwsh,
     plant_stub_uv_windows,
     run_powershell_install,
 )
@@ -89,6 +91,55 @@ def test_reinstall_does_not_stack_hook_lines(ps_install_env):
     run({"SEEDLING_AUTO_SETUP": "false"})
     text = fake_profile.read_text(encoding="utf-8")
     assert text.count("seed.ps1") == 1
+
+
+# --- sibling PowerShell-edition profile hook --------------------------------
+# Windows PowerShell 5.1 ("Desktop") and PowerShell 6+ ("Core") keep separate
+# profile files; installing from one must also hook the other so `seed`
+# isn't missing in whichever edition wasn't used to install.
+
+def test_no_sibling_hook_without_pwsh_installed(tmp_path):
+    """Installing under 5.1 with no `pwsh` on PATH must not create a sibling
+    Core-edition profile -- there's nothing there to hook, and this is also
+    the safety case: it proves the sibling-hook logic never reaches outside
+    the fake $PROFILE's own directory when it has nothing to swap."""
+    copy = make_repo_copy(tmp_path / "copy")
+    home = tmp_path / "home" / "seedling"
+    plant_stub_uv_windows(home)
+    profile_dir = tmp_path / "profile" / "WindowsPowerShell"
+    profile_dir.mkdir(parents=True)
+    fake_profile = profile_dir / "Microsoft.PowerShell_profile.ps1"
+
+    result = run_powershell_install(
+        copy, home, fake_profile, {"SEEDLING_AUTO_SETUP": "false"})
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert fake_profile.is_file()
+
+    sibling = tmp_path / "profile" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
+    if PWSH is None:
+        assert not sibling.exists()
+
+
+@needs_pwsh
+def test_sibling_hook_under_core_edition(tmp_path):
+    """Installing under Core (pwsh) hooks the SIBLING 5.1 profile too --
+    5.1 always ships on Windows, so no `Get-Command` gate is needed for
+    this direction (unlike Core -> 5.1's the other way around)."""
+    copy = make_repo_copy(tmp_path / "copy")
+    home = tmp_path / "home" / "seedling"
+    plant_stub_uv_windows(home)
+    profile_dir = tmp_path / "profile" / "PowerShell"
+    profile_dir.mkdir(parents=True)
+    fake_profile = profile_dir / "Microsoft.PowerShell_profile.ps1"
+
+    result = run_powershell_install(
+        copy, home, fake_profile, {"SEEDLING_AUTO_SETUP": "false"}, exe=PWSH)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert fake_profile.is_file()
+
+    sibling = tmp_path / "profile" / "WindowsPowerShell" / "Microsoft.PowerShell_profile.ps1"
+    assert sibling.is_file()
+    assert "seed.ps1" in sibling.read_text(encoding="utf-8")
 
 
 # --- auto-setup / default environment --------------------------------------
@@ -164,6 +215,25 @@ def test_conf_sourced_script_sibling_survives_the_copy(ps_install_env):
                 SEEDLING_CUSTOM_COMMANDS="custom-commands.toml",
                 SEEDLING_AUTO_SETUP="false")
     result = run()
+    assert result.returncode == 0, result.stdout + result.stderr
+    recorded = _settings(home)["custom_commands"]
+    script = Path(recorded).parent / "scripts" / "greet.py"
+    assert script.is_file(), f"expected the sibling script at {script}"
+
+
+def test_env_var_sourced_script_sibling_survives_the_copy(ps_install_env, tmp_path):
+    """The env-var override (the piped one-liner path) copies the TOML
+    file's WHOLE containing directory, not just the file, so a relative
+    `script` entry's sibling survives here too."""
+    copy, home, fake_profile, run = ps_install_env
+    mine_dir = tmp_path / "my-commands"
+    mine_dir.mkdir()
+    (mine_dir / "custom-commands.toml").write_text(
+        '[[command]]\nname = "greet"\nscript = "scripts/greet.py"\n',
+        encoding="utf-8")
+    (mine_dir / "scripts").mkdir()
+    (mine_dir / "scripts" / "greet.py").write_text("print('hi')\n")
+    result = run({"SEEDLING_CUSTOM_COMMANDS": str(mine_dir / "custom-commands.toml")})
     assert result.returncode == 0, result.stdout + result.stderr
     recorded = _settings(home)["custom_commands"]
     script = Path(recorded).parent / "scripts" / "greet.py"

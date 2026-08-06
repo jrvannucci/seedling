@@ -608,6 +608,8 @@ installer's default setup uses).
   - `python.terminal.activateEnvironment: true`
   - `python.analysis.typeCheckingMode: "basic"`
   - `files.autoSave: "onFocusChange"`
+  - `python.venvPath` set to `~/seedling/python/venvs`, so every `seed venv`
+    shows up in VS Code's interpreter picker automatically
   - Telemetry, auto-update, and extension auto-update all turned off
 - **Default extensions** installed on first install:
   - `ms-python.python`, `ms-python.vscode-pylance`, `ms-python.debugpy`
@@ -913,6 +915,12 @@ The **only** thing that updates the `seed` command itself after initial
 install. See [The update model](GUIDE.md#the-update-model) for the full
 explanation. In short:
 
+> **Not what you want if your venvs/packages/repos are out of date with a
+> [deployment profile](PROFILES.md)** — that's [`seed apply`](#seed-apply-profile---preview---force),
+> a completely separate command. This one only ever touches `seed`'s own
+> code; it never creates, installs, or removes anything `seed apply`
+> manages, and `seed apply` never pulls a newer `seed`.
+
 - If the `update_source` setting holds a git URL, downloads a fresh
   shallow clone of it into a temp folder, swaps it in as the new
   `~/seedling/system/src` (minus its `.git`), then reinstalls via
@@ -932,6 +940,31 @@ In every mode it finishes by re-rendering the `seed` shell function
 templates, so shell-side changes ship with updates too. Your profile hook
 points at that file by path, so the refresh takes effect in new shells
 automatically — nothing in your profile is touched.
+
+**It also tells you if `seedling.conf` changed underneath you.** Settings
+(`seed config`'s values, like `package_index` or `venv_default_packages`)
+are seeded from `seedling.conf` once, at install time, and never
+re-applied automatically — an org changing a share path or an index later
+previously left every existing machine silently out of sync, discoverable
+only when something broke. After refreshing, this command re-reads the
+(now current) `seedling.conf` and reports anything it now sets
+differently than what's actually configured here, with the exact
+`seed config set` to apply it:
+
+```
+The organization's seedling.conf now sets these differently than what's
+configured on this machine (settings are only ever seeded at install
+time, never re-applied automatically):
+  package_index: 'https://old.example/simple' -> 'https://new.example/simple'
+    seed config set package_index "https://new.example/simple"
+```
+
+Deliberately a **report, not an apply** — a value you set by hand with
+`seed config set` is a real customization, and this must never silently
+overwrite it. `update_source`, `profile`, and `custom_commands` (file
+paths an installer resolves relative to its own invocation, sometimes
+copying) aren't covered by this check; those still need a person to
+notice and re-run `seed config set`.
 
 Replacing a running CLI is inherently delicate on Windows (the reinstall
 must delete the tool venv whose `python.exe` is executing the update, and
@@ -1246,6 +1279,12 @@ seed logs-viewer --days 7
 Brings this machine in line with a [deployment profile](PROFILES.md) — the
 interpreters, named venvs and their packages, repos, and settings an
 organization has standardized on.
+
+> **Not what you want if `seed` itself is out of date** — that's
+> [`seed update-commands`](#seed-update-commands), a completely separate
+> command. This one only ever touches your environment (interpreters,
+> venvs, packages, repos); it never changes `seed`'s own code, and
+> `update-commands` never touches any of what this one manages.
 
 - With no path, uses the profile recorded at install time (the `profile`
   setting), else `seedling-profile.toml` in the current directory.
