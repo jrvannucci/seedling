@@ -11,6 +11,8 @@ what a release involves.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-05
+
 ### Changed (breaking)
 
 - **`[[repo]] install` names the venvs a repo is installed into; it is no
