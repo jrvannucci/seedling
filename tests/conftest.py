@@ -224,10 +224,19 @@ def run_bash(script: str, timeout: int = 120) -> subprocess.CompletedProcess:
 
 
 def make_repo_copy(dest: Path) -> Path:
-    """Copy of this repo suitable for installer tests (no .git, no caches)."""
+    """Copy of this repo suitable for installer tests (no .git, no caches).
+
+    Every installer test calls this, so what's excluded matters a lot for
+    suite speed: a local dev `.venv` (thousands of files, tens of MB) was
+    being copied on every single call despite install.sh/install.ps1 never
+    reading it -- shutil.copytree has no notion of .gitignore, so anything
+    not explicitly listed here gets copied whether or not it's actually
+    part of "the repo" a real user would clone or share."""
     shutil.copytree(
         REPO_ROOT, dest,
-        ignore=shutil.ignore_patterns(".git", "__pycache__", "tests", ".claude"),
+        ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "tests", ".claude",
+            ".venv", ".ruff_cache", ".pytest_cache"),
     )
     return dest
 
