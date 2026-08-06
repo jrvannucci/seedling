@@ -11,34 +11,6 @@ what a release involves.
 
 ## [Unreleased]
 
-## [0.10.0] - 2026-08-05
-
-### Changed (breaking)
-
-- **`[[repo]] install` names the venvs a repo is installed into; it is no
-  longer a bool.** `true` meant one place — the profile's default venv —
-  which left where a fleet's repo landed to a setting written elsewhere in
-  the file (change the default venv and every repo silently moved with it),
-  and capped a repo at one environment, when a repo a team develops against
-  is routinely needed in more than one:
-
-  ```toml
-  [[repo]]
-  url = "https://git.corp/team/toolkit.git"
-  install = ["dev", "analysis"]     # or a single name: install = "dev"
-  ```
-
-  **To migrate:** replace `install = true` with the venv it was landing in
-  (your `default = true` venv, or `[config] default_venv`), and delete
-  `install = false` lines — an absent key already says "clone only", and two
-  spellings of "no" only invite the question of whether they differ. Both
-  bools are now rejected with a message naming the fix, rather than
-  reinterpreted: the whole point is that a profile says where its repos go.
-
-  A name that isn't a venv the profile declares rejects the whole file, like
-  `default_venv` already did — a repo that lands nowhere would otherwise be
-  discovered by users one at a time.
-
 ### Added
 
 - **`seed custom [name] [args...]`** — let an organization add its own
@@ -93,6 +65,36 @@ what a release involves.
   Adding an extra to a repo a venv already has needs `seed apply --force`:
   whether a venv has the repo is answered by its distribution name, which
   extras don't change. Same rule as `[[venv]] packages`.
+
+## [0.10.0] - 2026-08-05
+
+### Changed (breaking)
+
+- **`[[repo]] install` names the venvs a repo is installed into; it is no
+  longer a bool.** `true` meant one place — the profile's default venv —
+  which left where a fleet's repo landed to a setting written elsewhere in
+  the file (change the default venv and every repo silently moved with it),
+  and capped a repo at one environment, when a repo a team develops against
+  is routinely needed in more than one:
+
+  ```toml
+  [[repo]]
+  url = "https://git.corp/team/toolkit.git"
+  install = ["dev", "analysis"]     # or a single name: install = "dev"
+  ```
+
+  **To migrate:** replace `install = true` with the venv it was landing in
+  (your `default = true` venv, or `[config] default_venv`), and delete
+  `install = false` lines — an absent key already says "clone only", and two
+  spellings of "no" only invite the question of whether they differ. Both
+  bools are now rejected with a message naming the fix, rather than
+  reinterpreted: the whole point is that a profile says where its repos go.
+
+  A name that isn't a venv the profile declares rejects the whole file, like
+  `default_venv` already did — a repo that lands nowhere would otherwise be
+  discovered by users one at a time.
+
+### Added
 
 - **`seed repo-install --venv <name>`** installs a cloned repo into a venv
   you name, regardless of what this shell has active (`-n` for short). An
