@@ -254,6 +254,24 @@ def test_config_set_startup_commands_warns_on_unknown_name(run_cli, home):
     assert config.get("startup_commands") == ["ghost"]
 
 
+def test_config_set_startup_commands_warns_on_unknown_name_inside_a_chain(
+        run_cli, home, tmp_path):
+    """"a&&ghost" is one list entry (a chain), not one undeclared name --
+    the warning has to look inside it and flag only the undeclared piece
+    ('ghost'), not the whole chain string, and not the declared piece
+    ('a')."""
+    from seedling import config
+    toml = tmp_path / "custom-commands.toml"
+    toml.write_text('[[command]]\nname = "a"\nrun = ["x"]\n', encoding="utf-8")
+    config.set_value("custom_commands", str(toml))
+
+    code, out = run_cli("config", "set", "startup_commands", "a&&ghost")
+    assert code == 0
+    warning_line = next(ln for ln in out.splitlines() if "not currently" in ln)
+    flagged = warning_line.rsplit("custom_commands:", 1)[1].strip()
+    assert flagged == "ghost"
+
+
 def test_config_set_default_venv_warns_when_venv_doesnt_exist(run_cli, home):
     code, out = run_cli("config", "set", "default_venv", "ghost")
     assert code == 0

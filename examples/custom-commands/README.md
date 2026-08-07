@@ -36,5 +36,16 @@ the message prints automatically, before your prompt — no `seed custom`, no
 `seed motd`, nothing to remember. `seed config unset startup_commands` turns
 it back off.
 
+**Chaining two commands** so the second only runs if the first succeeds:
+
+```
+seed config set startup_commands "data-stack&&motd"
+```
+
+Open a new terminal and `data-stack` (the `seed install` example above)
+runs first; `motd` only follows it if that install actually succeeded. `,`
+still separates independent entries — `"data-stack&&motd, quote"` runs
+`quote` regardless of how the chain went.
+
 Unset the rest with `seed config unset custom_commands` /
 `seed config unset startup_commands` when you're done trying it out.

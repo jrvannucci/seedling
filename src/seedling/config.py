@@ -93,12 +93,15 @@ KNOWN_KEYS: dict[str, str] = {
         "new shell -- for an offline org that wants a standard startup "
         "routine (a connectivity check, a sync, a reminder) to run for every "
         "user with nothing for them to remember or type. Each name must "
-        "already be declared via `custom_commands`. Runs unconditionally "
-        "(unlike default_venv auto-activation, this isn't skipped when a "
-        "venv is already active). A command that fails prints a warning and "
-        "does not stop the rest, or the shell from opening. Recorded at "
+        "already be declared via `custom_commands`. Join names with `&&` "
+        "within one entry to chain them (the next only runs if the previous "
+        "succeeded); `,` still separates independent entries. Runs "
+        "unconditionally (unlike default_venv auto-activation, this isn't "
+        "skipped when a venv is already active). A failure (or an unknown "
+        "name) prints a warning and stops just that entry's chain, never "
+        "the rest of the list or the shell from opening. Recorded at "
         "install time from SEEDLING_STARTUP_COMMANDS; change it later with "
-        "`seed config set startup_commands \"a,b,c\"`. Empty/null means "
+        "`seed config set startup_commands \"a&&b,c\"`. Empty/null means "
         "nothing runs at startup. See docs/CUSTOM-COMMANDS.md."),
 }
 

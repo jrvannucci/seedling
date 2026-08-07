@@ -1400,7 +1400,8 @@ setting with its current value and an explanation. The keys:
   own [custom commands](CUSTOM-COMMANDS.md). Recorded at install time from
   `SEEDLING_CUSTOM_COMMANDS`.
 - `startup_commands` — custom command names run automatically, in order, by
-  every new shell (list; takes comma-separated input). Recorded at install
+  every new shell (list; takes comma-separated input, `&&` chains names
+  within one entry so a failure stops just that chain). Recorded at install
   time from `SEEDLING_STARTUP_COMMANDS`. See [CUSTOM-COMMANDS.md#running-
   commands-at-startup](CUSTOM-COMMANDS.md#running-commands-at-startup).
 - `vscode_flavor` — which editor build `seed vscode` installs:

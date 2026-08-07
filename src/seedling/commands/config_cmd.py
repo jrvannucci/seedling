@@ -56,7 +56,10 @@ def _validate(key: str, value) -> str | None:
                     f"(run `seed python {value}`)")
     if key == "startup_commands" and isinstance(value, list) and value:
         from . import custom_cmd
-        unknown = [name for name in value if name not in custom_cmd.known_names()]
+        known = custom_cmd.known_names()
+        unknown = [name for entry in value
+                   for name in custom_cmd.parse_startup_chain(entry)
+                   if name not in known]
         if unknown:
             return ("warning-only: not currently declared in "
                      "custom_commands: " + ", ".join(unknown))

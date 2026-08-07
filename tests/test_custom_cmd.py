@@ -345,6 +345,75 @@ def test_run_startup_warns_and_continues_past_an_unknown_name(home, tmp_path, ca
     assert "still ran" in out
 
 
+# --- startup chaining ("a&&b" within one entry) --------------------------
+
+def test_run_startup_chain_runs_in_order_when_the_first_succeeds(
+        home, tmp_path, capfd):
+    (tmp_path / "a.py").write_text("print('a')\n")
+    (tmp_path / "b.py").write_text("print('b')\n")
+    _write_toml(tmp_path, '''
+        [[command]]
+        name = "a"
+        script = "a.py"
+
+        [[command]]
+        name = "b"
+        script = "b.py"
+    ''')
+    config.set_value("startup_commands", ["a&&b"])
+    code = custom_cmd.run_startup()
+    assert code == 0
+    assert capfd.readouterr().out.splitlines() == ["a", "b"]
+
+
+def test_run_startup_chain_stops_at_the_first_failure(home, tmp_path, capfd):
+    """Distinct from two INDEPENDENT entries (which both always run): a
+    chain's later steps are assumed to depend on the earlier ones, so a
+    failure skips the rest of THAT chain -- but never other entries."""
+    (tmp_path / "boom.py").write_text("import sys; sys.exit(7)\n")
+    (tmp_path / "after.py").write_text("print('should not run')\n")
+    (tmp_path / "independent.py").write_text("print('independent ran')\n")
+    _write_toml(tmp_path, '''
+        [[command]]
+        name = "boom"
+        script = "boom.py"
+
+        [[command]]
+        name = "after"
+        script = "after.py"
+
+        [[command]]
+        name = "independent"
+        script = "independent.py"
+    ''')
+    config.set_value("startup_commands", ["boom&&after", "independent"])
+    code = custom_cmd.run_startup()
+    assert code == 0
+    out = capfd.readouterr().out
+    assert "startup command 'boom' failed (exit 7)" in out
+    assert "should not run" not in out
+    assert "independent ran" in out
+
+
+def test_run_startup_chain_stops_at_an_unknown_name(home, tmp_path, capfd):
+    (tmp_path / "after.py").write_text("print('should not run')\n")
+    _write_toml(tmp_path, '[[command]]\nname = "after"\nscript = "after.py"\n')
+    config.set_value("startup_commands", ["ghost&&after"])
+    code = custom_cmd.run_startup()
+    assert code == 0
+    out = capfd.readouterr().out
+    assert "startup command 'ghost' not found" in out
+    assert "should not run" not in out
+
+
+def test_parse_startup_chain():
+    assert custom_cmd.parse_startup_chain("motd") == ["motd"]
+    assert (custom_cmd.parse_startup_chain("a&&b&&c")
+            == ["a", "b", "c"])
+    assert (custom_cmd.parse_startup_chain(" a && b ")
+            == ["a", "b"])
+
+
 def test_custom_dash_dash_startup_flag_dispatches_through_the_cli(
         home, tmp_path, capfd):
     """The end-to-end path the shell hook actually invokes:
