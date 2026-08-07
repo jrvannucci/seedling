@@ -94,19 +94,37 @@ def _print_available(index: dict, warnings: list[str]) -> None:
         print(f"  {name:<20} {cmd.description}{suffix}")
 
 
+def parse_startup_chain(entry: str) -> list[str]:
+    """One `startup_commands` list entry, split on `&&` into the names that
+    make up its chain: `"ensure-venv&&sync-data"` -> `["ensure-venv",
+    "sync-data"]`; a bare `"motd"` -> `["motd"]`, a chain of one. `&&`
+    mirrors shell chaining on purpose -- the audience writing
+    SEEDLING_STARTUP_COMMANDS already reads it as "run the next one only if
+    this one succeeded." Never ambiguous with a real command name: `&` isn't
+    in custom_commands._NAME_RE's allowed characters, so a name can't
+    contain it."""
+    return [name.strip() for name in entry.split("&&") if name.strip()]
+
+
 def run_startup() -> int:
     """`seed custom --startup` -- run every configured `startup_commands`
     entry, IN ONE PROCESS, in order. This exists purely as a fast path: the
     shell hook used to spawn one `seed custom <name>` (a full seed-cli cold
     start) per configured name, per new shell; this collapses that to one
-    spawn total, regardless of how many names are configured. Behavior is
-    otherwise identical to what the shell hook used to do itself: a name
-    that fails (or isn't found) prints a warning and the rest still run --
-    a startup routine must never block a shell from opening. Always returns
-    0 for exactly that reason; per-command outcomes are the warnings, not
-    the exit code."""
-    names = config.get("startup_commands") or []
-    if not names:
+    spawn total, regardless of how many names/chains are configured.
+
+    Each entry is a CHAIN (see parse_startup_chain): a failure stops the
+    REST OF THAT CHAIN, on the reasoning that a later step chained after one
+    that just failed is usually depending on it (build a venv && sync into
+    it -- syncing into a venv that doesn't exist is a second, more
+    confusing failure, not a second data point). It never stops OTHER,
+    independent entries -- and never blocks the shell from opening either
+    way, which is the one guarantee that doesn't bend: a startup routine
+    that can brick your ability to get a working terminal is worse than one
+    that occasionally warns. Always returns 0 for exactly that reason;
+    per-command outcomes are the warnings, not the exit code."""
+    entries = config.get("startup_commands") or []
+    if not entries:
         return 0
 
     index, warnings = _load_all()
@@ -117,16 +135,19 @@ def run_startup() -> int:
         paths.ensure_layout()
         config.apply_runtime_env()
 
-    for name in names:
-        cmd = index.get(name)
-        if cmd is None:
-            print(f"seedling: startup command '{name}' not found "
-                  f"(declared in startup_commands, but not in "
-                  f"custom-commands.toml)")
-            continue
-        status = _run(cmd, [])
-        if status != 0:
-            print(f"seedling: startup command '{name}' failed (exit {status})")
+    for entry in entries:
+        for name in parse_startup_chain(entry):
+            cmd = index.get(name)
+            if cmd is None:
+                print(f"seedling: startup command '{name}' not found "
+                      f"(declared in startup_commands, but not in "
+                      f"custom-commands.toml)")
+                break
+            status = _run(cmd, [])
+            if status != 0:
+                print(f"seedling: startup command '{name}' failed "
+                      f"(exit {status})")
+                break
     return 0
 
 
