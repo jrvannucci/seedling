@@ -69,6 +69,14 @@ KNOWN_KEYS: dict[str, str] = {
         "Extensions installed into a fresh editor (list). Empty/null means "
         "the built-in starter kit for the configured flavor. Set to an empty "
         "list to install none at all."),
+    "vscode_config_dir": (
+        "Path to a folder holding a settings.json and/or keybindings.json "
+        "your organization wants seeded into a fresh editor -- settings.json "
+        "is merged over the built-in defaults (your values win); "
+        "keybindings.json is copied in as-is. Both only apply the first "
+        "time (an existing file a user already edited is never touched). "
+        "Recorded at install time from SEEDLING_VSCODE_CONFIG_DIR. "
+        "Empty/null means neither file is seeded."),
     "conda_channel": (
         "Channel `seed tool-install` fetches conda-forge tools from. Defaults "
         "to \"conda-forge\" (the community channel, distinct from Anaconda's "
@@ -120,6 +128,7 @@ _DEFAULTS: dict[str, Any] = {
     "vscode_flavor": "microsoft",
     "extension_gallery": None,
     "vscode_extensions": None,
+    "vscode_config_dir": None,
     "profile": None,
     "custom_commands": None,
     "startup_commands": [],

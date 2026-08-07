@@ -259,6 +259,52 @@ class TestCustomCommandsAndStartup:
         assert "startup_commands" not in (_settings(home) or {})
 
 
+class TestVscodeConfigDir:
+    """SEEDLING_VSCODE_CONFIG_DIR, wired like SEEDLING_CUSTOM_COMMANDS_DIR
+    used to be (before it was folded away): the env var names a directory
+    directly, so both the env-var and conf-sourced branches copy/reference
+    the whole thing, not just one file."""
+
+    def test_conf_sourced_dir_is_recorded(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        config_dir = copy / "vscode-config"
+        config_dir.mkdir()
+        (config_dir / "settings.json").write_text('{"editor.fontSize": 14}\n')
+        _write_conf(
+            copy,
+            SEEDLING_VSCODE_CONFIG_DIR="vscode-config",
+            SEEDLING_AUTO_SETUP="false",
+        )
+        result = run_install()
+        assert result.returncode == 0, result.stdout + result.stderr
+        recorded = _settings(home)["vscode_config_dir"]
+        # Recorded against the copy inside ~/seedling, like `custom_commands`
+        # -- so it keeps working after the install share goes away.
+        assert "system" in recorded.replace("\\", "/")
+        assert (Path(recorded) / "settings.json").is_file()
+
+    def test_env_var_sourced_dir_is_copied_whole(self, install_env, tmp_path):
+        """Both settings.json AND keybindings.json survive the copy -- the
+        env var names the directory itself, so there's no "sibling file"
+        ambiguity the way there is for SEEDLING_CUSTOM_COMMANDS (which names
+        a file and infers its parent)."""
+        copy, fake_home, home, run_install = install_env
+        mine_dir = tmp_path / "my-vscode-config"
+        mine_dir.mkdir()
+        (mine_dir / "settings.json").write_text('{"editor.fontSize": 14}\n')
+        (mine_dir / "keybindings.json").write_text("[]\n")
+        result = run_install(f"SEEDLING_VSCODE_CONFIG_DIR='{mine_dir.as_posix()}'")
+        assert result.returncode == 0, result.stdout + result.stderr
+        recorded = Path(_settings(home)["vscode_config_dir"])
+        assert (recorded / "settings.json").is_file()
+        assert (recorded / "keybindings.json").is_file()
+
+    def test_absent_when_unset(self, install_env):
+        copy, fake_home, home, run_install = install_env
+        run_install("SEEDLING_AUTO_SETUP=false")
+        assert "vscode_config_dir" not in (_settings(home) or {})
+
+
 class TestProfile:
     """SEEDLING_PROFILE makes the installer apply a deployment profile
     instead of the built-in single-'dev'-venv setup."""

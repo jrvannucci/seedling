@@ -47,6 +47,95 @@ def test_default_settings_never_overwrite_an_existing_file(home):
     assert json.loads(settings_file.read_text()) == {"user.customized": True}
 
 
+def _settings_file(home):
+    return (paths.VSCODE_APP_DIR / "data" / "user-data" / "User"
+            / "settings.json")
+
+
+def _keybindings_file(home):
+    return (paths.VSCODE_APP_DIR / "data" / "user-data" / "User"
+            / "keybindings.json")
+
+
+def test_org_settings_override_the_builtin_defaults(home, tmp_path):
+    """vscode_config_dir's settings.json wins over both DEFAULT_SETTINGS and
+    the computed python.venvPath -- an org gets the final say."""
+    config_dir = tmp_path / "vscode-config"
+    config_dir.mkdir()
+    (config_dir / "settings.json").write_text(json.dumps({
+        "editor.formatOnSave": False,   # overrides a DEFAULT_SETTINGS key
+        "editor.fontSize": 14,          # a brand new key
+    }))
+    config.set_value("vscode_config_dir", str(config_dir))
+
+    vscode_cmd._write_default_settings()
+    settings = json.loads(_settings_file(home).read_text())
+    assert settings["editor.formatOnSave"] is False
+    assert settings["editor.fontSize"] == 14
+    # Untouched defaults survive alongside the overrides.
+    assert settings["python.terminal.activateEnvironment"] is True
+    assert settings["python.venvPath"] == str(paths.VENVS_DIR)
+
+
+def test_org_settings_missing_file_is_a_silent_noop(home, tmp_path):
+    config.set_value("vscode_config_dir", str(tmp_path / "vscode-config"))
+    vscode_cmd._write_default_settings()  # no settings.json in that dir at all
+    settings = json.loads(_settings_file(home).read_text())
+    assert settings == dict(
+        vscode_cmd.DEFAULT_SETTINGS, **{"python.venvPath": str(paths.VENVS_DIR)})
+
+
+def test_org_settings_malformed_json_degrades_gracefully(home, tmp_path, capfd):
+    """A broken settings.json in vscode_config_dir must not break `seed
+    vscode` entirely -- same reasoning custom-commands.toml uses."""
+    config_dir = tmp_path / "vscode-config"
+    config_dir.mkdir()
+    (config_dir / "settings.json").write_text("not valid json {{{")
+    config.set_value("vscode_config_dir", str(config_dir))
+
+    vscode_cmd._write_default_settings()  # must not raise
+    settings = json.loads(_settings_file(home).read_text())
+    assert settings["python.venvPath"] == str(paths.VENVS_DIR)
+
+
+def test_keybindings_are_copied_in_as_is(home, tmp_path):
+    config_dir = tmp_path / "vscode-config"
+    config_dir.mkdir()
+    body = json.dumps([{"key": "ctrl+k ctrl+r", "command": "workbench.action.reloadWindow"}])
+    (config_dir / "keybindings.json").write_text(body)
+    config.set_value("vscode_config_dir", str(config_dir))
+
+    vscode_cmd._write_keybindings()
+    assert _keybindings_file(home).read_text() == body
+
+
+def test_keybindings_never_overwrite_an_existing_file(home, tmp_path):
+    config_dir = tmp_path / "vscode-config"
+    config_dir.mkdir()
+    (config_dir / "keybindings.json").write_text('[{"key": "org default"}]')
+    config.set_value("vscode_config_dir", str(config_dir))
+
+    kb_file = _keybindings_file(home)
+    kb_file.parent.mkdir(parents=True)
+    kb_file.write_text('[{"key": "user customized"}]')
+
+    vscode_cmd._write_keybindings()
+    assert "user customized" in kb_file.read_text()
+
+
+def test_keybindings_noop_when_not_configured(home):
+    vscode_cmd._write_keybindings()  # no vscode_config_dir set at all
+    assert not _keybindings_file(home).exists()
+
+
+def test_keybindings_noop_when_source_file_absent(home, tmp_path):
+    config_dir = tmp_path / "vscode-config"
+    config_dir.mkdir()  # exists, but no keybindings.json inside it
+    config.set_value("vscode_config_dir", str(config_dir))
+    vscode_cmd._write_keybindings()
+    assert not _keybindings_file(home).exists()
+
+
 def test_install_short_circuits_when_preseeded(home, monkeypatch):
     _preseed_vscode(home)
     def boom(*a, **k):

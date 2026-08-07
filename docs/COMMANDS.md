@@ -1412,8 +1412,13 @@ setting with its current value and an explanation. The keys:
 - `vscode_extensions` — the extensions installed into a fresh editor.
   Takes comma-separated input; an empty list installs none. Unset means
   the starter kit for the configured flavor.
+- `vscode_config_dir` — a folder holding your own `settings.json`
+  and/or `keybindings.json` to seed into a fresh editor. `settings.json` is
+  merged over the built-in defaults (your values win); `keybindings.json`
+  is copied in as-is. Both apply only the first time, never overwriting a
+  file a user already edited.
 
-The three editor settings are usually deployment-wide rather than personal;
+The four editor settings are usually deployment-wide rather than personal;
 see [the deployment guide](DEPLOYMENT.md#which-vs-code-build)
 for what they're for and the licensing tradeoff they encode.
 

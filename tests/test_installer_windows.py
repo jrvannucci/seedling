@@ -240,6 +240,46 @@ def test_env_var_sourced_script_sibling_survives_the_copy(ps_install_env, tmp_pa
     assert script.is_file(), f"expected the sibling script at {script}"
 
 
+# --- SEEDLING_VSCODE_CONFIG_DIR ---------------------------------------------
+
+def test_vscode_config_conf_sourced_dir_is_recorded(ps_install_env):
+    copy, home, fake_profile, run = ps_install_env
+    config_dir = copy / "vscode-config"
+    config_dir.mkdir()
+    (config_dir / "settings.json").write_text('{"editor.fontSize": 14}\n')
+    _write_conf(copy,
+                SEEDLING_VSCODE_CONFIG_DIR="vscode-config",
+                SEEDLING_AUTO_SETUP="false")
+    result = run()
+    assert result.returncode == 0, result.stdout + result.stderr
+    recorded = _settings(home)["vscode_config_dir"]
+    assert "system" in recorded.replace("\\", "/")
+    assert (Path(recorded) / "settings.json").is_file()
+
+
+def test_vscode_config_env_var_sourced_dir_is_copied_whole(ps_install_env, tmp_path):
+    """The env var names the directory itself, so both settings.json AND
+    keybindings.json survive -- no "sibling file" ambiguity the way there
+    is for SEEDLING_CUSTOM_COMMANDS (which names a file)."""
+    copy, home, fake_profile, run = ps_install_env
+    mine_dir = tmp_path / "my-vscode-config"
+    mine_dir.mkdir()
+    (mine_dir / "settings.json").write_text('{"editor.fontSize": 14}\n')
+    (mine_dir / "keybindings.json").write_text("[]\n")
+    result = run({"SEEDLING_VSCODE_CONFIG_DIR": str(mine_dir)})
+    assert result.returncode == 0, result.stdout + result.stderr
+    recorded = Path(_settings(home)["vscode_config_dir"])
+    assert (recorded / "settings.json").is_file()
+    assert (recorded / "keybindings.json").is_file()
+
+
+def test_vscode_config_dir_absent_when_unset(ps_install_env):
+    copy, home, fake_profile, run = ps_install_env
+    result = run({"SEEDLING_AUTO_SETUP": "false"})
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "vscode_config_dir" not in (_settings(home) or {})
+
+
 # --- deployment profiles (the freshest, most intricate PS logic) -----------
 
 def _profile(copy, body):

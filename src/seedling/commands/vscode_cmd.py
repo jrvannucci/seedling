@@ -308,6 +308,33 @@ def _find_gui_executable(app_dir: Path) -> Path | None:
     return None
 
 
+def _vscode_config_dir() -> Path | None:
+    """Where an organization's own settings.json/keybindings.json to seed
+    into a fresh editor live, per settings.json -- or None when the feature
+    isn't configured. See docs/DEPLOYMENT.md."""
+    raw = config.get("vscode_config_dir")
+    if not raw:
+        return None
+    return Path(str(raw)).expanduser()
+
+
+def _org_settings_overrides() -> dict:
+    """The org's own settings.json, if configured -- read fresh each call
+    (like everything else conf-driven) rather than cached, since this only
+    ever runs once per real install anyway. A missing/unreadable/malformed
+    file degrades to "no overrides" rather than failing the whole install;
+    `seed vscode` isn't the place a broken JSON file should be discovered."""
+    directory = _vscode_config_dir()
+    if directory is None:
+        return {}
+    candidate = directory / "settings.json"
+    try:
+        data = json.loads(candidate.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _write_default_settings() -> None:
     user_dir = paths.VSCODE_APP_DIR / "data" / "user-data" / "User"
     user_dir.mkdir(parents=True, exist_ok=True)
@@ -318,8 +345,36 @@ def _write_default_settings() -> None:
         # Pointing it at seedling's own venvs folder is what makes every
         # `seed venv` show up in VS Code's interpreter picker without the
         # user ever pointing VS Code at one by hand.
+        #
+        # An organization's own settings.json (vscode_config_dir) is merged
+        # in LAST, so its values win over both seedling's DEFAULT_SETTINGS
+        # and the computed python.venvPath -- if an org wants to point
+        # venvPath somewhere else entirely, that's theirs to decide.
         settings = dict(DEFAULT_SETTINGS, **{"python.venvPath": str(paths.VENVS_DIR)})
+        settings.update(_org_settings_overrides())
         settings_file.write_text(json.dumps(settings, indent=2))
+
+
+def _write_keybindings() -> None:
+    """Copy an organization's keybindings.json in as-is (vscode_config_dir)
+    -- there's no built-in default to merge with, unlike settings.json, so
+    this is a plain copy. Same "only the first time" rule: an existing file
+    (a user's own customization surviving a reinstall) is never touched."""
+    directory = _vscode_config_dir()
+    if directory is None:
+        return
+    source = directory / "keybindings.json"
+    if not source.is_file():
+        return
+    user_dir = paths.VSCODE_APP_DIR / "data" / "user-data" / "User"
+    user_dir.mkdir(parents=True, exist_ok=True)
+    target = user_dir / "keybindings.json"
+    if target.exists():
+        return
+    try:
+        target.write_text(source.read_text(encoding="utf-8-sig"), encoding="utf-8")
+    except OSError as e:
+        print(f"warning: could not seed keybindings.json ({e}).")
 
 
 def _product_json(app_dir: Path) -> Path | None:
@@ -441,6 +496,7 @@ def install(force: bool = False, install_extensions: bool = True) -> list[str] |
         return [str(gui)] if gui else None
 
     _write_default_settings()
+    _write_keybindings()
 
     if install_extensions:
         wanted = extensions_for(name)
