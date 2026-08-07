@@ -107,6 +107,7 @@ Every payload is a folder whose contents go to the destination:
 
 ```
 vendor/uv/         (uv.exe or uv, uvx too if present) -> ~/seedling/system/bin/
+vendor/micromamba/ (the micromamba binary)             -> ~/seedling/system/bin/
 vendor/git/        (an extracted MinGit)              -> ~/seedling/extensions/git/
 vendor/vscode/     (a pre-seeded portable VS Code)    -> ~/seedling/extensions/vscode/
 vendor/certs/      (corporate CA .pem/.crt files)     -> bundled into
@@ -128,6 +129,7 @@ and the folder is gitignored — it exists only on distribution media.
 | `uv` binary | astral.sh | Install (skipped if already present) |
 | CPython interpreters | github.com (python-build-standalone releases) | `seed python`; the installer's default-environment setup; first `uv tool install` if no Python exists on the machine |
 | Python packages (incl. `hatchling` to build seed-cli, and the default venv packages `ipython`/`ruff`) | pypi.org | Install; `seed venv`; `seed install`; `seed update-commands` |
+| `micromamba` binary + conda-forge tools | github.com (micromamba-releases) / conda-forge | First `seed tool-install`; `micromamba` itself only once |
 | MinGit (Windows only) | github.com (git-for-windows releases) | First `seed repo-clone` if no git is found |
 | VS Code + extensions | update.code.visualstudio.com / marketplace.visualstudio.com | First `seed vscode` / `seed vscode-repo` |
 
@@ -145,7 +147,7 @@ contents of the share.
 
 A self-hosted git server (GitHub Enterprise, GitLab, Gitea) works the same
 way with a URL instead of a path; updates then do a fresh shallow clone,
-which requires git on user machines (see #5).
+which requires git on user machines (see #6).
 
 ---
 
@@ -262,7 +264,34 @@ Artifactory/Nexus mirror.
 
 ---
 
-## 5. git (optional)
+## 5. conda-forge command-line tools (optional)
+
+`seed tool-install` (non-Python CLI tools like `ripgrep`, `pandoc`, `gh`)
+resolves from conda-forge via a vendored **micromamba** binary — never a
+system conda/mamba install. Redirect the channel by setting
+**`SEEDLING_CONDA_CHANNEL`** in `seedling.conf` to a local directory (a
+mirrored conda channel) instead of the default `conda-forge`.
+
+- **`vendor/micromamba/`** ships the binary itself (see
+  [the vendor/ convention](#the-vendor-convention)) — installed once, like
+  `uv`, never re-downloaded after that.
+- **The channel** is a directory of `.conda`/`.tar.bz2` packages plus a
+  `repodata.json`, built with:
+
+  ```
+  seed download-tool ripgrep pandoc gh
+  ```
+
+  which resolves each tool **and its dependencies** into `./conda-channel`
+  (default; `--dest` to change it). Copy that folder to the share and point
+  `SEEDLING_CONDA_CHANNEL` at it.
+
+Skipped entirely if your organization doesn't use `seed tool-install` —
+nothing here is required for Python interpreters, venvs, or packages.
+
+---
+
+## 6. git (optional)
 
 git is needed for exactly two things, both avoidable:
 
@@ -283,7 +312,7 @@ If neither applies, skip this component entirely.
 
 ---
 
-## 6. VS Code (optional)
+## 7. VS Code (optional)
 
 `seed vscode` downloads VS Code from Microsoft's update API and extensions
 from the marketplace — neither has a supported mirror.
@@ -324,7 +353,7 @@ marketplace website on a connected machine.
 A standard install ends by installing the newest Python and creating the
 auto-activated `dev` venv. Offline, this works **only if #3 and #4 are in
 place** (it needs an interpreter archive and the `ipython`/`ruff`
-packages), and the VS Code part only works pre-seeded (#6) — otherwise set
+packages), and the VS Code part only works pre-seeded (#7) — otherwise set
 `SEEDLING_AUTO_VSCODE="false"` alongside it. If none of it is ready yet, set
 `SEEDLING_AUTO_SETUP="false"` in your distributed `seedling.conf` — the install then finishes bare but working,
 and the setup can be run later per-machine:
@@ -356,12 +385,14 @@ folder:
 
 ```
 offline-bundle/
-  seedling/          <- repo copy, with vendor/uv + vendor/vscode filled in and seedling.conf written
+  MANIFEST.json      <- every component staged, its source, and its licence
+  seedling/          <- repo copy, with vendor/uv + vendor/micromamba + vendor/vscode
+                        filled in and seedling.conf written
   python-builds/     <- the exact interpreter archive your shipped uv wants
   wheels/            <- hatchling + the default venv packages (+ any --packages you add),
                         resolved once per mirrored interpreter
   conda-channel/     <- only with --tools (or a profile's [tools]): a conda channel
-                        of conda-forge CLI tools + micromamba, for `seed tool-install`
+                        of conda-forge CLI tools, for `seed tool-install`
 ```
 
 Pass `--tools ripgrep,pandoc` (or declare `tools = [...]` in your profile) and
@@ -384,11 +415,14 @@ the three paths. Useful flags:
 
 | Flag | Purpose |
 |---|---|
+| `-o`/`--output S:\tools\offline-bundle` | Where to assemble the bundle (default: `./offline-bundle`) |
 | `--yes` | Build unattended, taking the default answer for every step |
 | `--python 3.12,3.11` | Which interpreter version(s) to mirror (default: newest). At least one must satisfy seedling's own `requires-python`; older ones alongside it are fine, and are there for your users' venvs |
 | `--packages pandas,polars` | Extra wheels to stock beyond the defaults |
+| `--tools ripgrep,pandoc` | conda-forge command-line tools to bundle (see [#5](#5-conda-forge-command-line-tools-optional)) — a profile's `[tools]` are included automatically, this is for anything beyond that |
 | `--no-vscode` | Skip the VS Code + extensions download (the ~300MB step) |
 | `--mingit` | Also bundle portable MinGit (Windows; off by default) |
+| `--profile PATH` | Deployment profile whose venv packages must be in the bundle. Defaults to `seedling-profile.toml` next to `seedling.conf` if present; `--profile=` (empty) ignores it |
 | `--verify-only` | Don't build — just run the preflight check against the bundle at `-o` and exit (0 = it installs). Use it on the copy that reached your share |
 | `--no-verify` | Skip the preflight check at the end of a build |
 | `--deploy-root S:\tools` | Bake the final share path into `seedling.conf` |
@@ -401,7 +435,7 @@ the same OS/arch as your offline machines).
 
 uv, the interpreters, the wheels, and VS Code + extensions are all automatic.
 Two things are opt-in: **MinGit** is off unless you pass `--mingit` (most fleets
-already have git — see [#5](#5-git-optional)), and **corporate CA
+already have git — see [#6](#6-git-optional)), and **corporate CA
 certs** are yours to supply (see the CA section). Note that under `--yes` every
 step takes its default, so MinGit is skipped unless you pass `--mingit` too.
 
@@ -416,7 +450,7 @@ So the builder finishes by installing from the bundle it just made, on the
 build machine, with the network refused:
 
 ```
-[9] Verify the bundle installs offline
+[10] Verify the bundle installs offline
     Python 3.12: interpreter + 4 package(s) install offline.
     seed-cli builds offline on Python 3.12 (hatchling resolved from the bundle).
     Preflight passed: this bundle installs with no internet.
@@ -508,7 +542,7 @@ equivalent:
 | Python interpreter mirror | `SEEDLING_PYTHON_MIRROR="S:\tools\python-builds"` — a share folder of archives; seedling handles the `file://` conversion |
 | Package index | `SEEDLING_PACKAGE_INDEX="S:\tools\wheels"` — a **directory of wheels** on the share; the internet index is disabled automatically. Populate it on a connected machine with [`seed download-whl`](#populating-a-wheel-directory) (include `hatchling`, the default venv packages, and all transitive deps for your platform) |
 | git hosting | git needs no server: **bare repositories on the share** (`git init --bare S:/repos/project.git`) are full remotes — `seed repo-clone S:/repos/project.git`, push, and pull all work over git's file protocol |
-| VS Code | Pre-seeded portable folder in `vendor/vscode/`, as above (#6) |
+| VS Code | Pre-seeded portable folder in `vendor/vscode/`, as above (#7) |
 
 Practical notes for this setup: since all users are on the same platform
 (typical for VM fleets), the wheel directory stays small and single-arch;

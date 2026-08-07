@@ -113,6 +113,9 @@ def test_script_stays_relative_when_no_path_given():
      "must end with .py/.sh/.ps1"),
     ('[[command]]\nname = "a"\nscript = "quote.py"\nvenv = "dev"',
      "venv only applies to run"),
+    ('[[command]]\nname = "a"\nrun = ["x"]\nvenvv = "dev"',
+     "unknown key(s) venvv"),
+    ('commandd = []', "unknown key(s) commandd"),
 ])
 def test_invalid_files_are_rejected(text, fragment):
     with pytest.raises(cc.CustomCommandsError) as e:
