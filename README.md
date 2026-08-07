@@ -196,6 +196,11 @@ where the usual Python setup path doesn't work:
   — `seed lint`, `seed bootstrap`, whatever your team wants — declared in one
   TOML file, with an optional fast path to run one automatically in every new
   shell.
+- **Ship your own editor config.** Point `vscode_config_dir` at a folder of
+  `settings.json`/`keybindings.json` and every fresh install gets your
+  team's rulers, theme, and keybindings — merged over seedling's own
+  defaults, never overwriting a user's later edits. See
+  [the deployment guide](docs/DEPLOYMENT.md#seeding-your-own-settings-and-keybindings).
 - **One install root, many users.** A `{user}` token gives each person a
   private, conflict-free folder — with an elevated `admin-*` family for
   cross-user teardown when a machine is decommissioned.

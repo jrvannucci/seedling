@@ -31,6 +31,8 @@ SEEDLING_AUTO_VSCODE_FROM_ENV="${SEEDLING_AUTO_VSCODE:-}"
 SEEDLING_PROFILE_FROM_ENV="${SEEDLING_PROFILE:-}"
 # Same reasoning, for custom commands (see docs/CUSTOM-COMMANDS.md).
 SEEDLING_CUSTOM_COMMANDS_FROM_ENV="${SEEDLING_CUSTOM_COMMANDS:-}"
+# Same reasoning, for an org's own VS Code settings/keybindings.
+SEEDLING_VSCODE_CONFIG_DIR_FROM_ENV="${SEEDLING_VSCODE_CONFIG_DIR:-}"
 # The directory the user invoked from, captured before any `cd`, so a
 # relative profile path resolves against where they actually are.
 SEEDLING_INVOKED_FROM="$(pwd)"
@@ -69,6 +71,7 @@ SEEDLING_CONDA_CHANNEL=""
 SEEDLING_VSCODE_FLAVOR=""
 SEEDLING_EXTENSION_GALLERY=""
 SEEDLING_VSCODE_EXTENSIONS=""
+SEEDLING_VSCODE_CONFIG_DIR=""
 SEEDLING_PROFILE=""
 SEEDLING_CUSTOM_COMMANDS=""
 SEEDLING_STARTUP_COMMANDS=""
@@ -262,6 +265,34 @@ elif [ -n "$SEEDLING_CUSTOM_COMMANDS" ]; then
     fi
 fi
 
+# An organization's own settings.json/keybindings.json to seed into a fresh
+# editor (see docs/DEPLOYMENT.md) -- same env-var/conf split as everything
+# above. The env var names the directory itself (not a file whose parent is
+# inferred), so the whole-directory copy here is exactly what was asked for,
+# not a guess at what else might be needed.
+VSCODE_CONFIG_DIR_PATH=""
+if [ -n "$SEEDLING_VSCODE_CONFIG_DIR_FROM_ENV" ]; then
+    case "$SEEDLING_VSCODE_CONFIG_DIR_FROM_ENV" in
+        /*|?:[\\/]*) VCD_SRC="$SEEDLING_VSCODE_CONFIG_DIR_FROM_ENV" ;;
+        *)           VCD_SRC="$SEEDLING_INVOKED_FROM/$SEEDLING_VSCODE_CONFIG_DIR_FROM_ENV" ;;
+    esac
+    [ -d "$VCD_SRC" ] || die "SEEDLING_VSCODE_CONFIG_DIR=$SEEDLING_VSCODE_CONFIG_DIR_FROM_ENV was set, but no folder exists at $VCD_SRC."
+    VSCODE_CONFIG_DIR_PATH="$SEEDLING_HOME/system/config/vscode-config"
+    rm -rf "$VSCODE_CONFIG_DIR_PATH"
+    cp -R "$VCD_SRC" "$VSCODE_CONFIG_DIR_PATH"
+    info "Using VS Code config $VCD_SRC (copied to $VSCODE_CONFIG_DIR_PATH)"
+elif [ -n "$SEEDLING_VSCODE_CONFIG_DIR" ]; then
+    case "$SEEDLING_VSCODE_CONFIG_DIR" in
+        /*|?:[\\/]*) VSCODE_CONFIG_DIR_PATH="$SEEDLING_VSCODE_CONFIG_DIR" ;;
+        *)           VSCODE_CONFIG_DIR_PATH="$SRC_DIR/$SEEDLING_VSCODE_CONFIG_DIR" ;;
+    esac
+    if [ ! -d "$VSCODE_CONFIG_DIR_PATH" ]; then
+        warn "SEEDLING_VSCODE_CONFIG_DIR=$SEEDLING_VSCODE_CONFIG_DIR was set, but no "
+        warn "folder was found at $VSCODE_CONFIG_DIR_PATH -- no settings/keybindings to seed."
+        VSCODE_CONFIG_DIR_PATH=""
+    fi
+fi
+
 # ---------------------------------------------------------------------------
 # 2b-vendor. Offline binaries shipped inside the install source (see
 #     docs/OFFLINE.md): a `vendor/` folder in the distributed copy can hold
@@ -446,6 +477,11 @@ if [ ! -f "$SETTINGS_FILE" ]; then
         [ -n "$entries" ] && entries="$entries,
 "
         entries="$entries  \"custom_commands\": \"$(json_escape "$CUSTOM_COMMANDS_PATH")\""
+    fi
+    if [ -n "$VSCODE_CONFIG_DIR_PATH" ]; then
+        [ -n "$entries" ] && entries="$entries,
+"
+        entries="$entries  \"vscode_config_dir\": \"$(json_escape "$VSCODE_CONFIG_DIR_PATH")\""
     fi
     startup_norm=$(printf '%s' "$SEEDLING_STARTUP_COMMANDS" | tr -d ' ')
     if [ -n "$startup_norm" ]; then

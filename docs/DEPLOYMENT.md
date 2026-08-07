@@ -119,6 +119,12 @@ or environment variables:
 - `SEEDLING_VSCODE_EXTENSIONS` (default: empty = the flavor's starter kit)
   — comma-separated extensions installed into a fresh editor, or `none` for
   no extensions at all. Seeds the `vscode_extensions` setting.
+- `SEEDLING_VSCODE_CONFIG_DIR` (default: empty) — path (relative to this
+  repo copy, or absolute) of a folder holding your own `settings.json`
+  and/or `keybindings.json` to seed into a fresh editor. `settings.json` is
+  merged over seedling's built-in defaults (your values win);
+  `keybindings.json` is copied in as-is. Both only apply the first time an
+  editor is installed. Seeds the `vscode_config_dir` setting.
 - `SEEDLING_PROFILE` (default: empty) — path (relative to this repo copy, or
   absolute) of a [deployment profile](PROFILES.md): the interpreters, named
   venvs, packages and repos your users should end up with. When set, the
@@ -271,7 +277,29 @@ Empty means the starter kit for the chosen flavor. `"none"` installs
 nothing at all — useful when your users get their editor from somewhere else
 and only want seedling's Python management.
 
-All three are ordinary settings, so a user can override them locally with
+### Seeding your own settings and keybindings
+
+For anything the extension set and `DEFAULT_SETTINGS` don't cover — a font
+size, `editor.rulers`, a team keybinding — point at a folder in the repo
+copy you distribute:
+
+```
+SEEDLING_VSCODE_CONFIG_DIR="vscode-config"
+```
+
+holding whichever of these you want to ship:
+
+```
+vscode-config/
+├── settings.json       merged over seedling's own defaults -- your values win
+└── keybindings.json    copied in as-is (there's no built-in default to merge with)
+```
+
+Both only apply the first time the editor is installed — like everything
+else here, a user's own edits are never overwritten by a later
+`seed update-commands` or reinstall.
+
+All four are ordinary settings, so a user can override them locally with
 `seed config set` unless you have reason to re-deploy instead.
 
 ---

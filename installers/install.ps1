@@ -315,6 +315,32 @@ if ($env:SEEDLING_CUSTOM_COMMANDS) {
     }
 }
 
+# An organization's own settings.json/keybindings.json to seed into a fresh
+# editor (see docs/DEPLOYMENT.md) -- same env-var/conf split as everything
+# above. The env var names the directory itself (not a file whose parent is
+# inferred), so the whole-directory copy here is exactly what was asked
+# for, not a guess at what else might be needed.
+$VscodeConfigDirPath = ""
+if ($env:SEEDLING_VSCODE_CONFIG_DIR) {
+    $rawVCD = $env:SEEDLING_VSCODE_CONFIG_DIR
+    $vcdSrc = if ([System.IO.Path]::IsPathRooted($rawVCD)) { $rawVCD } else { Join-Path (Get-Location).Path $rawVCD }
+    if (-not (Test-Path $vcdSrc -PathType Container)) {
+        Die "SEEDLING_VSCODE_CONFIG_DIR=$rawVCD was set, but no folder exists at $vcdSrc."
+    }
+    $VscodeConfigDirPath = Join-Path $SeedlingHome "system\config\vscode-config"
+    if (Test-Path $VscodeConfigDirPath) { Remove-Item -Recurse -Force $VscodeConfigDirPath }
+    Copy-Item -Recurse -Force $vcdSrc $VscodeConfigDirPath
+    Info "Using VS Code config $vcdSrc (copied to $VscodeConfigDirPath)"
+} elseif ($Conf["SEEDLING_VSCODE_CONFIG_DIR"]) {
+    $rawVCD = $Conf["SEEDLING_VSCODE_CONFIG_DIR"]
+    $VscodeConfigDirPath = if ([System.IO.Path]::IsPathRooted($rawVCD)) { $rawVCD } else { Join-Path $SrcDir $rawVCD }
+    if (-not (Test-Path $VscodeConfigDirPath -PathType Container)) {
+        Warn "SEEDLING_VSCODE_CONFIG_DIR=$rawVCD was set, but no folder was found at"
+        Warn "$VscodeConfigDirPath -- no settings/keybindings to seed."
+        $VscodeConfigDirPath = ""
+    }
+}
+
 $SrcGit = Join-Path $SrcDir ".git"
 if (Test-Path $SrcGit) { Remove-Item -Recurse -Force $SrcGit }
 
@@ -464,6 +490,7 @@ if (-not (Test-Path $SettingsFile)) {
     }
     if ($ProfilePath) { $seed["profile"] = "$ProfilePath" }
     if ($CustomCommandsPath) { $seed["custom_commands"] = "$CustomCommandsPath" }
+    if ($VscodeConfigDirPath) { $seed["vscode_config_dir"] = "$VscodeConfigDirPath" }
     if ($Conf["SEEDLING_STARTUP_COMMANDS"]) {
         $startups = @($Conf["SEEDLING_STARTUP_COMMANDS"].Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
         if ($startups.Count -gt 0) { $seed["startup_commands"] = $startups }

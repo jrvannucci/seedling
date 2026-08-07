@@ -41,6 +41,25 @@ what a release involves.
   5.1 is always hooked (it always ships on Windows); the 7+ profile is
   only hooked when `pwsh` is actually on PATH.
 
+- **`startup_commands` entries can now be chained with `&&`**, so a step
+  only runs if the previous one succeeded:
+  `SEEDLING_STARTUP_COMMANDS="ensure-venv&&sync-data,motd"`. `,` still
+  separates independent entries (`motd` runs regardless of how the chain
+  went); a failure or an unknown name now stops just that entry's
+  remaining chain, never the rest of the list or the shell from opening. A
+  bare name with no `&&` is a chain of one, so every existing
+  `startup_commands` value keeps meaning exactly what it always did.
+
+- **`vscode_config_dir`** — seed an organization's own VS Code
+  `settings.json` and/or `keybindings.json` into a fresh editor:
+  `SEEDLING_VSCODE_CONFIG_DIR="vscode-config"` pointing at a folder in the
+  distributed repo copy holding either or both files. `settings.json` is
+  merged over seedling's own built-in defaults (the org's values win);
+  `keybindings.json` is copied in as-is. Both only apply the first time an
+  editor is installed, like everything else here — a user's own edits are
+  never overwritten later. See
+  [docs/DEPLOYMENT.md#seeding-your-own-settings-and-keybindings](docs/DEPLOYMENT.md#seeding-your-own-settings-and-keybindings).
+
 ### Fixed
 
 - **Updating from an unreachable directory `update_source`** (an unmounted
