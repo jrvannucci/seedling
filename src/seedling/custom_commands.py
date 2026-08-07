@@ -64,6 +64,17 @@ def _require(cond: bool, msg: str) -> None:
         raise CustomCommandsError(msg)
 
 
+def _reject_unknown_keys(entry: dict, known: set[str], where: str) -> None:
+    """Same reasoning as profile.py's identical helper: a typo'd key is
+    otherwise silently ignored by tomllib, which is exactly the "discovered
+    by users, one at a time" failure mode "validation is strict" exists to
+    avoid."""
+    unknown = sorted(set(entry) - known)
+    _require(not unknown,
+             f"{where}: unknown key(s) {', '.join(unknown)} -- "
+             f"expected only {', '.join(sorted(known))}")
+
+
 def parse(text: str, *, path: Path | None = None) -> list[CustomCommand]:
     """Parse and validate custom-commands.toml. Raises CustomCommandsError
     naming the offending key -- fails the whole file rather than skipping a
@@ -80,6 +91,8 @@ def parse(text: str, *, path: Path | None = None) -> list[CustomCommand]:
     except tomllib.TOMLDecodeError as e:
         raise CustomCommandsError(f"not valid TOML: {e}") from e
 
+    _reject_unknown_keys(raw, {"command"}, "custom-commands.toml")
+
     entries = raw.get("command", [])
     _require(isinstance(entries, list), "[[command]] must be a list of tables")
 
@@ -89,6 +102,9 @@ def parse(text: str, *, path: Path | None = None) -> list[CustomCommand]:
     names: set[str] = set()
     for entry in entries:
         _require(isinstance(entry, dict), "each [[command]] must be a table")
+        _reject_unknown_keys(
+            entry, {"name", "run", "script", "description", "venv", "toplevel"},
+            "[[command]]")
 
         name = entry.get("name")
         _require(isinstance(name, str) and name.strip(),

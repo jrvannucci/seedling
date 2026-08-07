@@ -92,16 +92,26 @@ tests/
 src/
   pyproject.toml      the python package definition (`uv tool install` targets this folder)
   seedling/
+    __init__.py       the ONE home for __version__, plus the public repo URL constants
+    __main__.py       `python -m seedling` entry point
     cli.py            argparse dispatcher
     paths.py          single source of truth for the ~/seedling folder layout
     config.py         JSON config (default base, default venv, update source, etc.) + `seed config`'s KNOWN_KEYS
     confirm.py        shared -y / --preview / --non-interactive handling for destructive commands
+    profile.py        parses deployment profiles (`seed apply`, PROFILES.md)
+    custom_commands.py  parses custom-commands.toml (`seed custom`, CUSTOM-COMMANDS.md)
+    venv_target.py    shared venv resolution: explicit name -> VIRTUAL_ENV -> default_venv
     runlog.py         tees stdout/stderr into ~/seedling/system/logs/, one file per day
     download.py       SHA-256-verifying download helper (MinGit, VS Code, micromamba)
     uv_tool.py        locates + invokes the sandboxed uv binary, tags its output `[uv]`
     git_tool.py       locates git, bootstraps portable MinGit on Windows, tags streamed output `[git]`
     conda_tool.py     locates + invokes micromamba for conda-forge tools, builds offline channels
     fsutil.py         retrying, cwd-aware directory deletion (see "Why deletion is so defensive")
+    lock.py           per-venv cross-process lock, so concurrent `seed` commands queue safely
+    pkgspec.py        parses `name[extras]` package/repo specs shared by install/repo-install
+    admin.py          best-effort elevated-privilege check, for the shared multi-user admin-* family
+    shell_integration.py  re-renders seed.ps1/seed.sh from their templates (`seed update-commands`)
+    winlocks.py       Windows file-lock diagnostics for a deletion that's stuck
     colors.py         minimal ANSI color helper (NO_COLOR/non-tty aware)
     commands/         one module per `seed` command (python, venv, activate, repo,
                       vscode, kill, update, summary, health-check, config, remove, purge, ...)
@@ -119,8 +129,9 @@ src/
 first. The suite is dominated by I/O-bound installer tests (real subprocess
 installs, real file copies) rather than CPU work, so it parallelizes well:
 `uvx --with pytest-xdist pytest -n auto` runs the same suite in a fraction of
-the time (measured ~20x on a 6-core machine) — CI runs it this way too. Design
-guarantees the suite enforces:
+the time (measured ~20x on a 6-core machine) — CI runs the equivalent
+(`uvx --python <version> --with pytest-xdist pytest -q -n auto`, see
+`.github/workflows/ci.yml`). Design guarantees the suite enforces:
 
 - **Never touches your real `~/seedling`** — every test rebinds seedling's
   paths to a throwaway directory, and the machine-wide process killer is

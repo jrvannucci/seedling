@@ -91,6 +91,9 @@ def test_whitespace_is_stripped():
     ("[config]\nnative_tls = true", "cannot be set from a profile"),
     ('[config]\ndefault_venv = "ghost"', "names no venv"),
     ("this is not toml {{{", "not valid TOML"),
+    ("pythonn = ['3.12']", "unknown key(s) pythonn"),
+    ('[[venv]]\nname = "a"\npackagess = ["x"]', "unknown key(s) packagess"),
+    ('[[repo]]\nurl = "x"\ninstal = "dev"', "unknown key(s) instal"),
 ])
 def test_invalid_profiles_are_rejected(text, fragment):
     with pytest.raises(profile_mod.ProfileError) as e:
@@ -616,7 +619,7 @@ class TestProfileEditor:
     def test_editor_is_optional(self, tmp_path):
         """Profiles written before this existed must behave exactly as they
         did: no editor declared means apply installs none."""
-        prof = profile_mod.load(self._write(tmp_path, 'pythons = ["3.12"]\n'))
+        prof = profile_mod.load(self._write(tmp_path, 'python = ["3.12"]\n'))
         assert prof.editors == []
 
     def test_editor_is_normalized(self, tmp_path):
@@ -666,7 +669,7 @@ class TestProfileEditorQuery:
             self, run_cli, home, tmp_path):
         """Empty means 'the profile doesn't say', which is the installer's
         signal to let SEEDLING_AUTO_VSCODE decide as it always has."""
-        path = self._profile(tmp_path, 'pythons = ["3.12"]\n')
+        path = self._profile(tmp_path, 'python = ["3.12"]\n')
         code, out = run_cli("apply", str(path), "--print-editor")
         assert code == 0
         assert out.strip() == ""
@@ -776,12 +779,26 @@ def test_editor_validates_without_the_cli_having_been_imported():
 def test_every_documented_example_profile_is_valid():
     """Every TOML block in the profile examples page must parse. They're
     presented as copy-and-ship files, so a stale one is worse than no
-    example at all."""
+    example at all.
+
+    The page also carries a few custom-commands.toml examples (the
+    software-team and classroom personas demonstrate `seed custom` /
+    `startup_commands` alongside their profile) -- those are `[[command]]`
+    tables, a different schema entirely, and must be routed to
+    custom_commands.parse() instead of being force-fit as a profile."""
     import re
+
     from conftest import REPO_ROOT
+    from seedling import custom_commands as cc_mod
 
     page = (REPO_ROOT / "docs" / "PROFILE-EXAMPLES.md").read_text(encoding="utf-8")
     blocks = re.findall(r"```toml\n(.*?)```", page, re.S)
     assert len(blocks) >= 5, "examples page lost its profiles?"
-    for block in blocks:
+    profile_blocks = [b for b in blocks if "[[command]]" not in b]
+    command_blocks = [b for b in blocks if "[[command]]" in b]
+    assert profile_blocks, "examples page lost its profiles?"
+    assert command_blocks, "examples page lost its custom-commands.toml demos?"
+    for block in profile_blocks:
         profile_mod.parse(block)      # raises ProfileError if invalid
+    for block in command_blocks:
+        cc_mod.parse(block)           # raises CustomCommandsError if invalid

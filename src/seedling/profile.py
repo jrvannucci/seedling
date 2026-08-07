@@ -136,6 +136,18 @@ def _require(cond: bool, msg: str) -> None:
         raise ProfileError(msg)
 
 
+def _reject_unknown_keys(entry: dict, known: set[str], where: str) -> None:
+    """Part of "validation is strict" (see the module docstring): a typo'd
+    key name is otherwise silently ignored -- `tomllib.loads` doesn't know
+    or care what a profile-reading program was expecting -- which is exactly
+    the "discovered by users, one at a time" failure mode this module
+    otherwise goes out of its way to avoid."""
+    unknown = sorted(set(entry) - known)
+    _require(not unknown,
+             f"{where}: unknown key(s) {', '.join(unknown)} -- "
+             f"expected only {', '.join(sorted(known))}")
+
+
 def _str_list(raw, where: str) -> list[str]:
     _require(isinstance(raw, list), f"{where} must be a list")
     out = []
@@ -227,6 +239,10 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
     except tomllib.TOMLDecodeError as e:
         raise ProfileError(f"not valid TOML: {e}") from e
 
+    _reject_unknown_keys(
+        raw, {"schema", "python", "venv", "repo", "tools", "editor", "config"},
+        "profile")
+
     schema = raw.get("schema", SCHEMA)
     _require(isinstance(schema, int), "schema must be an integer")
     _require(schema <= SCHEMA,
@@ -242,6 +258,9 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
     names: set[str] = set()
     for entry in venvs:
         _require(isinstance(entry, dict), "each [[venv]] must be a table")
+        _reject_unknown_keys(
+            entry, {"name", "python", "packages", "default", "default_packages"},
+            "[[venv]]")
         name = entry.get("name")
         _require(isinstance(name, str) and name.strip(),
                  "every [[venv]] needs a non-empty name")
@@ -275,6 +294,7 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
     _require(isinstance(repos, list), "[[repo]] must be a list of tables")
     for entry in repos:
         _require(isinstance(entry, dict), "each [[repo]] must be a table")
+        _reject_unknown_keys(entry, {"url", "install"}, "[[repo]]")
         url = entry.get("url")
         _require(isinstance(url, str) and url.strip(),
                  "every [[repo]] needs a non-empty url")
