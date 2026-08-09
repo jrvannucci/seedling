@@ -60,6 +60,13 @@ what a release involves.
   never overwritten later. See
   [docs/DEPLOYMENT.md#seeding-your-own-settings-and-keybindings](docs/DEPLOYMENT.md#seeding-your-own-settings-and-keybindings).
 
+- **`seed show <package...>`** — direct passthrough to `uv pip show`, the
+  read-only counterpart of `seed install`: full details (version, location,
+  dependencies, what depends on it) for a package in the active venv. A
+  package that isn't installed is `uv pip show`'s normal "not found" case,
+  not a seedling-level error — uv's own warning prints and `seed show`
+  exits with uv's own code, with no extra `error: ... failed` wrapper.
+
 ### Fixed
 
 - **Updating from an unreachable directory `update_source`** (an unmounted

@@ -27,6 +27,7 @@ from .commands import (
     remove_cmd,
     repo_cmd,
     run_cmd,
+    show_cmd,
     spyder_cmd,
     status_cmd,
     summary_cmd,
@@ -70,6 +71,7 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("install", "<package...>", "Install packages (uv pip install)"),
         ("uninstall", "<package...>", "Uninstall packages (uv pip uninstall)"),
         ("package-list", "[--json]", "List installed packages (uv pip list)"),
+        ("show", "<package...>", "Show package details (uv pip show)"),
     ]),
     ("Python applications from PyPI, each in its own environment", [
         ("app-install", "<name>[==ver]", "Install an app (spyder, jupyterlab, ...)"),
@@ -346,6 +348,11 @@ def build_parser() -> argparse.ArgumentParser:
                                        "to `uv pip list`. --json is translated "
                                        "to uv's `--format json`.")
 
+    p_show = sub.add_parser(
+        "show", help="Show a package's details in the active venv (passthrough to `uv pip show`)")
+    p_show.add_argument("packages", nargs=argparse.REMAINDER,
+                         help="Anything after this is passed straight to `uv pip show`")
+
     p_dl_whl = sub.add_parser(
         "download-whl",
         help="Download a package and all its dependencies as wheels for an offline install")
@@ -619,6 +626,7 @@ def _passthrough_handlers() -> dict:
         "install": install_cmd.run,
         "uninstall": uninstall_cmd.run,
         "package-list": list_cmd.list_packages,
+        "show": show_cmd.run,
         "download-whl": download_cmd.run_whl,
         "download-requirements": download_cmd.run_requirements,
     }
@@ -741,6 +749,7 @@ def _dispatch_main(argv: list[str]) -> int:
         "install": install_cmd.run,
         "uninstall": uninstall_cmd.run,
         "package-list": list_cmd.list_packages,
+        "show": show_cmd.run,
         "download-whl": download_cmd.run_whl,
         "download-requirements": download_cmd.run_requirements,
         "vscode": vscode_cmd.run,

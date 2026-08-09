@@ -14,7 +14,7 @@ destructive action reads the same way (`remove-venv`, `remove-python`,
 | Family | Commands |
 |---|---|
 | Python interpreters *(structural — the base installs venvs are built from)* | `python [ver]` *(install)*, `python-list`, `remove-python` |
-| Venvs & packages *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `run`, `which`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `remove-venv`, `remove-venv-all` |
+| Venvs & packages *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `run`, `which`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `show`, `remove-venv`, `remove-venv-all` |
 | Python applications *(run, not imported — each in its own env)* | `app-install <name>` *(install)*, `app-list`, `app-remove` |
 | Command-line tools from conda-forge *(the non-Python tools)* | `tool <cmd>` *(run)*, `tool-install <name>` *(install)*, `tool-list`, `tool-remove` |
 | Offline utilities *(stage packages/tools for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>`, `download-tool <name...>` |
@@ -340,6 +340,30 @@ Package            Version
 certifi            2026.6.17
 requests           2.34.2
 urllib3            2.7.0
+```
+
+## `seed show <package...>`
+
+Direct passthrough to `uv pip show <package...>` for the active venv — full
+details (name, version, location, dependencies, what depends on it) for a
+package that's installed, the read-only counterpart of `seed install`. Same
+argument-forwarding and `VIRTUAL_ENV` warning behavior as `install`/
+`uninstall`/`package-list`.
+
+A package that **isn't** installed is `uv pip show`'s normal "not found"
+case, not a seedling-level error: uv prints its own warning and `seed show`
+exits with uv's own exit code (`1`) — nothing is wrapped in a second
+`error: ... failed` line.
+
+```
+seed show requests
+```
+```
+Name: requests
+Version: 2.34.2
+Location: ~/seedling/python/venvs/dev/Lib/site-packages
+Requires: certifi, charset-normalizer, idna, urllib3
+Required-by:
 ```
 
 ## `seed tool <command> [args...]`

@@ -4,6 +4,7 @@ summary, python-cmd helpers."""
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -17,7 +18,7 @@ ALL_COMMANDS = [
     "venv", "venv-list", "remove-venv", "remove-venv-all", "venv-default",
     "auto-activate",
     "activate", "deactivate", "run", "which",
-    "install", "uninstall", "package-list",
+    "install", "uninstall", "package-list", "show",
     "app-install", "app-list", "app-remove",
     "tool", "tool-install", "tool-list", "tool-remove",
     "custom",
@@ -93,6 +94,65 @@ class TestPassthroughForwarding:
         code, out = run_cli("install", "-h")
         assert "usage: seed install" in out
         assert not uv_args  # -h never reaches uv
+
+
+class TestShowCommand:
+    """seed show -- passthrough to `uv pip show`, the read-only counterpart
+    of install/uninstall/package-list."""
+
+    @pytest.fixture
+    def uv_show(self, monkeypatch):
+        from seedling import uv_tool
+        calls: list[list[str]] = []
+
+        def _fake_run(a, **k):
+            calls.append(list(a))
+            return subprocess.CompletedProcess(list(a), 0)
+        monkeypatch.setattr(uv_tool, "run", _fake_run)
+        return calls
+
+    def test_show_forwards_package_name(self, run_cli, uv_show):
+        code, out = run_cli("show", "requests")
+        assert code == 0
+        assert uv_show == [["pip", "show", "requests"]]
+
+    def test_show_forwards_multiple_packages(self, run_cli, uv_show):
+        code, out = run_cli("show", "requests", "pillow")
+        assert code == 0
+        assert uv_show == [["pip", "show", "requests", "pillow"]]
+
+    def test_show_forwards_flags(self, run_cli, uv_show):
+        """Same REMAINDER-leading-flag handling install/uninstall/
+        package-list already get -- `uv pip show --files` must not be
+        rejected as an unrecognized argparse option."""
+        code, out = run_cli("show", "--files", "requests")
+        assert code == 0
+        assert uv_show == [["pip", "show", "--files", "requests"]]
+
+    def test_show_empty_shows_usage(self, run_cli, uv_show):
+        code, out = run_cli("show")
+        assert code == 1
+        assert "Usage: seed show" in out
+        assert not uv_show
+
+    def test_show_help_flag_shows_argparse_help(self, run_cli, uv_show):
+        code, out = run_cli("show", "-h")
+        assert "usage: seed show" in out
+        assert not uv_show  # -h never reaches uv
+
+    def test_show_returns_uvs_own_exit_code_for_a_missing_package(
+            self, run_cli, monkeypatch):
+        """Distinct from install/uninstall: a package that isn't installed
+        is the NORMAL, expected way `uv pip show` reports "not found" (it
+        exits non-zero after printing its own warning), not a seedling-level
+        failure worth wrapping in a second "error: ... failed" line."""
+        from seedling import uv_tool
+        monkeypatch.setattr(
+            uv_tool, "run",
+            lambda a, **k: subprocess.CompletedProcess(list(a), 1))
+        code, out = run_cli("show", "definitely-not-installed")
+        assert code == 1
+        assert "error:" not in out
 
 
 def test_bare_seed_shows_grouped_help(run_cli):
