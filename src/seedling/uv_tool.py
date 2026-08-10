@@ -159,7 +159,7 @@ def python_install_dir_env() -> dict:
     return {"UV_PYTHON_INSTALL_DIR": str(paths.BASE_DIR)}
 
 
-def tool_install_env() -> dict:
+def selfinstall_env() -> dict:
     """Env override so `uv tool install` (used to install/update seed-cli
     itself) keeps everything inside ~/seedling instead of uv's default
     per-user tool location."""
@@ -169,11 +169,11 @@ def tool_install_env() -> dict:
     }
 
 
-def app_install_env() -> dict:
-    """Env override for `seed app-install` -- user-facing PyPI applications,
+def tool_install_env() -> dict:
+    """Env override for `seed tool-install` -- user-facing PyPI applications,
     each in its own uv-managed venv under extensions/apps.
 
-    A SEPARATE tool root from tool_install_env() on purpose. seed-cli lives
+    A SEPARATE tool root from selfinstall_env() on purpose. seed-cli lives
     in system/tool; if apps shared that root, `uv tool list` would report
     seed-cli as an installed app and `uv tool upgrade --all` would sweep the
     running CLI along with them."""

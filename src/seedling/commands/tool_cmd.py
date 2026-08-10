@@ -1,15 +1,15 @@
 """
-`seed app-install / app-list / app-remove` -- Python applications from PyPI,
-each installed into its own isolated environment.
+`seed tool-install / tool-list / tool-remove` -- Python applications from
+PyPI, each installed into its own isolated environment.
 
-This is the uv/PyPI counterpart to the conda-forge `tool-*` family. The split
+This is the uv/PyPI counterpart to the conda-forge `forge-*` family. The split
 is by where a thing comes from, because that is what actually differs:
 
-  seed install        packages INTO the venv you're working in (uv pip)
-  seed app-install    an application in its OWN venv, on PATH (uv tool)
-  seed tool-install   a non-Python program from conda-forge (micromamba)
+  seed install         packages INTO the venv you're working in (uv pip)
+  seed tool-install    an application in its OWN venv, on PATH (uv tool)
+  seed forge-install   a non-Python program from conda-forge (micromamba)
 
-`app-install` is for things you run rather than import -- Spyder, JupyterLab,
+`tool-install` is for things you run rather than import -- Spyder, JupyterLab,
 httpie -- where putting the app's dependency tree in your project venv would
 be actively harmful. uv builds the isolated environment and writes the
 launchers; seedling only points it at the right directories and keeps the
@@ -83,7 +83,7 @@ def ensure_installed(args, spec: str, *, note: str = "") -> bool:
     if note:
         print(f"{name} isn't installed yet ({note}).")
     if not confirm.ask(args, f"Install {name} now?"):
-        print(f"Skipped. To install it later:  seed app-install {name} -y")
+        print(f"Skipped. To install it later:  seed tool-install {name} -y")
         return False
     return _install(spec) == 0
 
@@ -93,15 +93,15 @@ def _install(spec: str, *, with_packages: list[str] | None = None) -> int:
     argv = ["tool", "install", spec]
     for extra in with_packages or []:
         argv += ["--with", extra]
-    result = uv_tool.run(argv, env=uv_tool.app_install_env(), check=False)
+    result = uv_tool.run(argv, env=uv_tool.tool_install_env(), check=False)
     return result.returncode
 
 
 def install(args) -> int:
     spec = getattr(args, "spec", None)
     if not spec:
-        print("Usage: seed app-install <name>[==version]   "
-              "(e.g. seed app-install spyder)")
+        print("Usage: seed tool-install <name>[==version]   "
+              "(e.g. seed tool-install spyder)")
         return 1
 
     name = _spec_name(spec)
@@ -112,14 +112,14 @@ def install(args) -> int:
     paths.ensure_layout()
     if is_installed(name) and not getattr(args, "reinstall", False):
         print(f"'{name}' is already installed.")
-        print(f"Reinstall it with:  seed app-install {name} --reinstall")
+        print(f"Reinstall it with:  seed tool-install {name} --reinstall")
         return 0
 
     argv = ["tool", "install", spec]
     if getattr(args, "reinstall", False):
         argv += ["--force", "--reinstall"]
     print(f"Installing '{spec}' from {_index_label()} ...")
-    result = uv_tool.run(argv, env=uv_tool.app_install_env(), check=False)
+    result = uv_tool.run(argv, env=uv_tool.tool_install_env(), check=False)
     if result.returncode != 0:
         print(colors.warn(f"Could not install '{spec}'."))
         return 1
@@ -136,7 +136,7 @@ def list_apps(args) -> int:
     names = installed_apps()
     if not names:
         print("No PyPI applications installed.")
-        print("Install one with:  seed app-install <name>   "
+        print("Install one with:  seed tool-install <name>   "
               "(e.g. spyder, jupyterlab)")
         return 0
 
@@ -151,7 +151,7 @@ def list_apps(args) -> int:
 def remove(args) -> int:
     name = getattr(args, "name", None)
     if not name:
-        print("Usage: seed app-remove <name>")
+        print("Usage: seed tool-remove <name>")
         return 1
     name = _spec_name(name)
 
@@ -175,7 +175,7 @@ def remove(args) -> int:
     # which is why removal doesn't need a manifest of its own the way the
     # conda tools do.
     result = uv_tool.run(["tool", "uninstall", name],
-                         env=uv_tool.app_install_env(), check=False)
+                         env=uv_tool.tool_install_env(), check=False)
     if result.returncode != 0:
         # Fall back to deleting the tree: a half-installed app that uv no
         # longer recognizes should still be removable.

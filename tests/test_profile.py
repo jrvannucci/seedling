@@ -233,7 +233,7 @@ def test_apply_installs_profile_tools(run_cli, home, tmp_path, monkeypatch):
     an offline bundle points at the bundled channel)."""
     from seedling.commands import apply_cmd
     installed = []
-    monkeypatch.setattr(apply_cmd.tool_cmd, "install",
+    monkeypatch.setattr(apply_cmd.forge_cmd, "install",
                         lambda args: (installed.append(args.spec), 0)[1])
     prof = _write(tmp_path, 'tools = ["ripgrep", "pandoc=3.2"]')
 
@@ -249,10 +249,10 @@ def test_apply_installs_profile_tools(run_cli, home, tmp_path, monkeypatch):
 
 def test_apply_skips_an_already_installed_tool(run_cli, home, tmp_path, monkeypatch):
     from seedling.commands import apply_cmd
-    paths.TOOL_MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
-    paths.tool_manifest_file("ripgrep").write_text('{"commands": ["rg"]}')
+    paths.FORGE_MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
+    paths.forge_manifest_file("ripgrep").write_text('{"commands": ["rg"]}')
     called = []
-    monkeypatch.setattr(apply_cmd.tool_cmd, "install",
+    monkeypatch.setattr(apply_cmd.forge_cmd, "install",
                         lambda args: (called.append(args.spec), 0)[1])
     prof = _write(tmp_path, 'tools = ["ripgrep"]')
     code, out = run_cli("apply", str(prof))

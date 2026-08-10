@@ -795,11 +795,11 @@ def build_conda_channel(vendor_micromamba: Path, channel_dir: Path,
                         tools: list[str]) -> tuple[bool, int]:
     """Vendor micromamba and build a conda channel of `tools` + their
     dependencies under `channel_dir`, so the offline machine can
-    `seed tool-install` them with no network. Returns (ok, package_count).
+    `seed forge-install` them with no network. Returns (ok, package_count).
 
     The channel is downloaded from the builder's configured conda source
     (conda-forge by default, or an internal mirror), and its repodata.json is
-    synthesized from the solve -- the same mechanism as `seed download-tool`,
+    synthesized from the solve -- the same mechanism as `seed download-forge`,
     reused here so the bundle carries one artifact instead of a side folder."""
     from seedling import conda_tool
     mm_name = "micromamba.exe" if platform.system() == "Windows" else "micromamba"
@@ -1068,7 +1068,7 @@ def main(argv=None) -> int:
         "--tools", default="",
         help="conda-forge command-line tools to bundle (comma-separated, e.g. "
              "ripgrep,pandoc). Vendors micromamba and builds a conda channel "
-             "into the bundle so `seed tool-install` works offline. A profile's "
+             "into the bundle so `seed forge-install` works offline. A profile's "
              "[tools] are included automatically.")
     parser.add_argument(
         "--no-vscode", action="store_true",
@@ -1308,7 +1308,7 @@ def main(argv=None) -> int:
     elif ask(f"Bundle {len(conda_tools)} conda-forge tool(s) now? "
              f"({', '.join(conda_tools)})", default=True, auto=auto):
         info("Vendors micromamba and builds a conda channel into the bundle so "
-             "`seed tool-install` runs with no internet on the target machine.")
+             "`seed forge-install` runs with no internet on the target machine.")
         conda_ok, conda_pkg_count = build_conda_channel(
             vendor / "micromamba", conda_channel_dir, conda_tools)
 
@@ -1362,7 +1362,7 @@ def main(argv=None) -> int:
         else f"{deploy_root}/wheels",
     }
     if conda_ok:
-        # Point tool-install at the bundled channel; the local-channel path in
+        # Point forge-install at the bundled channel; the local-channel path in
         # conda_tool then installs from it offline.
         conf_values["SEEDLING_CONDA_CHANNEL"] = (
             f"{deploy_root}\\conda-channel" if system == "Windows"

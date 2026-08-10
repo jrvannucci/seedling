@@ -100,7 +100,7 @@ or environment variables:
   `package_index` setting. See [OFFLINE.md](OFFLINE.md) for the full
   offline deployment guide.
 - `SEEDLING_CONDA_CHANNEL` (default: `conda-forge`) — where `seed
-  tool-install` fetches conda-forge command-line tools from: a URL or a
+  forge-install` fetches conda-forge command-line tools from: a URL or a
   local directory for an internal mirror or an offline network. Seeds the
   `conda_channel` setting.
 - `SEEDLING_NATIVE_TLS` (default: `false` = bundled trust store) — set to

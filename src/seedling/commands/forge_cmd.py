@@ -1,13 +1,13 @@
 """
-`seed tool / tool-install / tool-list / tool-remove / download-tool` --
+`seed forge / forge-install / forge-list / forge-remove / download-forge` --
 command-line tools from conda-forge (ripgrep, pandoc, ffmpeg, gh, compilers,
 ...), the things that aren't Python packages and so aren't `seed install`-able.
 
 Each tool gets its own isolated micromamba environment; seedling then writes a
 small launcher for every command the tool provides into a shims directory that
-the shell hook puts on PATH, so the tool runs as a bare command. `seed tool
+the shell hook puts on PATH, so the tool runs as a bare command. `seed forge
 <cmd>` runs an installed tool directly without any PATH setup, and
-`seed download-tool` stages a tool and its dependencies into a local channel
+`seed download-forge` stages a tool and its dependencies into a local channel
 for an offline install. Removal is exact: the manifest records which shims
 were created.
 
@@ -85,16 +85,16 @@ def _executables(env_dir) -> list[str]:
 def _write_shims(mm, name: str, commands: list[str]) -> None:
     """A launcher per command that runs it inside the tool's env via
     `micromamba run`, so the env's own libraries are on the path."""
-    paths.TOOL_SHIMS_DIR.mkdir(parents=True, exist_ok=True)
+    paths.FORGE_SHIMS_DIR.mkdir(parents=True, exist_ok=True)
     root = paths.MAMBA_DIR
     for cmd in commands:
         if os.name == "nt":
-            shim = paths.TOOL_SHIMS_DIR / f"{cmd}.cmd"
+            shim = paths.FORGE_SHIMS_DIR / f"{cmd}.cmd"
             shim.write_text(
                 f'@"{mm}" run -r "{root}" -n "{name}" "{cmd}" %*\r\n',
                 encoding="utf-8")
         else:
-            shim = paths.TOOL_SHIMS_DIR / cmd
+            shim = paths.FORGE_SHIMS_DIR / cmd
             shim.write_text(
                 f'#!/bin/sh\nexec "{mm}" run -r "{root}" -n "{name}" '
                 f'"{cmd}" "$@"\n')
@@ -103,8 +103,8 @@ def _write_shims(mm, name: str, commands: list[str]) -> None:
 
 def _remove_shims(commands: list[str]) -> None:
     for cmd in commands:
-        for candidate in (paths.TOOL_SHIMS_DIR / cmd,
-                          paths.TOOL_SHIMS_DIR / f"{cmd}.cmd"):
+        for candidate in (paths.FORGE_SHIMS_DIR / cmd,
+                          paths.FORGE_SHIMS_DIR / f"{cmd}.cmd"):
             try:
                 candidate.unlink()
             except FileNotFoundError:
@@ -112,15 +112,15 @@ def _remove_shims(commands: list[str]) -> None:
 
 
 def download_tool(args) -> int:
-    """`seed download-tool <name>...` -- the conda analogue of download-whl:
+    """`seed download-forge <name>...` -- the conda analogue of download-whl:
     resolve a tool and its dependencies on a connected machine and write them
     into a local channel to carry to an air-gapped one."""
     specs = getattr(args, "specs", None) or []
     if not specs:
-        print("Usage: seed download-tool <name>[=version] [<name> ...] "
+        print("Usage: seed download-forge <name>[=version] [<name> ...] "
               "[--dest <dir>]")
         print("Downloads each conda-forge tool AND its dependencies into a "
-              "local channel for an offline `seed tool-install`.")
+              "local channel for an offline `seed forge-install`.")
         return 1
 
     dest = Path(getattr(args, "dest", None) or "conda-channel").resolve()
@@ -150,18 +150,18 @@ def download_tool(args) -> int:
     print("To install on an offline machine:")
     print("  1. Copy this folder to the target machine or a shared drive.")
     print(f"  2. seed config set conda_channel {dest}")
-    print(f"  3. seed tool-install {_spec_name(specs[0])}   "
+    print(f"  3. seed forge-install {_spec_name(specs[0])}   "
           "# resolves from the folder, offline")
     return 0
 
 
 def _command_index() -> dict[str, str]:
     """{command name -> the tool/env that provides it} across every installed
-    tool, so `seed tool <cmd>` can find and run it."""
+    tool, so `seed forge <cmd>` can find and run it."""
     index: dict[str, str] = {}
-    if not paths.TOOL_MANIFEST_DIR.is_dir():
+    if not paths.FORGE_MANIFEST_DIR.is_dir():
         return index
-    for m in sorted(paths.TOOL_MANIFEST_DIR.glob("*.json")):
+    for m in sorted(paths.FORGE_MANIFEST_DIR.glob("*.json")):
         try:
             data = json.loads(m.read_text())
         except (OSError, ValueError):
@@ -172,7 +172,7 @@ def _command_index() -> dict[str, str]:
 
 
 def run_tool(args) -> int:
-    """`seed tool <command> [args...]` -- run an installed conda-forge tool
+    """`seed forge <command> [args...]` -- run an installed conda-forge tool
     without needing it on PATH or a fresh terminal. The convenient, always-
     works counterpart to the PATH shims."""
     command = getattr(args, "name", None)
@@ -180,13 +180,13 @@ def run_tool(args) -> int:
     index = _command_index()
 
     if not command:
-        print("Usage: seed tool <command> [args...]   "
-              "(e.g. seed tool gh pr create)")
+        print("Usage: seed forge <command> [args...]   "
+              "(e.g. seed forge gh pr create)")
         if index:
             print("Available commands: " + ", ".join(sorted(index)))
         else:
             print("No conda-forge tools installed yet "
-                  "(seed tool-install <name>).")
+                  "(seed forge-install <name>).")
         return 1
 
     env_name = index.get(command)
@@ -195,7 +195,7 @@ def run_tool(args) -> int:
               f"'{command}'.")
         if index:
             print("Available commands: " + ", ".join(sorted(index)))
-        print("Install one with:  seed tool-install <name>")
+        print("Install one with:  seed forge-install <name>")
         return 1
 
     try:
@@ -209,8 +209,8 @@ def run_tool(args) -> int:
 def install(args) -> int:
     spec = getattr(args, "spec", None)
     if not spec:
-        print("Usage: seed tool-install <name>[=version]   "
-              "(e.g. seed tool-install ripgrep)")
+        print("Usage: seed forge-install <name>[=version]   "
+              "(e.g. seed forge-install ripgrep)")
         return 1
 
     name = _spec_name(spec)
@@ -219,9 +219,9 @@ def install(args) -> int:
         return 1
 
     paths.ensure_layout()
-    if paths.tool_env_dir(name).exists() or paths.tool_manifest_file(name).exists():
+    if paths.forge_env_dir(name).exists() or paths.forge_manifest_file(name).exists():
         print(f"A tool named '{name}' is already installed.")
-        print(f"Remove it first with:  seed tool-remove {name}")
+        print(f"Remove it first with:  seed forge-remove {name}")
         return 1
 
     try:
@@ -235,7 +235,7 @@ def install(args) -> int:
     create = ["create", "-y", "-n", name, "--override-channels",
               "-c", conda_tool.channel_arg(ch), spec]
     if conda_tool.channel_is_local(ch):
-        # A channel built by `seed download-tool`: force offline so micromamba
+        # A channel built by `seed download-forge`: force offline so micromamba
         # never reaches for the network on an air-gapped box.
         create.insert(1, "--offline")
     result = conda_tool.run(create, check=False)
@@ -245,7 +245,7 @@ def install(args) -> int:
         _cleanup_env(name)
         return 1
 
-    commands = _executables(paths.tool_env_dir(name))
+    commands = _executables(paths.forge_env_dir(name))
     if not commands:
         print(colors.warn(
             f"'{name}' installed, but it exposed no command-line programs "
@@ -256,8 +256,8 @@ def install(args) -> int:
         return 1
 
     _write_shims(mm, name, commands)
-    paths.TOOL_MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
-    paths.tool_manifest_file(name).write_text(json.dumps(
+    paths.FORGE_MANIFEST_DIR.mkdir(parents=True, exist_ok=True)
+    paths.forge_manifest_file(name).write_text(json.dumps(
         {"spec": spec, "channel": ch, "commands": commands}, indent=2))
 
     print(colors.ok(f"Installed '{name}'. Command(s): {', '.join(commands)}"))
@@ -267,15 +267,15 @@ def install(args) -> int:
 
 def _cleanup_env(name: str) -> None:
     conda_tool.run(["env", "remove", "-y", "-n", name], check=False)
-    shutil.rmtree(paths.tool_env_dir(name), ignore_errors=True)
+    shutil.rmtree(paths.forge_env_dir(name), ignore_errors=True)
 
 
 def list_tools(args) -> int:
-    manifests = (sorted(paths.TOOL_MANIFEST_DIR.glob("*.json"))
-                 if paths.TOOL_MANIFEST_DIR.is_dir() else [])
+    manifests = (sorted(paths.FORGE_MANIFEST_DIR.glob("*.json"))
+                 if paths.FORGE_MANIFEST_DIR.is_dir() else [])
     if not manifests:
         print("No conda-forge tools installed.")
-        print("Install one with:  seed tool-install <name>   "
+        print("Install one with:  seed forge-install <name>   "
               "(e.g. ripgrep, pandoc, ffmpeg)")
         return 0
 
@@ -294,11 +294,11 @@ def list_tools(args) -> int:
 def remove(args) -> int:
     name = getattr(args, "name", None)
     if not name:
-        print("Usage: seed tool-remove <name>")
+        print("Usage: seed forge-remove <name>")
         return 1
 
-    manifest = paths.tool_manifest_file(name)
-    env_dir = paths.tool_env_dir(name)
+    manifest = paths.forge_manifest_file(name)
+    env_dir = paths.forge_env_dir(name)
     if not manifest.exists() and not env_dir.exists():
         print(f"No conda-forge tool named '{name}' is installed.")
         return 1

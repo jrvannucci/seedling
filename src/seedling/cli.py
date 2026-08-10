@@ -8,7 +8,6 @@ from . import __version__, colors, config, lock, paths, runlog
 from .commands import (
     activate_cmd,
     admin_cmd,
-    app_cmd,
     apply_cmd,
     auto_activate_cmd,
     config_cmd,
@@ -17,6 +16,7 @@ from .commands import (
     default_venv_cmd,
     download_cmd,
     editors,
+    forge_cmd,
     install_cmd,
     kill_cmd,
     list_cmd,
@@ -74,20 +74,20 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("show", "<package...>", "Show package details (uv pip show)"),
     ]),
     ("Python applications from PyPI, each in its own environment", [
-        ("app-install", "<name>[==ver]", "Install an app (spyder, jupyterlab, ...)"),
-        ("app-list", "", "List installed PyPI applications"),
-        ("app-remove", "<name>", "Remove a PyPI application"),
+        ("tool-install", "<name>[==ver]", "Install an app (spyder, jupyterlab, ...)"),
+        ("tool-list", "", "List installed PyPI applications"),
+        ("tool-remove", "<name>", "Remove a PyPI application"),
     ]),
     ("Command-line tools from conda-forge (ripgrep, pandoc, ffmpeg, ...)", [
-        ("tool", "<cmd> [args...]", "Run an installed tool (e.g. seed tool gh ...)"),
-        ("tool-install", "<name>[=version]", "Install a CLI tool from conda-forge"),
-        ("tool-list", "", "List installed conda-forge tools"),
-        ("tool-remove", "<name>", "Remove a conda-forge tool"),
+        ("forge", "<cmd> [args...]", "Run an installed tool (e.g. seed forge gh ...)"),
+        ("forge-install", "<name>[=version]", "Install a CLI tool from conda-forge"),
+        ("forge-list", "", "List installed conda-forge tools"),
+        ("forge-remove", "<name>", "Remove a conda-forge tool"),
     ]),
     ("Offline utilities -- stage packages/tools to carry to an air-gapped machine", [
         ("download-whl", "<package...>", "Download a package + its deps as wheels"),
         ("download-requirements", "<req.txt>", "Download a requirements file's wheels"),
-        ("download-tool", "<name...>", "Download a conda-forge tool + its deps as a channel"),
+        ("download-forge", "<name...>", "Download a conda-forge tool + its deps as a channel"),
     ]),
     ("Git repos", [
         ("repo-clone", "<git-url>", "Clone a repo into ~/seedling/repo"),
@@ -280,12 +280,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_auto.add_argument("state", nargs="?",
                         help="True or False; omit to show the current state")
 
-    p_tool = sub.add_parser(
-        "tool", help="Run an installed conda-forge tool (no PATH setup needed)")
-    p_tool.add_argument("name", nargs="?",
+    p_forge = sub.add_parser(
+        "forge", help="Run an installed conda-forge tool (no PATH setup needed)")
+    p_forge.add_argument("name", nargs="?",
                         help="The command to run (e.g. gh, rg); omit to list "
                              "available commands")
-    p_tool.add_argument("toolargs", nargs=argparse.REMAINDER,
+    p_forge.add_argument("toolargs", nargs=argparse.REMAINDER,
                         help="Arguments passed straight through to the tool")
 
     p_custom = sub.add_parser(
@@ -301,35 +301,35 @@ def build_parser() -> argparse.ArgumentParser:
     # instead of spawning one per command -- see custom_cmd.run_startup().
     p_custom.add_argument("--startup", action="store_true", help=argparse.SUPPRESS)
 
-    p_tool_install = sub.add_parser(
-        "tool-install", help="Install a command-line tool from conda-forge")
-    p_tool_install.add_argument("spec",
+    p_forge_install = sub.add_parser(
+        "forge-install", help="Install a command-line tool from conda-forge")
+    p_forge_install.add_argument("spec",
                                 help="conda-forge package, optionally pinned: "
                                      "ripgrep, or ripgrep=14.1.0")
-    sub.add_parser("tool-list", help="List installed conda-forge tools")
-    p_tool_remove = sub.add_parser(
-        "tool-remove", parents=[danger],
+    sub.add_parser("forge-list", help="List installed conda-forge tools")
+    p_forge_remove = sub.add_parser(
+        "forge-remove", parents=[danger],
         help="Remove a conda-forge tool and its commands")
-    p_tool_remove.add_argument("name", help="Tool to remove")
+    p_forge_remove.add_argument("name", help="Tool to remove")
 
-    p_app_install = sub.add_parser(
-        "app-install",
+    p_tool_install = sub.add_parser(
+        "tool-install",
         help="Install a Python application from PyPI into its own environment")
-    p_app_install.add_argument(
+    p_tool_install.add_argument(
         "spec", nargs="?",
         help="PyPI application, optionally pinned: spyder, or spyder==6.1.5")
-    p_app_install.add_argument("--reinstall", action="store_true",
+    p_tool_install.add_argument("--reinstall", action="store_true",
                                help="Force a fresh install of an existing app")
-    p_app_install.add_argument("-y", "--yes", action="store_true",
+    p_tool_install.add_argument("-y", "--yes", action="store_true",
                                help="Don't ask before downloading")
-    p_app_install.add_argument("--non-interactive", dest="non_interactive",
+    p_tool_install.add_argument("--non-interactive", dest="non_interactive",
                                action="store_true",
                                help="Never wait for keyboard input.")
-    sub.add_parser("app-list", help="List installed PyPI applications")
-    p_app_remove = sub.add_parser(
-        "app-remove", parents=[danger],
+    sub.add_parser("tool-list", help="List installed PyPI applications")
+    p_tool_remove = sub.add_parser(
+        "tool-remove", parents=[danger],
         help="Remove a PyPI application and its launchers")
-    p_app_remove.add_argument("name", nargs="?", help="Application to remove")
+    p_tool_remove.add_argument("name", nargs="?", help="Application to remove")
 
     p_install = sub.add_parser(
         "install", help="Install packages into the active venv (passthrough to `uv pip install`)")
@@ -370,13 +370,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="<requirements.txt> plus any `pip download` flags. Wheels land "
              "in ./wheelhouse unless you pass your own --dest.")
 
-    p_dl_tool = sub.add_parser(
-        "download-tool",
+    p_dl_forge = sub.add_parser(
+        "download-forge",
         help="Download a conda-forge tool (+deps) into a local channel for an offline install")
-    p_dl_tool.add_argument(
+    p_dl_forge.add_argument(
         "specs", nargs="*",
         help="conda-forge tool(s), optionally pinned (e.g. ripgrep, pandoc=3.2)")
-    p_dl_tool.add_argument(
+    p_dl_forge.add_argument(
         "-d", "--dest", default=None,
         help="Directory to write the channel into (default ./conda-channel)")
 
@@ -737,14 +737,14 @@ def _dispatch_main(argv: list[str]) -> int:
         "which": which_cmd.run,
         "venv-default": default_venv_cmd.run,
         "auto-activate": auto_activate_cmd.run,
-        "app-install": app_cmd.install,
-        "app-list": app_cmd.list_apps,
-        "app-remove": app_cmd.remove,
-        "tool": tool_cmd.run_tool,
         "tool-install": tool_cmd.install,
-        "tool-list": tool_cmd.list_tools,
+        "tool-list": tool_cmd.list_apps,
         "tool-remove": tool_cmd.remove,
-        "download-tool": tool_cmd.download_tool,
+        "forge": forge_cmd.run_tool,
+        "forge-install": forge_cmd.install,
+        "forge-list": forge_cmd.list_tools,
+        "forge-remove": forge_cmd.remove,
+        "download-forge": forge_cmd.download_tool,
         "custom": custom_cmd.run,
         "install": install_cmd.run,
         "uninstall": uninstall_cmd.run,

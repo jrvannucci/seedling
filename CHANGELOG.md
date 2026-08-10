@@ -11,6 +11,27 @@ what a release involves.
 
 ## [Unreleased]
 
+### Changed (breaking)
+
+- **The PyPI-application family (`app-install`/`app-list`/`app-remove`) is
+  now `tool-install`/`tool-list`/`tool-remove`, and the conda-forge family
+  (`tool`/`tool-install`/`tool-list`/`tool-remove`/`download-tool`) is now
+  `forge`/`forge-install`/`forge-list`/`forge-remove`/`download-forge`.**
+  Both families used the word "tool" for different things — a conda-forge
+  binary and, in every doc explaining the split, the generic sense of "a
+  thing you install and run" — so the two were easy to mix up. `tool-*` now
+  means the one users reach for far more often (installing a PyPI
+  application like Spyder or JupyterLab), and `forge-*` names the
+  conda-forge engine after the channel it actually is.
+
+  **To migrate:** `seed app-install/app-list/app-remove` ->
+  `seed tool-install/tool-list/tool-remove`; `seed tool` (bare, run a
+  conda-forge command) -> `seed forge`; `seed tool-install/tool-list/
+  tool-remove` (conda-forge) -> `seed forge-install/forge-list/
+  forge-remove`; `seed download-tool` -> `seed download-forge`. Nothing on
+  disk moved -- installed applications and conda-forge tools are found
+  exactly where they already were, under their existing names.
+
 ### Added
 
 - **`seed update-commands` now reports drift between the organization's

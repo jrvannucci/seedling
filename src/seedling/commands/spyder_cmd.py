@@ -2,7 +2,7 @@
 `seed spyder` / `seed spyder-repo` -- the Spyder IDE, as a bundled editor.
 
 Spyder is a Python application, so the install itself is just `seed
-app-install spyder` underneath. What this module adds is the wiring that
+tool-install spyder` underneath. What this module adds is the wiring that
 makes Spyder actually usable against a seedling venv, which a generic
 application install cannot know to do:
 
@@ -20,7 +20,7 @@ application install cannot know to do:
      here, so it can't drift when Spyder is upgraded.
 
 Steps 2 and 3 are the reason this is a command rather than a line in the
-docs telling people to run `seed app-install spyder`.
+docs telling people to run `seed tool-install spyder`.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ import re
 from pathlib import Path
 
 from .. import colors, paths, venv_target
-from . import app_cmd, editors
+from . import editors, tool_cmd
 
 APP_NAME = "spyder"
 DOWNLOAD_NOTE = "~200 MB download"
@@ -45,11 +45,11 @@ _X86_ONLY_NOTE = (
     "Spyder installs from PyPI, and its Qt dependency publishes no arm64 "
     "wheels, so `seed spyder` can't work on this machine.\n"
     "  Use the conda-forge build instead, which does ship arm64:\n"
-    "    seed tool-install spyder")
+    "    seed forge-install spyder")
 
 
 def is_installed() -> bool:
-    return app_cmd.is_installed(APP_NAME)
+    return tool_cmd.is_installed(APP_NAME)
 
 
 def _is_arm() -> bool:
@@ -269,7 +269,7 @@ def _prepare(args) -> bool:
     name = target.name if target else None
     interpreter = target.python if target else None
 
-    if not app_cmd.ensure_installed(args, APP_NAME, note=DOWNLOAD_NOTE):
+    if not tool_cmd.ensure_installed(args, APP_NAME, note=DOWNLOAD_NOTE):
         return False
 
     if interpreter is None:

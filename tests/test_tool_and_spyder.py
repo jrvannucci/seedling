@@ -1,4 +1,4 @@
-"""The PyPI application family (`seed app-*`) and the Spyder editor built on
+"""The PyPI application family (`seed tool-*`) and the Spyder editor built on
 top of it. Nothing here downloads: the pieces that would (uv tool install)
 are stubbed, and everything else works off a faked app environment."""
 
@@ -11,7 +11,7 @@ import os
 from seedling import config, paths
 # vscode_cmd imported for its registration side effect: editors are
 # registered at import, and this file asserts on the full family.
-from seedling.commands import app_cmd, editors, spyder_cmd, vscode_cmd  # noqa: F401
+from seedling.commands import editors, spyder_cmd, tool_cmd, vscode_cmd  # noqa: F401
 
 
 def _fake_app(home, name, version="1.0", kernels=None):
@@ -31,22 +31,22 @@ def test_spec_name_strips_every_pin_form():
         ("spyder>=6", "spyder"), ("spyder~=6.1", "spyder"),
         ("spyder[all]", "spyder"), ("jupyterlab != 4", "jupyterlab"),
     ]:
-        assert app_cmd._spec_name(spec) == expected
+        assert tool_cmd._spec_name(spec) == expected
 
 
 def test_installed_apps_reads_the_tool_root(home):
-    assert app_cmd.installed_apps() == []
+    assert tool_cmd.installed_apps() == []
     _fake_app(home, "spyder", "6.1.5")
     _fake_app(home, "cowsay", "6.1")
-    assert app_cmd.installed_apps() == ["cowsay", "spyder"]
-    assert app_cmd.is_installed("spyder")
-    assert not app_cmd.is_installed("nope")
+    assert tool_cmd.installed_apps() == ["cowsay", "spyder"]
+    assert tool_cmd.is_installed("spyder")
+    assert not tool_cmd.is_installed("nope")
 
 
 def test_app_version_read_from_dist_info(home):
     _fake_app(home, "spyder", "6.1.5")
-    assert app_cmd.app_version("spyder") == "6.1.5"
-    assert app_cmd.app_version("absent") is None
+    assert tool_cmd.app_version("spyder") == "6.1.5"
+    assert tool_cmd.app_version("absent") is None
 
 
 def test_app_tool_root_is_separate_from_seed_cli():
@@ -55,8 +55,8 @@ def test_app_tool_root_is_separate_from_seed_cli():
     would sweep it."""
     from seedling import uv_tool
 
-    app_env = uv_tool.app_install_env()
-    cli_env = uv_tool.tool_install_env()
+    app_env = uv_tool.tool_install_env()
+    cli_env = uv_tool.selfinstall_env()
     assert app_env["UV_TOOL_DIR"] != cli_env["UV_TOOL_DIR"]
     assert app_env["UV_TOOL_BIN_DIR"] != cli_env["UV_TOOL_BIN_DIR"]
 
@@ -125,10 +125,10 @@ def test_arm_is_refused_with_the_conda_fallback(home, monkeypatch, capsys):
     monkeypatch.setattr(spyder_cmd.platform, "machine", lambda: "arm64")
     def boom(*a, **k):
         raise AssertionError("attempted an install that cannot resolve")
-    monkeypatch.setattr(app_cmd, "ensure_installed", boom)
+    monkeypatch.setattr(tool_cmd, "ensure_installed", boom)
 
     assert spyder_cmd._prepare(object()) is False
-    assert "seed tool-install spyder" in capsys.readouterr().out
+    assert "seed forge-install spyder" in capsys.readouterr().out
 
 
 def test_both_editors_are_registered_in_the_family():
@@ -290,8 +290,8 @@ class TestIpykernelDowngradeNotice:
         assert spyder_cmd._venv_package_version(interp, "nothing") is None
 
 
-def test_app_remove_leaves_venv_packages_alone(home, monkeypatch):
-    """`app-remove` takes the application, NOT what it installed elsewhere.
+def test_tool_remove_leaves_venv_packages_alone(home, monkeypatch):
+    """`tool-remove` takes the application, NOT what it installed elsewhere.
 
     `seed spyder` puts spyder-kernels into the target venv; removing Spyder
     deliberately leaves it. Undoing it would mean a remove-* command editing
@@ -310,14 +310,14 @@ def test_app_remove_leaves_venv_packages_alone(home, monkeypatch):
     planted.mkdir()
 
     calls = []
-    monkeypatch.setattr(app_cmd.uv_tool, "run",
+    monkeypatch.setattr(tool_cmd.uv_tool, "run",
                         lambda *a, **k: calls.append(a) or _Ok())
 
-    rc = app_cmd.remove(argparse.Namespace(
+    rc = tool_cmd.remove(argparse.Namespace(
         name="spyder", yes=True, preview=False, non_interactive=False))
 
     assert rc == 0
-    assert planted.is_dir(), "app-remove must not touch venv packages"
+    assert planted.is_dir(), "tool-remove must not touch venv packages"
 
 
 class _Ok:

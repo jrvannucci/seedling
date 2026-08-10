@@ -19,8 +19,8 @@ scattered across the filesystem:
             uv/           <- uv's package/interpreter download cache, kept
                              inside seedling instead of ~/.cache / %LOCALAPPDATA%
         conda/            <- micromamba root: conda-forge tool envs, package
-                             cache, and the PATH shims (`seed tool-install`)
-        shims/            <- launchers for PyPI apps (`seed app-install`),
+                             cache, and the PATH shims (`seed forge-install`)
+        shims/            <- launchers for PyPI applications (`seed tool-install`),
                              put on PATH by the shell hook
         shell/
             seed.sh       <- sourced by bash/zsh to define the `seed` function
@@ -36,7 +36,7 @@ scattered across the filesystem:
                              stops VS Code writing to ~/.vscode or %APPDATA%
         spyder-config/    <- Spyder's own settings (SPYDER_CONFDIR), for the
                              same reason: nothing outside ~/seedling
-        apps/<name>/      <- one uv-managed environment per `seed app-install`
+        apps/<name>/      <- one uv-managed environment per `seed tool-install`
     repo/
         <name>/           <- repos cloned with `seed repo-clone`
 """
@@ -96,17 +96,17 @@ UV_CACHE_DIR = SYSTEM_DIR / "cache" / "uv"
 # the OS lock the holder takes on them -- they are never read.
 LOCKS_DIR = SYSTEM_DIR / "locks"
 
-# conda-forge command-line tools, managed with micromamba (`seed tool-install`).
+# conda-forge command-line tools, managed with micromamba (`seed forge-install`).
 # The per-tool environments live under system/ because they are an
 # implementation detail; only the shims are user-facing. MAMBA_DIR is
-# micromamba's root prefix (its package cache and envs), and TOOL_SHIMS_DIR
+# micromamba's root prefix (its package cache and envs), and FORGE_SHIMS_DIR
 # holds the small launchers the shell hook puts on PATH so an installed tool
 # runs as a bare command.
 MAMBA_DIR = SYSTEM_DIR / "conda"
 MAMBA_ENVS_DIR = MAMBA_DIR / "envs"
 MAMBA_PKGS_DIR = MAMBA_DIR / "pkgs"
-TOOL_SHIMS_DIR = MAMBA_DIR / "shims"
-TOOL_MANIFEST_DIR = MAMBA_DIR / "tools"
+FORGE_SHIMS_DIR = MAMBA_DIR / "shims"
+FORGE_MANIFEST_DIR = MAMBA_DIR / "tools"
 
 PYTHON_DIR = HOME / "python"
 BASE_DIR = PYTHON_DIR / "base"
@@ -114,7 +114,7 @@ VENVS_DIR = PYTHON_DIR / "venvs"
 
 EXTENSIONS_DIR = HOME / "extensions"
 
-# PyPI applications installed as isolated tools (`seed app-install`), each in
+# PyPI applications installed as isolated tools (`seed tool-install`), each in
 # its own uv-managed venv. This is UV_TOOL_DIR for those calls, which is why
 # it gets a directory of its own rather than sharing extensions/: uv treats
 # every child of UV_TOOL_DIR as one of its tools and warns about "malformed"
@@ -155,9 +155,9 @@ ALL_DIRS = [
     EXTENSIONS_DIR,
     VSCODE_DIR,
     REPO_DIR,
-    # TOOL_SHIMS_DIR is created unconditionally so the shell hook can safely
+    # FORGE_SHIMS_DIR is created unconditionally so the shell hook can safely
     # prepend it to PATH even before any conda-forge tool is installed.
-    TOOL_SHIMS_DIR,
+    FORGE_SHIMS_DIR,
     # Same reasoning for the PyPI-app launchers.
     APP_SHIMS_DIR,
 ]
@@ -178,14 +178,14 @@ def micromamba_binary() -> Path:
     return BIN_DIR / exe
 
 
-def tool_env_dir(name: str) -> Path:
+def forge_env_dir(name: str) -> Path:
     """The micromamba environment backing a single conda-forge tool."""
     return MAMBA_ENVS_DIR / name
 
 
-def tool_manifest_file(name: str) -> Path:
+def forge_manifest_file(name: str) -> Path:
     """Records which shim commands a tool created, so removal is exact."""
-    return TOOL_MANIFEST_DIR / f"{name}.json"
+    return FORGE_MANIFEST_DIR / f"{name}.json"
 
 
 def base_python_dir(tag: str) -> Path:

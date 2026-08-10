@@ -1156,8 +1156,8 @@ build-offline.cmd --profile seedling-profile.toml ^
 | Piece | What it makes work with no internet |
 |---|---|
 | `python-builds/` | `seed python 3.12` — interpreters |
-| `wheels/` | `seed install`, every venv's packages, **and `seed app-install`** |
-| `conda-channel/` + vendored micromamba | `seed tool-install ripgrep` |
+| `wheels/` | `seed install`, every venv's packages, **and `seed tool-install`** |
+| `conda-channel/` + vendored micromamba | `seed forge-install ripgrep` |
 | `vendor/vscode/` | VS Code and its extensions, pre-seeded |
 | `vendor/git/` (`--mingit`) | `seed repo-clone` on Windows with no system git |
 | `vendor/certs/` | HTTPS through a TLS-inspecting proxy |

@@ -161,7 +161,7 @@ $env:SEEDLING_REPO = "S:\shared\seedling"; .\install.cmd
    instead, wired to whichever venv you have activated. Both are installed on
    demand and both tell you the download size before starting. Other Python
    applications — JupyterLab, httpie — install the same way with
-   `seed app-install <name>`, each in its own environment so nothing lands in
+   `seed tool-install <name>`, each in its own environment so nothing lands in
    your project venvs.
 7. **Writes the shell integration.** Copies `seed.sh.template` /
    `seed.ps1.template` into `~/seedling/system/shell/seed.sh` (or `.ps1`),
@@ -211,8 +211,8 @@ could actually work. On failure, this window is skipped and the original
 │   │   └── uv/                   uv's package/interpreter download cache --
 │   │                             kept in here instead of ~/.cache / %LOCALAPPDATA%
 │   ├── conda/                    micromamba root: conda-forge tool envs and
-│   │                             their PATH launchers (`seed tool-install`)
-│   ├── shims/                    launchers for PyPI apps (`seed app-install`)
+│   │                             their PATH launchers (`seed forge-install`)
+│   ├── shims/                    launchers for PyPI apps (`seed tool-install`)
 │   ├── certs/
 │   │   └── ca-bundle.pem         corporate CA bundle, only on org installs
 │   │                             that ship one in vendor/certs/ (see OFFLINE.md)
@@ -233,7 +233,7 @@ could actually work. On failure, this window is skipped and the original
 │   ├── spyder-config/             Spyder's own settings, kept in here rather
 │   │                              than ~/.config or %APPDATA%
 │   └── apps/
-│       └── <name>/                one uv-managed env per `seed app-install`
+│       └── <name>/                one uv-managed env per `seed tool-install`
 └── repo/
     └── <name>/                    one folder per `seed repo-clone <url>`
 ```

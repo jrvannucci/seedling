@@ -15,9 +15,9 @@ destructive action reads the same way (`remove-venv`, `remove-python`,
 |---|---|
 | Python interpreters *(structural — the base installs venvs are built from)* | `python [ver]` *(install)*, `python-list`, `remove-python` |
 | Venvs & packages *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `run`, `which`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `show`, `remove-venv`, `remove-venv-all` |
-| Python applications *(run, not imported — each in its own env)* | `app-install <name>` *(install)*, `app-list`, `app-remove` |
-| Command-line tools from conda-forge *(the non-Python tools)* | `tool <cmd>` *(run)*, `tool-install <name>` *(install)*, `tool-list`, `tool-remove` |
-| Offline utilities *(stage packages/tools for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>`, `download-tool <name...>` |
+| Python applications *(run, not imported — each in its own env)* | `tool-install <name>` *(install)*, `tool-list`, `tool-remove` |
+| Command-line tools from conda-forge *(the non-Python tools)* | `forge <cmd>` *(run)*, `forge-install <name>` *(install)*, `forge-list`, `forge-remove` |
+| Offline utilities *(stage packages/tools for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>`, `download-forge <name...>` |
 | Repos | `repo-clone`, `repo-list`, `repo-cd`, `repo-open`, `repo-install`, `remove-repo` |
 | Editors & IDEs *(installed on demand)* | `vscode`, `vscode-repo`, `spyder`, `spyder-repo` |
 | Custom commands *(your organization's own — see [CUSTOM-COMMANDS.md](CUSTOM-COMMANDS.md))* | `custom <name>` *(run)* |
@@ -366,29 +366,7 @@ Requires: certifi, charset-normalizer, idna, urllib3
 Required-by:
 ```
 
-## `seed tool <command> [args...]`
-
-Runs an installed conda-forge tool **without needing it on PATH or a fresh
-terminal** — `seed tool gh pr create`, `seed tool rg TODO`. seedling runs the
-tool by its exact path (via `micromamba run`), inheriting your terminal, so
-interactive prompts, colour, and pagers all behave normally, and the tool's
-own exit code is passed back.
-
-This is the convenient, always-works counterpart to the PATH launchers: the
-launchers let *other* programs and scripts find `gh`/`rg` by bare name and are
-nice for heavy interactive use, but they need a new terminal (and a shell that
-has seedling's hook). `seed tool <command>` works the moment the tool is
-installed.
-
-Everything after the command name is passed straight through untouched. Run
-`seed tool` with no arguments to list the available commands.
-
-```
-seed tool gh auth login
-seed tool rg "def install" src
-```
-
-## `seed app-install <name>[==version] [--reinstall] [-y] [--non-interactive]`
+## `seed tool-install <name>[==version] [--reinstall] [-y] [--non-interactive]`
 
 Installs a **Python application from PyPI into its own isolated
 environment** — Spyder, JupyterLab, httpie: things you *run* rather than
@@ -399,8 +377,8 @@ Three commands install software, split by where it comes from:
 | Command | Source | Lands in |
 |---|---|---|
 | `seed install` | PyPI, **into the active venv** | that venv |
-| `seed app-install` | PyPI, **its own venv** | `extensions/apps/<name>/` |
-| `seed tool-install` | conda-forge (not Python) | `system/conda/envs/<name>/` |
+| `seed tool-install` | PyPI, **its own venv** | `extensions/apps/<name>/` |
+| `seed forge-install` | conda-forge (not Python) | `system/conda/envs/<name>/` |
 
 Backed by `uv tool install`, so the environment and the command launchers
 are uv's own work; seedling just points it at the right directories and
@@ -409,7 +387,7 @@ index or fully offline exactly like `seed install`.
 
 - Launchers land in `~/seedling/system/shims`, which the shell hook puts on
   PATH — open a new terminal to run them by name.
-- Pin with `==`: `seed app-install spyder==6.1.5`.
+- Pin with `==`: `seed tool-install spyder==6.1.5`.
 - `--reinstall` forces a fresh install of something already present.
 - `-y`/`--yes` skips the "install this now?" confirmation; `--non-interactive`
   refuses to prompt and aborts instead — see
@@ -418,23 +396,23 @@ index or fully offline exactly like `seed install`.
   so `uv tool` operations on your apps can never touch the running CLI.
 
 ```
-seed app-install spyder
-seed app-install jupyterlab
+seed tool-install spyder
+seed tool-install jupyterlab
 ```
 
-## `seed app-list`
+## `seed tool-list`
 
 Lists installed applications and their versions.
 
 ```
-seed app-list
+seed tool-list
 ```
 ```
 Applications in ~/seedling/extensions/apps:
   spyder  [6.1.5]
 ```
 
-## `seed app-remove <name> [-y]`
+## `seed tool-remove <name> [-y]`
 
 Removes an application: its environment and its launchers. Supports
 `--preview`. Uses `uv tool uninstall`, falling back to deleting the tree so
@@ -442,7 +420,7 @@ a half-installed app that uv no longer recognizes is still removable.
 
 **It removes the application, not what the application put in your venvs.**
 `seed spyder`, for instance, installs `spyder-kernels` into whichever venv
-it was pointed at; `seed app-remove spyder` leaves that alone. This is
+it was pointed at; `seed tool-remove spyder` leaves that alone. This is
 deliberate — undoing it would mean a `remove-*` command reaching into a
 venv to change packages you may now depend on, and in Spyder's case
 deciding whether to restore the `ipykernel` version it had displaced.
@@ -455,17 +433,39 @@ seed uninstall spyder-kernels
 ```
 
 ```
-seed app-remove spyder
+seed tool-remove spyder
 ```
 
-## `seed tool-install <name>[=version]`
+## `seed forge <command> [args...]`
+
+Runs an installed conda-forge tool **without needing it on PATH or a fresh
+terminal** — `seed forge gh pr create`, `seed forge rg TODO`. seedling runs the
+tool by its exact path (via `micromamba run`), inheriting your terminal, so
+interactive prompts, colour, and pagers all behave normally, and the tool's
+own exit code is passed back.
+
+This is the convenient, always-works counterpart to the PATH launchers: the
+launchers let *other* programs and scripts find `gh`/`rg` by bare name and are
+nice for heavy interactive use, but they need a new terminal (and a shell that
+has seedling's hook). `seed forge <command>` works the moment the tool is
+installed.
+
+Everything after the command name is passed straight through untouched. Run
+`seed forge` with no arguments to list the available commands.
+
+```
+seed forge gh auth login
+seed forge rg "def install" src
+```
+
+## `seed forge-install <name>[=version]`
 
 Installs a **command-line tool from conda-forge** — the things that aren't
 Python packages and so aren't `seed install`-able: `ripgrep`, `pandoc`,
 `ffmpeg`, `gh`, compilers, and so on.
 
 This is seedling's *second* engine. `seed install` is uv (the PyPI world);
-`seed tool-install` is [micromamba](https://mamba.readthedocs.io), fetched
+`seed forge-install` is [micromamba](https://mamba.readthedocs.io), fetched
 once into `system/bin` the first time you use it (or dropped there as a
 vendored binary for an offline install). Each tool gets its own isolated
 environment, and seedling writes a small launcher for every command the tool
@@ -477,22 +477,22 @@ distinct from Anaconda's `defaults` and its commercial terms (see
 [Licensing](LICENSING.md)). Point `conda_channel` at an internal mirror or a
 local directory for a proxied or air-gapped network.
 
-- Pin a version with `=`: `seed tool-install ripgrep=14.1.0`.
+- Pin a version with `=`: `seed forge-install ripgrep=14.1.0`.
 - The command name is often not the package name (installing `ripgrep` gives
   you `rg`); seedling prints what it exposed.
 - Open a new terminal afterward so the tool is on PATH.
 
 ```
-seed tool-install ripgrep
-seed tool-install pandoc=3.2
+seed forge-install ripgrep
+seed forge-install pandoc=3.2
 ```
 
-## `seed tool-list`
+## `seed forge-list`
 
 Lists the conda-forge tools you've installed and the command(s) each provides.
 
 ```
-seed tool-list
+seed forge-list
 ```
 ```
 conda-forge tools:
@@ -500,7 +500,7 @@ conda-forge tools:
   pandoc   ->  pandoc   (pandoc=3.2)
 ```
 
-## `seed tool-remove <name> [-y]`
+## `seed forge-remove <name> [-y]`
 
 Removes a conda-forge tool: its environment, its PATH launchers, and its
 record. Prompts for confirmation first (skippable with `-y`/`--yes`), like
@@ -508,12 +508,12 @@ every other `remove-*` command, and supports `--preview` to see exactly what
 would go without touching anything.
 
 ```
-seed tool-remove ripgrep
-seed tool-remove ripgrep --preview
-seed tool-remove ripgrep -y
+seed forge-remove ripgrep
+seed forge-remove ripgrep --preview
+seed forge-remove ripgrep -y
 ```
 
-## `seed download-tool <name>[=version]... [--dest <dir>]`
+## `seed download-forge <name>[=version]... [--dest <dir>]`
 
 The conda-forge counterpart of `download-whl`: on a connected machine, resolve
 a tool **and all its dependencies** and write them into a local **conda
@@ -521,20 +521,20 @@ channel** — a directory you carry to an air-gapped machine (or a share) and
 install from offline.
 
 ```
-(connected)  seed download-tool ripgrep pandoc
+(connected)  seed download-forge ripgrep pandoc
 (copy the ./conda-channel folder to the offline machine or a share)
 (offline)    seed config set conda_channel <that-folder>
-             seed tool-install ripgrep
+             seed forge-install ripgrep
 ```
 
 seedling solves the request with micromamba, downloads each package
 (checksum-verified), and synthesizes the channel's `repodata.json` from the
 solve — so no `conda index` or network is needed on the offline side. When
-`conda_channel` points at a local folder, `tool-install` runs fully offline
+`conda_channel` points at a local folder, `forge-install` runs fully offline
 automatically.
 
 Lands in `./conda-channel` unless you pass `--dest`. Pin versions with `=`
-(`seed download-tool pandoc=3.2`).
+(`seed download-forge pandoc=3.2`).
 
 ## `seed download-whl <package...>`
 
@@ -711,7 +711,7 @@ all and aborts instead — the same two shared confirmation knobs every
 consequential-but-not-destructive prompt in seedling honors (see
 [Non-interactive mode & previews](DESIGN.md#non-interactive-mode--previews)).
 
-Underneath it's `seed app-install spyder`, but the command exists because
+Underneath it's `seed tool-install spyder`, but the command exists because
 three things have to be arranged that a plain application install can't
 know about:
 
@@ -762,7 +762,7 @@ packages; it says so.
 
 > **x86_64 only.** Spyder comes from PyPI, and PyQt5's Qt payload publishes
 > no arm64 wheels — so this can't work on Apple Silicon or ARM Linux. There,
-> use the conda-forge build instead: `seed tool-install spyder`. `seed
+> use the conda-forge build instead: `seed forge-install spyder`. `seed
 > spyder` says exactly that rather than failing with a dependency error.
 
 ```
@@ -1408,7 +1408,7 @@ setting with its current value and an explanation. The keys:
 - `python_mirror` / `package_index` — offline sources for interpreters
   and packages (a URL, or a plain directory on a share). Normally seeded
   from `seedling.conf` at install time; see [OFFLINE.md](OFFLINE.md).
-- `conda_channel` — where `seed tool-install` fetches conda-forge
+- `conda_channel` — where `seed forge-install` fetches conda-forge
   command-line tools from (default: `conda-forge`). A URL or local
   directory for an internal mirror or an offline network.
 - `shared_root` — the directory holding per-user seedling homes, recorded

@@ -33,7 +33,7 @@ from pathlib import Path
 
 from . import config
 
-# Same identifier rule `tool_cmd` already uses for conda-forge tool names --
+# Same identifier rule `forge_cmd` already uses for conda-forge tool names --
 # keeps a custom command's name filesystem/shell-safe and consistent with
 # the rest of the codebase.
 _NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")

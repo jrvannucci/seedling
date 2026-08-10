@@ -8,7 +8,7 @@ step, and an AI agent each get a fresh process per command and have no shell
 to mutate. Their only options today are to hardcode
 `~/seedling/python/venvs/<name>/bin/python` or to re-derive it every time.
 This is the non-interactive sibling of `activate` that closes that gap, and
-the venv-shaped counterpart of `seed tool <cmd>`.
+the venv-shaped counterpart of `seed forge <cmd>`.
 
 Three contracts matter more than the feature itself:
 

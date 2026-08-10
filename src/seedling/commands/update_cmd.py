@@ -338,7 +338,7 @@ def run(args) -> int:
     try:
         # The python package (pyproject.toml) lives in src/ within the repo tree.
         uv_tool.run(["tool", "install", "--force", "--reinstall", str(src / "src")],
-                    env=uv_tool.tool_install_env())
+                    env=uv_tool.selfinstall_env())
     except (subprocess.CalledProcessError, uv_tool.UvNotFound):
         _roll_back_aside(moved)
         print("The reinstall failed; the previous seed CLI was restored and "

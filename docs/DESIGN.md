@@ -139,7 +139,7 @@ compare against). Treat a clean result as "git found nothing", not as
 ## Non-interactive mode & previews
 
 Every destructive command — the `remove-*` family, `purge`/`purge-and-reinstall`,
-`kill-processes`, `tool-remove`, `app-remove`, and the `admin-*` family (see
+`kill-processes`, `forge-remove`, `tool-remove`, and the `admin-*` family (see
 [Command reference](COMMANDS.md)) — shares the same `danger` argparse parent
 (`cli.py`), which grants three shared flags. (`seed apply` uses the same
 parent too, for `--preview` only — it isn't destructive, so `-y`/

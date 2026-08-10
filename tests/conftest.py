@@ -90,13 +90,13 @@ def _rebind_paths(home: Path) -> None:
     p.MAMBA_DIR = p.SYSTEM_DIR / "conda"
     p.MAMBA_ENVS_DIR = p.MAMBA_DIR / "envs"
     p.MAMBA_PKGS_DIR = p.MAMBA_DIR / "pkgs"
-    p.TOOL_SHIMS_DIR = p.MAMBA_DIR / "shims"
-    p.TOOL_MANIFEST_DIR = p.MAMBA_DIR / "tools"
+    p.FORGE_SHIMS_DIR = p.MAMBA_DIR / "shims"
+    p.FORGE_MANIFEST_DIR = p.MAMBA_DIR / "tools"
     p.ALL_DIRS = [
         p.HOME, p.SYSTEM_DIR, p.BIN_DIR, p.CONFIG_DIR, p.SHELL_DIR,
         p.LOGS_DIR, p.LOCKS_DIR, p.UV_CACHE_DIR, p.PYTHON_DIR, p.BASE_DIR,
         p.VENVS_DIR,
-        p.EXTENSIONS_DIR, p.VSCODE_DIR, p.REPO_DIR, p.TOOL_SHIMS_DIR,
+        p.EXTENSIONS_DIR, p.VSCODE_DIR, p.REPO_DIR, p.FORGE_SHIMS_DIR,
         p.APP_SHIMS_DIR,
     ]
     git_tool_mod.GIT_DIR = p.EXTENSIONS_DIR / "git"

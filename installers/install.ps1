@@ -467,7 +467,7 @@ if (-not (Test-Path $SettingsFile)) {
     # environment variables themselves.
     if ($Conf["SEEDLING_PYTHON_MIRROR"]) { $seed["python_mirror"] = $Conf["SEEDLING_PYTHON_MIRROR"] }
     if ($Conf["SEEDLING_PACKAGE_INDEX"]) { $seed["package_index"] = $Conf["SEEDLING_PACKAGE_INDEX"] }
-    # conda-forge channel for `seed tool-install`. Only seeded when overridden
+    # conda-forge channel for `seed forge-install`. Only seeded when overridden
     # (an internal mirror / offline path); the built-in default is conda-forge.
     if ($Conf["SEEDLING_CONDA_CHANNEL"]) {
         $channel = $Conf["SEEDLING_CONDA_CHANNEL"].Trim()

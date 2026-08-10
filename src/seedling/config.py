@@ -78,7 +78,7 @@ KNOWN_KEYS: dict[str, str] = {
         "Recorded at install time from SEEDLING_VSCODE_CONFIG_DIR. "
         "Empty/null means neither file is seeded."),
     "conda_channel": (
-        "Channel `seed tool-install` fetches conda-forge tools from. Defaults "
+        "Channel `seed forge-install` fetches conda-forge tools from. Defaults "
         "to \"conda-forge\" (the community channel, distinct from Anaconda's "
         "`defaults`). Point it at a URL or a local directory for an internal "
         "mirror or an offline network. seedling never consults `defaults`."),

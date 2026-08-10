@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .. import colors, config, confirm, paths, profile as profile_mod, uv_tool
-from . import editors, python_cmd, repo_cmd, tool_cmd, venv_cmd
+from . import editors, forge_cmd, python_cmd, repo_cmd, venv_cmd
 
 
 def _install_into(venv_name: str, packages: list[str]) -> bool:
@@ -238,8 +238,8 @@ def _plan(prof: profile_mod.Profile, *, force: bool,
                                   f"in venv {target.venv!r}"))
 
     for tool in prof.tools:
-        name = tool_cmd._spec_name(tool)
-        if paths.tool_manifest_file(name).exists():
+        name = forge_cmd._spec_name(tool)
+        if paths.forge_manifest_file(name).exists():
             steps.append(("skip", f"conda-forge tool {name!r} already installed"))
         else:
             steps.append(("tool", f"install conda-forge tool {tool}"))
@@ -383,12 +383,12 @@ def run(args) -> int:
                 failed.append(f"{action.name} in venv {venv_name}")
 
     for tool in prof.tools:
-        name = tool_cmd._spec_name(tool)
-        if paths.tool_manifest_file(name).exists():
+        name = forge_cmd._spec_name(tool)
+        if paths.forge_manifest_file(name).exists():
             continue
         # conda_channel is already in place (seedling.conf at install time), so
         # an offline bundle installs these from its own conda-channel.
-        if tool_cmd.install(Namespace(spec=tool)) != 0:
+        if forge_cmd.install(Namespace(spec=tool)) != 0:
             failed.append(f"tool {name}")
 
     for name in prof.editors:

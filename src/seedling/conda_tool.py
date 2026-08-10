@@ -81,7 +81,7 @@ def find_micromamba() -> Path:
     if on_path:
         return Path(on_path)
     raise MicromambaNotFound(
-        "micromamba is not installed yet. `seed tool-install` fetches it "
+        "micromamba is not installed yet. `seed forge-install` fetches it "
         "automatically on first use, or drop a micromamba binary at "
         f"{paths.micromamba_binary()} for an offline install.")
 
@@ -138,7 +138,7 @@ def channel() -> str:
 
 def channel_is_local(ch: str) -> bool:
     """Whether `ch` is a local filesystem channel (a directory built by
-    `seed download-tool`) rather than a remote one. A bare name like
+    `seed download-forge`) rather than a remote one. A bare name like
     "conda-forge" is a REMOTE named channel, not a path -- only something that
     looks like a path (or a file:// URL) counts as local."""
     if ch.startswith("file://"):
@@ -165,7 +165,7 @@ def solve_downloads(specs: list[str], channel_str: str,
     """The package records micromamba would fetch to install `specs` from
     `channel_str` -- name, url, sha256, subdir, and the metadata a
     repodata.json needs -- WITHOUT installing anything. Used to build an
-    offline channel (`seed download-tool`, and the offline bundler). Pass `mm`
+    offline channel (`seed download-forge`, and the offline bundler). Pass `mm`
     to use a specific micromamba (e.g. one just vendored into a bundle)."""
     argv = ["create", "--dry-run", "--json", "-n", "_seed_solve",
             "--override-channels", "-c", channel_str, *specs]

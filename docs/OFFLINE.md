@@ -129,7 +129,7 @@ and the folder is gitignored — it exists only on distribution media.
 | `uv` binary | astral.sh | Install (skipped if already present) |
 | CPython interpreters | github.com (python-build-standalone releases) | `seed python`; the installer's default-environment setup; first `uv tool install` if no Python exists on the machine |
 | Python packages (incl. `hatchling` to build seed-cli, and the default venv packages `ipython`/`ruff`) | pypi.org | Install; `seed venv`; `seed install`; `seed update-commands` |
-| `micromamba` binary + conda-forge tools | github.com (micromamba-releases) / conda-forge | First `seed tool-install`; `micromamba` itself only once |
+| `micromamba` binary + conda-forge tools | github.com (micromamba-releases) / conda-forge | First `seed forge-install`; `micromamba` itself only once |
 | MinGit (Windows only) | github.com (git-for-windows releases) | First `seed repo-clone` if no git is found |
 | VS Code + extensions | update.code.visualstudio.com / marketplace.visualstudio.com | First `seed vscode` / `seed vscode-repo` |
 
@@ -266,7 +266,7 @@ Artifactory/Nexus mirror.
 
 ## 5. conda-forge command-line tools (optional)
 
-`seed tool-install` (non-Python CLI tools like `ripgrep`, `pandoc`, `gh`)
+`seed forge-install` (non-Python CLI tools like `ripgrep`, `pandoc`, `gh`)
 resolves from conda-forge via a vendored **micromamba** binary — never a
 system conda/mamba install. Redirect the channel by setting
 **`SEEDLING_CONDA_CHANNEL`** in `seedling.conf` to a local directory (a
@@ -279,14 +279,14 @@ mirrored conda channel) instead of the default `conda-forge`.
   `repodata.json`, built with:
 
   ```
-  seed download-tool ripgrep pandoc gh
+  seed download-forge ripgrep pandoc gh
   ```
 
   which resolves each tool **and its dependencies** into `./conda-channel`
   (default; `--dest` to change it). Copy that folder to the share and point
   `SEEDLING_CONDA_CHANNEL` at it.
 
-Skipped entirely if your organization doesn't use `seed tool-install` —
+Skipped entirely if your organization doesn't use `seed forge-install` —
 nothing here is required for Python interpreters, venvs, or packages.
 
 ---
@@ -392,19 +392,19 @@ offline-bundle/
   wheels/            <- hatchling + the default venv packages (+ any --packages you add),
                         resolved once per mirrored interpreter
   conda-channel/     <- only with --tools (or a profile's [tools]): a conda channel
-                        of conda-forge CLI tools, for `seed tool-install`
+                        of conda-forge CLI tools, for `seed forge-install`
 ```
 
 Pass `--tools ripgrep,pandoc` (or declare `tools = [...]` in your profile) and
 the builder vendors **micromamba** and a **conda channel** into the bundle and
-points `SEEDLING_CONDA_CHANNEL` at it, so `seed tool-install` (and any tools a
+points `SEEDLING_CONDA_CHANNEL` at it, so `seed forge-install` (and any tools a
 profile declares, via `seed apply`) work offline from the one bundle.
 
-**Python applications** (`seed app-install`, and `seed spyder`, which uses it)
+**Python applications** (`seed tool-install`, and `seed spyder`, which uses it)
 resolve from the same `wheels/` folder as everything else — they're ordinary
 PyPI packages, so `package_index` applies to them just as it does to
 `seed install`. Add them to the wheel set with `--packages spyder` and
-`seed app-install spyder` then works with no internet. There's no separate
+`seed tool-install spyder` then works with no internet. There's no separate
 artifact to carry: unlike conda-forge tools, applications need no channel of
 their own.
 
