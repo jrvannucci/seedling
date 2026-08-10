@@ -576,6 +576,49 @@ if (-not (Test-Path $UvExe)) {
 if (-not (Test-Path $UvExe)) { Die "uv install appears to have failed (not found at $UvExe)." }
 
 # ---------------------------------------------------------------------------
+# 3b. Add system\bin to the persistent user PATH -- so seed-cli (and uv,
+#     micromamba) are reachable as a bare command from ANY process, not just
+#     an interactive shell that has sourced the `seed` function below. This
+#     is what makes seed-cli usable from a script, a CI job, or an AI coding
+#     agent's shell tool: many of those spawn a fresh, non-interactive
+#     process that never loads $PROFILE. The `seed` FUNCTION still wins in
+#     an interactive shell (PowerShell resolves functions before PATH), so
+#     nothing here changes what a person at a terminal sees or does.
+#     User-scope (HKCU), never Machine-scope: no admin rights needed, and it
+#     matches the per-user install model everywhere else in this script.
+#     Undone by `seed purge` (purge_cmd._windows_path_bin_entry).
+#
+#     Placed HERE, before step 4's `uv tool install`, not after -- and also
+#     applied to THIS PROCESS's $env:PATH, not just the registry: uv checks
+#     the running process's PATH, which [Environment]::SetEnvironmentVariable
+#     never touches (that only affects processes started after it runs).
+#     Registering the entry after step 4 left it correct for every FUTURE
+#     shell but too late for uv's own install, which printed its own
+#     "is not on your PATH" warning regardless -- confusing right after this
+#     script just added it.
+#
+#     SEEDLING_SKIP_PATH_REGISTER is a test-only escape hatch (set by
+#     run_powershell_install in tests/conftest.py): every installer test
+#     runs against a throwaway SEEDLING_HOME but the REAL registry -- there
+#     is no fake HKCU to redirect this into the way $PROFILE gets faked
+#     above, so tests opt out of this one step entirely rather than risk
+#     writing a test's tmp path into a real machine's PATH.
+# ---------------------------------------------------------------------------
+if (-not $env:SEEDLING_SKIP_PATH_REGISTER) {
+    $BinDir = Join-Path $SeedlingHome "system\bin"
+    $UserPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+    $UserPathEntries = @(if ($UserPath) { $UserPath -split ';' } else { @() })
+    if ($UserPathEntries -notcontains $BinDir) {
+        $NewUserPath = if ($UserPath) { "$UserPath;$BinDir" } else { $BinDir }
+        [Environment]::SetEnvironmentVariable("PATH", $NewUserPath, "User")
+        Info "Added $BinDir to your PATH (new terminals/processes will see it)."
+    }
+    if (($env:PATH -split ';') -notcontains $BinDir) {
+        $env:PATH = "$BinDir;$env:PATH"
+    }
+}
+
+# ---------------------------------------------------------------------------
 # 4. Install the seedling CLI itself as an isolated uv tool
 # ---------------------------------------------------------------------------
 Info "Installing the seedling CLI ..."
@@ -823,37 +866,6 @@ if ($PSVersionTable.PSEdition -eq "Core" -and $PROFILE -match "\\PowerShell\\") 
           -and (Get-Command pwsh -ErrorAction SilentlyContinue)) {
     $siblingProfile = $PROFILE -replace "\\WindowsPowerShell\\", "\PowerShell\"
     Add-SeedlingHook $siblingProfile
-}
-
-# ---------------------------------------------------------------------------
-# 5b. Add system\bin to the persistent user PATH -- so seed-cli (and uv,
-#     micromamba) are reachable as a bare command from ANY process, not just
-#     an interactive shell that has sourced the `seed` function above. This
-#     is what makes seed-cli usable from a script, a CI job, or an AI coding
-#     agent's shell tool: many of those spawn a fresh, non-interactive
-#     process that never loads $PROFILE. The `seed` FUNCTION still wins in
-#     an interactive shell (PowerShell resolves functions before PATH), so
-#     nothing here changes what a person at a terminal sees or does.
-#     User-scope (HKCU), never Machine-scope: no admin rights needed, and it
-#     matches the per-user install model everywhere else in this script.
-#     Undone by `seed purge` (purge_cmd._windows_path_bin_entry).
-#
-#     SEEDLING_SKIP_PATH_REGISTER is a test-only escape hatch (set by
-#     run_powershell_install in tests/conftest.py): every installer test
-#     runs against a throwaway SEEDLING_HOME but the REAL registry -- there
-#     is no fake HKCU to redirect this into the way $PROFILE gets faked
-#     above, so tests opt out of this one step entirely rather than risk
-#     writing a test's tmp path into a real machine's PATH.
-# ---------------------------------------------------------------------------
-if (-not $env:SEEDLING_SKIP_PATH_REGISTER) {
-    $BinDir = Join-Path $SeedlingHome "system\bin"
-    $UserPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    $UserPathEntries = @(if ($UserPath) { $UserPath -split ';' } else { @() })
-    if ($UserPathEntries -notcontains $BinDir) {
-        $NewUserPath = if ($UserPath) { "$UserPath;$BinDir" } else { $BinDir }
-        [Environment]::SetEnvironmentVariable("PATH", $NewUserPath, "User")
-        Info "Added $BinDir to your PATH (new terminals/processes will see it)."
-    }
 }
 
 Info "seedling is installed."

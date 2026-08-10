@@ -59,6 +59,15 @@ what a release involves.
   pointer to `docs/COMMANDS.md`'s "Scripting & automation" section at the
   bottom of `seed help`.
 
+  The Windows registration step runs *before* `uv tool install` now, not
+  after, and also patches this process's own `$env:PATH` in addition to the
+  registry: `uv tool install` checks the running process's PATH, which
+  `[Environment]::SetEnvironmentVariable` never touches (only processes
+  started afterward see it) — registering the entry only after `uv tool
+  install` had already run left it correct for every future shell, but uv
+  still printed its own "is not on your PATH" warning during the install
+  that had just added it.
+
 - **`seed update-commands` now reports drift between the organization's
   current `seedling.conf` and this machine's settings**, after refreshing.
   Settings are seeded from `seedling.conf` once, at install time, and never

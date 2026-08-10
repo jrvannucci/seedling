@@ -154,6 +154,39 @@ def test_auto_setup_runs_the_expected_cli_sequence(ps_install_env):
     assert "seed-cli config set default_venv dev" in calls
 
 
+# --- persistent PATH (system\bin), real registry -----------------------------
+# `uv tool install` warns "is not on your PATH" by checking THIS PROCESS's
+# $env:PATH, not the registry -- so registering the entry too late (or only
+# in the registry, never in-process) leaves that warning firing anyway, right
+# after install.ps1 just added the entry. Exercised against the REAL
+# registry, like the update-commands counterpart in
+# test_update_and_downloads.py: SEEDLING_SKIP_PATH_REGISTER is deliberately
+# overridden back off (run_powershell_install sets it for every other test),
+# with a snapshot/restore around it so this machine's real PATH always ends
+# up exactly as it started.
+
+def test_bin_dir_is_on_path_before_uv_tool_install_runs(ps_install_env):
+    import winreg
+
+    copy, home, fake_profile, run = ps_install_env
+    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0,
+                          winreg.KEY_READ | winreg.KEY_WRITE)
+    original, value_type = winreg.QueryValueEx(key, "PATH")
+    try:
+        result = run({"SEEDLING_SKIP_PATH_REGISTER": "",
+                       "SEEDLING_AUTO_SETUP": "false"})
+        assert result.returncode == 0, result.stdout + result.stderr
+
+        bin_dir = home / "system" / "bin"
+        assert str(bin_dir) in (winreg.QueryValueEx(key, "PATH")[0]).split(";")
+
+        env_log = (bin_dir / "uv-env.log").read_text()
+        assert "PATH_CONTAINS_BIN=yes" in env_log
+    finally:
+        winreg.SetValueEx(key, "PATH", 0, value_type, original)
+        winreg.CloseKey(key)
+
+
 # --- settings seeding (install.ps1's own JSON writer) ----------------------
 
 def test_offline_conf_is_seeded_into_settings(ps_install_env):

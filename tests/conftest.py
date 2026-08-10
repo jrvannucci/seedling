@@ -299,6 +299,18 @@ class Stub {
                     if (k.StartsWith("UV_") || k == "SSL_CERT_FILE" || k == "GIT_SSL_CAINFO")
                         w.WriteLine(k + "=" + e.Value);
                 }
+                // Whether install.ps1 added this stub's own directory (=
+                // system\bin) to THIS PROCESS's PATH before invoking uv --
+                // real uv warns "is not on your PATH" from exactly this
+                // check, so this is what proves that warning stays silent.
+                string path = Environment.GetEnvironmentVariable("PATH") ?? "";
+                string here = dir.TrimEnd('\\');
+                bool onPath = false;
+                foreach (string entry in path.Split(';'))
+                    if (string.Equals(entry.TrimEnd('\\'), here,
+                                       StringComparison.OrdinalIgnoreCase))
+                        onPath = true;
+                w.WriteLine("PATH_CONTAINS_BIN=" + (onPath ? "yes" : "no"));
             }
             if (a.Length >= 1 && a[0] == "tool")
                 File.Copy(Path.Combine(dir, "uv.exe"),
@@ -366,7 +378,7 @@ def run_powershell_install(copy: Path, seedling_home: Path, fake_profile: Path,
     write. SEEDLING_*/UV_* are scrubbed from the environment first.
 
     SEEDLING_SKIP_PATH_REGISTER is always set: unlike $PROFILE, the
-    persistent-PATH step install.ps1 writes to (see 5b there) has no fake
+    persistent-PATH step install.ps1 writes to (see 3b there) has no fake
     registry to redirect into, so every test run opts out of it rather than
     risk adding a test's throwaway tmp path to this machine's real PATH.
 
