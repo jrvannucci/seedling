@@ -14,7 +14,19 @@ __SEEDLING_CLI="$__SEEDLING_HOME/system/bin/seed-cli"
 # install time. For default installs this is a no-op.
 export SEEDLING_HOME="$__SEEDLING_HOME"
 
-# Command-line tools installed with `seed tool-install` (from conda-forge) put
+# seed-cli/uv/micromamba themselves, so they run as bare commands in ANY
+# process that inherits this shell's environment -- not just one that goes
+# through the `seed` function below. This is what makes `seed-cli` (and
+# `uv`, `micromamba`) reachable from a script, a CI job, or an AI coding
+# agent's shell tool: PATH is inherited across subshells and `exec`, a shell
+# FUNCTION is not. The function still wins for a person typing `seed` at
+# this prompt (bash/zsh resolve functions before PATH).
+case ":$PATH:" in
+    *":$__SEEDLING_HOME/system/bin:"*) ;;
+    *) PATH="$__SEEDLING_HOME/system/bin:$PATH"; export PATH ;;
+esac
+
+# Command-line tools installed with `seed forge-install` (from conda-forge) put
 # their launchers here; add it to PATH so they run as bare commands. Guarded so
 # repeated sourcing never stacks duplicate entries.
 case ":$PATH:" in
@@ -22,9 +34,9 @@ case ":$PATH:" in
     *) PATH="$__SEEDLING_HOME/system/conda/shims:$PATH"; export PATH ;;
 esac
 
-# Same, for Python applications installed with `seed app-install` (from PyPI,
+# Same, for Python applications installed with `seed tool-install` (from PyPI,
 # via uv). A separate directory because it's a separate tool root -- see
-# uv_tool.app_install_env.
+# uv_tool.tool_install_env.
 case ":$PATH:" in
     *":$__SEEDLING_HOME/system/shims:"*) ;;
     *) PATH="$__SEEDLING_HOME/system/shims:$PATH"; export PATH ;;

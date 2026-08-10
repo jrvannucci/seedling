@@ -18,6 +18,7 @@ first and restored into the fresh install. Both entry points share run().
 
 from __future__ import annotations
 
+import ctypes
 import os
 import re
 import shutil
@@ -129,6 +130,65 @@ def _strip_hook(profile: Path) -> bool:
     except OSError:
         return False
     return True
+
+
+def _broadcast_environment_change() -> None:
+    """Tell already-open processes (Explorer, other terminals) PATH changed --
+    the same broadcast [Environment]::SetEnvironmentVariable sends when
+    install.ps1 adds the entry this undoes. Best-effort: a missed broadcast
+    still leaves the registry correctly updated, just picked up on the next
+    new process/session instead of immediately."""
+    try:
+        HWND_BROADCAST, WM_SETTINGCHANGE, SMTO_ABORTIFHUNG = 0xFFFF, 0x001A, 0x0002
+        ctypes.windll.user32.SendMessageTimeoutW(
+            HWND_BROADCAST, WM_SETTINGCHANGE, 0, "Environment",
+            SMTO_ABORTIFHUNG, 5000, None)
+    except OSError:
+        pass
+
+
+def _windows_path_bin_entry(*, remove: bool) -> str | None:
+    """The system\\bin entry in the registry-stored user PATH that
+    install.ps1 adds (see installers/install.ps1) -- what makes `seed-cli`
+    reachable as a bare command from a script, CI job, or AI agent's shell,
+    none of which source the `seed` function's profile hook. Read-only
+    (remove=False, for --preview) or actually stripped (remove=True, so a
+    purge really does leave `seed` unreachable everywhere). None on
+    non-Windows, or when there's nothing to remove.
+
+    POSIX has no equivalent step: there, the same PATH addition lives
+    INSIDE seed.sh itself (see seed.sh.template), so `_strip_hook` already
+    undoes it by deleting the whole hook line."""
+    if os.name != "nt":
+        return None
+    import winreg
+
+    bin_dir = str(paths.BIN_DIR)
+    target = bin_dir.rstrip("\\").lower()
+    access = winreg.KEY_READ | winreg.KEY_WRITE if remove else winreg.KEY_READ
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, access)
+    except OSError:
+        return None
+    try:
+        try:
+            current, value_type = winreg.QueryValueEx(key, "PATH")
+        except FileNotFoundError:
+            return None
+        entries = current.split(";")
+        if not any(e.rstrip("\\").lower() == target for e in entries):
+            return None
+        if remove:
+            kept = [e for e in entries if e.rstrip("\\").lower() != target]
+            winreg.SetValueEx(key, "PATH", 0, value_type, ";".join(kept))
+    except OSError:
+        return None
+    finally:
+        winreg.CloseKey(key)
+
+    if remove:
+        _broadcast_environment_change()
+    return bin_dir
 
 
 def _has_repos() -> bool:
@@ -293,6 +353,9 @@ def run(args) -> int:
             items += sorted(str(p) for p in home.iterdir())
         items += [f"{p}  (shell hook line removed)"
                   for p in _candidate_profiles() if p.exists()]
+        path_entry = _windows_path_bin_entry(remove=False)
+        if path_entry:
+            items.append(f"{path_entry}  (removed from your PATH)")
         items += [f"{p}  (leftover backup from a previous --keep-repos purge)"
                   for p in old_backups]
         notes = [fsutil.ESCALATION_NOTE]
@@ -400,6 +463,7 @@ def run(args) -> int:
         _write_reinstall_script(reinstall_source, repo_backup)
 
     removed_from = [p for p in _candidate_profiles() if _strip_hook(p)]
+    removed_path_entry = _windows_path_bin_entry(remove=True)
 
     failures: list[str] = []
 
@@ -422,6 +486,8 @@ def run(args) -> int:
     else:
         print("No shell hook found in the usual profile locations.")
         print("(Nothing to clean up there, or it lives somewhere this command doesn't check.)")
+    if removed_path_entry:
+        print(f"Also removed {removed_path_entry} from your PATH.")
 
     if failures and fsutil.failures_are_only_running_cli(failures, home):
         # The only survivors are seedling's own running program (the

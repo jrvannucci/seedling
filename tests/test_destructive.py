@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from conftest import make_base_python, make_venv_dirs
+from conftest import make_base_python, make_venv_dirs, windows_only
 from seedling import PUBLIC_REPO, config, confirm, paths
 
 
@@ -194,6 +194,44 @@ def test_purge_strips_hook_lines_old_and_new_layouts(run_cli, home, monkeypatch,
     remaining = profile.read_text()
     assert "seed.ps1" not in remaining
     assert "unrelated line" in remaining
+
+
+@windows_only
+def test_purge_removes_the_persistent_path_entry(monkeypatch, tmp_path):
+    """The registry counterpart of the hook-stripping test above: undoes the
+    system\\bin entry install.ps1 adds to the real user PATH (see
+    purge_cmd._windows_path_bin_entry / installers/install.ps1 step 5b).
+
+    Exercised against the REAL registry (there's nothing else to exercise --
+    HKCU\\Environment isn't fakeable the way $PROFILE is), but with a
+    throwaway BIN_DIR that cannot collide with anything real, and restored
+    to its exact original value in `finally` regardless of outcome -- the
+    same real-OS-mechanism testing style winlocks.py's Restart Manager
+    tests already use."""
+    import winreg
+
+    from seedling.commands import purge_cmd
+
+    fake_bin = str(tmp_path / "system" / "bin")
+    monkeypatch.setattr(paths, "BIN_DIR", tmp_path / "system" / "bin")
+
+    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0,
+                          winreg.KEY_READ | winreg.KEY_WRITE)
+    original, value_type = winreg.QueryValueEx(key, "PATH")
+    try:
+        assert purge_cmd._windows_path_bin_entry(remove=False) is None
+
+        winreg.SetValueEx(key, "PATH", 0, value_type, original + ";" + fake_bin)
+        assert purge_cmd._windows_path_bin_entry(remove=False) == fake_bin
+
+        assert purge_cmd._windows_path_bin_entry(remove=True) == fake_bin
+        assert purge_cmd._windows_path_bin_entry(remove=False) is None
+
+        current, _ = winreg.QueryValueEx(key, "PATH")
+        assert fake_bin not in current.split(";")
+    finally:
+        winreg.SetValueEx(key, "PATH", 0, value_type, original)
+        winreg.CloseKey(key)
 
 
 # --- purge-and-reinstall ------------------------------------------------------

@@ -40,7 +40,7 @@ from seedling import paths as paths_mod  # noqa: E402
 _ISOLATED_ENV_VARS = [
     "SEEDLING_HOME", "SEEDLING_YES", "SEEDLING_NONINTERACTIVE",
     "SEEDLING_NO_LOG", "SEEDLING_REPO", "SEEDLING_AUTO_SETUP",
-    "SEEDLING_AUTO_VSCODE", "VIRTUAL_ENV",
+    "SEEDLING_AUTO_VSCODE", "SEEDLING_SKIP_PATH_REGISTER", "VIRTUAL_ENV",
     "SSL_CERT_FILE", "GIT_SSL_CAINFO", "UV_NATIVE_TLS",
     "UV_CACHE_DIR", "UV_CONFIG_FILE", "UV_DEFAULT_INDEX",
     "UV_PYTHON_INSTALL_MIRROR", "UV_FIND_LINKS", "UV_NO_INDEX",
@@ -122,6 +122,13 @@ def home(tmp_path, monkeypatch):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("SEEDLING_HOME", str(h))
     monkeypatch.setenv("SEEDLING_NO_LOG", "1")  # keep test output un-teed
+    # BIN_DIR here is always a throwaway tmp path -- never let
+    # shell_integration.ensure_bin_on_windows_path() (called by
+    # `update-commands`) write it into the REAL registry PATH. There's no
+    # fake HKCU to redirect this into the way SEEDLING_HOME redirects the
+    # rest, so tests opt out entirely (same escape hatch install.ps1 honors,
+    # see run_powershell_install above).
+    monkeypatch.setenv("SEEDLING_SKIP_PATH_REGISTER", "1")
     _rebind_paths(h)
 
     # Never let a test force-close real processes on this machine.
@@ -358,6 +365,11 @@ def run_powershell_install(copy: Path, seedling_home: Path, fake_profile: Path,
     by the installer, so overriding it in the calling scope redirects the
     write. SEEDLING_*/UV_* are scrubbed from the environment first.
 
+    SEEDLING_SKIP_PATH_REGISTER is always set: unlike $PROFILE, the
+    persistent-PATH step install.ps1 writes to (see 5b there) has no fake
+    registry to redirect into, so every test run opts out of it rather than
+    risk adding a test's throwaway tmp path to this machine's real PATH.
+
     `exe` picks the PowerShell edition running the installer -- POWERSHELL
     (5.1, "Desktop") by default; pass PWSH to run it under 6+ ("Core")
     instead, e.g. to exercise the sibling-profile-hook branch that only
@@ -366,6 +378,7 @@ def run_powershell_install(copy: Path, seedling_home: Path, fake_profile: Path,
            if not k.startswith(("SEEDLING_", "UV_"))
            and k not in ("SSL_CERT_FILE", "GIT_SSL_CAINFO")}
     env["SEEDLING_HOME"] = str(seedling_home)
+    env["SEEDLING_SKIP_PATH_REGISTER"] = "1"
     if env_extra:
         env.update(env_extra)
     script = copy / "installers" / "install.ps1"

@@ -9,7 +9,7 @@ import subprocess
 import pytest
 
 from conftest import GIT, needs_git, windows_only
-from seedling import config, download
+from seedling import config, download, paths
 
 
 @pytest.fixture
@@ -451,6 +451,46 @@ def test_update_without_templates_skips_shell_refresh(run_cli, home, src_install
     code, out = run_cli("update-commands")
     assert code == 0
     assert "Refreshing shell integration" not in out
+
+
+@windows_only
+def test_update_registers_bin_on_windows_path_when_missing(
+        run_cli, home, src_installed, monkeypatch):
+    """Windows counterpart of the shell-file refresh above, for the
+    persistent PATH entry instead of a rendered file: an install from
+    before system\\bin was added to PATH (or one where it was removed by
+    hand) picks it up on the next `update-commands`, not just a reinstall.
+
+    Exercised against the REAL registry -- same real-OS-mechanism testing
+    style as the purge counterpart in test_destructive.py -- with a
+    throwaway BIN_DIR (the `home` fixture's, unique per test) that cannot
+    collide with anything real, and restored to its exact original value in
+    `finally` regardless of outcome. The `home` fixture sets
+    SEEDLING_SKIP_PATH_REGISTER for every other test; this is the one place
+    that deliberately turns it back off to exercise the real thing."""
+    import winreg
+
+    monkeypatch.delenv("SEEDLING_SKIP_PATH_REGISTER", raising=False)
+
+    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0,
+                          winreg.KEY_READ | winreg.KEY_WRITE)
+    original, value_type = winreg.QueryValueEx(key, "PATH")
+    try:
+        code, out = run_cli("update-commands")
+        assert code == 0
+        assert f"Added {paths.BIN_DIR}" in out
+        current, _ = winreg.QueryValueEx(key, "PATH")
+        assert str(paths.BIN_DIR) in current.split(";")
+
+        # Idempotent: already present next time, no duplicate and no message.
+        code2, out2 = run_cli("update-commands")
+        assert code2 == 0
+        assert "Added" not in out2
+        current2, _ = winreg.QueryValueEx(key, "PATH")
+        assert current2.split(";").count(str(paths.BIN_DIR)) == 1
+    finally:
+        winreg.SetValueEx(key, "PATH", 0, value_type, original)
+        winreg.CloseKey(key)
 
 
 # --- download.py -------------------------------------------------------------

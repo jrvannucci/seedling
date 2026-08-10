@@ -34,6 +34,31 @@ what a release involves.
 
 ### Added
 
+- **`seed-cli` (and `uv`/`micromamba`) are now on your persistent PATH**,
+  not just reachable through the `seed` shell function. The function is
+  defined by dot-sourcing a hook into your shell profile, which a script, a
+  CI job, or an AI coding agent's shell tool frequently never loads (many
+  spawn a fresh, non-interactive process that skips `$PROFILE`/`.bashrc`
+  entirely) — until now, that left `seed` itself undiscoverable outside an
+  interactive terminal, not just `seed activate`, whose shell-mutation
+  limitation was already documented. `seed-cli` is the exact program the
+  function calls, minus the extras only a live shell can do (activate,
+  repo-cd, the purge wait-and-reinstall flow). Windows adds `system\bin` to
+  the user registry PATH (`install.ps1`); POSIX exports it from `seed.sh`
+  itself, so it's live in anything that sources the hook. `seed
+  update-commands` also registers the Windows PATH entry if it's missing
+  (an install from before this feature, or one where the entry was removed
+  by hand) — `shell_integration.refresh()` already re-renders `seed.ps1`/
+  `seed.sh` on every update for exactly this reason (template changes
+  reaching an update, not just a reinstall); this is the same rule applied
+  to a registry entry instead of a rendered file. POSIX needs no
+  counterpart there either: the PATH export lives inside `seed.sh` itself,
+  so the existing re-render already carries it forward. `seed purge`
+  removes the Windows PATH entry symmetrically with everything else it
+  undoes; on POSIX, removing the hook line already covers it. Also added a
+  pointer to `docs/COMMANDS.md`'s "Scripting & automation" section at the
+  bottom of `seed help`.
+
 - **`seed update-commands` now reports drift between the organization's
   current `seedling.conf` and this machine's settings**, after refreshing.
   Settings are seeded from `seedling.conf` once, at install time, and never

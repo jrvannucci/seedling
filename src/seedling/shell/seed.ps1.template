@@ -15,7 +15,7 @@ $script:SeedlingSettings = Join-Path $script:SeedlingHome "system\config\setting
 # install time. For default installs this is a no-op.
 $env:SEEDLING_HOME = $script:SeedlingHome
 
-# Command-line tools installed with `seed tool-install` (from conda-forge) put
+# Command-line tools installed with `seed forge-install` (from conda-forge) put
 # their launchers here; add it to PATH so they run as bare commands. Guarded so
 # repeated dot-sourcing never stacks duplicate entries.
 $script:SeedlingToolShims = Join-Path $script:SeedlingHome "system\conda\shims"
@@ -23,9 +23,9 @@ if (($env:PATH -split ';') -notcontains $script:SeedlingToolShims) {
     $env:PATH = "$script:SeedlingToolShims;$env:PATH"
 }
 
-# Same, for Python applications installed with `seed app-install` (from PyPI,
+# Same, for Python applications installed with `seed tool-install` (from PyPI,
 # via uv). A separate directory because it's a separate tool root -- see
-# uv_tool.app_install_env.
+# uv_tool.tool_install_env.
 $script:SeedlingAppShims = Join-Path $script:SeedlingHome "system\shims"
 if (($env:PATH -split ';') -notcontains $script:SeedlingAppShims) {
     $env:PATH = "$script:SeedlingAppShims;$env:PATH"

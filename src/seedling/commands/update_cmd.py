@@ -356,6 +356,15 @@ def run(args) -> int:
         print("(takes effect in new shells; or re-source "
               f"{refreshed[0]} in this one)")
 
+    # Windows-only, and independent of the refresh() above: an install from
+    # before system\bin was added to the persistent PATH (or one where the
+    # entry was removed by hand) picks it up here instead of needing a full
+    # reinstall. No-op (and no message) everywhere else -- see
+    # shell_integration.ensure_bin_on_windows_path.
+    if shell_integration.ensure_bin_on_windows_path():
+        print(f"Added {paths.BIN_DIR} to your PATH "
+              "(new terminals/processes will see it).")
+
     report_conf_drift(src)
 
     print(colors.ok("Done. Your `seed` commands are up to date."))

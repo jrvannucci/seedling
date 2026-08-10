@@ -1469,6 +1469,20 @@ written for everything else — Makefiles, CI steps, provisioning scripts, and
 AI coding agents — collected in one place because that audience arrives
 looking for it, not for a particular noun.
 
+**Find `seed` without a profile.** `seed` is a shell function (bash/zsh/
+PowerShell), defined by dot-sourcing the hook install.sh/install.ps1 add to
+your shell profile — which a script, CI job, or an AI agent's shell tool
+often doesn't load (many spawn a fresh, non-interactive process that skips
+`$PROFILE`/`.bashrc` entirely). The install also adds `system/bin` (holding
+`seed-cli`, `uv`, and `micromamba`) to your **persistent user PATH**, so
+`seed-cli` — the same program the function calls, just without its
+shell-mutating extras (see below) — is a bare command everywhere, profile
+or not. A fresh terminal or process picks it up automatically; something
+already running when you installed needs a restart to see it, the same as
+any other CLI tool's installer. An existing install that predates this adds
+it on the next `seed update-commands`, no reinstall needed. `seed purge`
+removes this PATH entry along with everything else.
+
 **Get an interpreter without a shell.** `seed activate` mutates the calling
 shell, which is useless to a caller that gets a fresh process each time. Use
 [`seed which`](#seed-which-name---json) to resolve the interpreter, or
@@ -1483,6 +1497,17 @@ seed run -n myproject -- pytest -q      # or let seed set up the env
 `seed run` passes the child's exit code through verbatim and leaves its
 stdout and stderr byte-exact — the child writes to the real file
 descriptors, so its output never passes through seedling's logging tee.
+
+**Install into a specific venv without activating it.** `seed install` (and
+`uninstall`/`package-list`/`show`) reads `VIRTUAL_ENV` from its own
+environment rather than taking a venv name — there's no `-n` flag on the
+passthrough commands themselves. Nest the call inside `seed run` instead:
+it sets `VIRTUAL_ENV` for the child process, and a nested `seed install`
+inherits it, so the package lands in exactly the venv you named:
+
+```sh
+seed run -n myproject -- seed install requests
+```
 
 **Read state as data.** `--json` is available on every read command, and the
 shapes agree with each other:

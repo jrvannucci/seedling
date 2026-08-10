@@ -184,6 +184,9 @@ def print_grouped_help(show_admin: bool = False) -> None:
               " for the elevated commands that remove other users' installs.")
         print()
     print("Run any command with -h for its full options, e.g. `seed venv -h`.")
+    print("Scripting, CI, or an AI agent? `seed activate` needs a shell to "
+          "mutate -- `seed run`/`seed which` don't. See the \"Scripting & "
+          f"automation\" section of {paths.SRC_DIR / 'docs' / 'COMMANDS.md'}")
     print(f"seedling {__version__} -- `seed --version` prints this on its own.")
 
 
