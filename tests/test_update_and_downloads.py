@@ -31,6 +31,18 @@ def _make_source_tree(root, marker: str):
     (root / ".git" / "objects").mkdir(parents=True)
     (root / "vendor" / "uv").mkdir(parents=True)
     (root / "vendor" / "uv" / "uv.exe").write_text("big binary")
+    # A local-checkout update_source (the "edit -> update-commands -> live"
+    # loop this whole directory-copy mode exists for) routinely has these
+    # dev/build artifacts sitting right in it -- unlike the git-URL path,
+    # nothing gitignores them away for free here.
+    (root / ".venv" / "Lib").mkdir(parents=True)
+    (root / ".venv" / "pyvenv.cfg").write_text("home = somewhere\n")
+    (root / "src" / "seedling" / "__pycache__").mkdir(parents=True)
+    (root / "src" / "seedling" / "__pycache__" / "cli.cpython-312.pyc").write_text("x")
+    (root / ".pytest_cache").mkdir(parents=True)
+    (root / ".pytest_cache" / "README.md").write_text("x")
+    (root / ".ruff_cache").mkdir(parents=True)
+    (root / ".ruff_cache" / "0.5.0").write_text("x")
 
 
 def test_repair_mode_when_no_source_recorded(run_cli, home, src_installed):
@@ -53,6 +65,27 @@ def test_directory_update_excludes_git_and_vendor(run_cli, home, src_installed, 
     assert (src / "MARKER.txt").read_text() == "v2"
     assert not (src / ".git").exists()
     assert not (src / "vendor").exists()
+
+
+def test_directory_update_excludes_dev_build_artifacts(
+        run_cli, home, src_installed, tmp_path):
+    """A .venv/__pycache__/.pytest_cache/.ruff_cache sitting in a local-
+    checkout update_source must not get copied into ~/seedling/system/src --
+    measured at 4000+ files / 85MB for a real .venv, none of it ever read by
+    anything seed-cli does. Regression test for the copytree() that used to
+    only exclude .git/vendor."""
+    src, calls = src_installed
+    upstream = tmp_path / "checkout"
+    upstream.mkdir()
+    _make_source_tree(upstream, "v3")
+    config.set_value("update_source", str(upstream))
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert (src / "MARKER.txt").read_text() == "v3"
+    assert not (src / ".venv").exists()
+    assert not (src / "src" / "seedling" / "__pycache__").exists()
+    assert not (src / ".pytest_cache").exists()
+    assert not (src / ".ruff_cache").exists()
 
 
 def test_unreachable_directory_share_gives_a_clear_message(run_cli, home, src_installed):

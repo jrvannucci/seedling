@@ -181,8 +181,20 @@ def _refresh_from_directory(src: Path, source_dir: Path) -> bool:
     fsutil.robust_rmtree(tmp)
     # .git never lives inside seedling, and vendor/ payloads (offline
     # binaries -- possibly hundreds of MB of pre-seeded VS Code) belong on
-    # the distribution source, not in the private source copy.
-    shutil.copytree(source_dir, tmp, ignore=shutil.ignore_patterns(".git", "vendor"))
+    # the distribution source, not in the private source copy. The dev/build
+    # artifacts matter just as much for speed: `update_source` pointing at a
+    # LOCAL CHECKOUT (the "edit -> update-commands -> live" loop this exists
+    # for) routinely has a `.venv`, `__pycache__`, and lint/test caches sitting
+    # right in it -- none of it gitignored-away for free the way the git-URL
+    # clone path already gets for free (git only ever clones tracked files).
+    # Measured: excluding these cut a real copytree() of this checkout from
+    # 7.3s to a fraction of that.
+    shutil.copytree(
+        source_dir, tmp,
+        ignore=shutil.ignore_patterns(
+            ".git", "vendor", ".venv", "__pycache__",
+            ".pytest_cache", ".ruff_cache"),
+    )
     return _swap_in(src, tmp)
 
 

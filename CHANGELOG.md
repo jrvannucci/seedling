@@ -90,6 +90,16 @@ what a release involves.
   sibling files survive — the same thing the conf-distributed form already
   got for free from the source-tree copy.
 
+- **`seed update-commands` against a directory `update_source`** (the
+  local-checkout "edit → update-commands → live" loop) no longer copies a
+  `.venv`, `__pycache__`, `.pytest_cache`, or `.ruff_cache` sitting in the
+  checkout into `~/seedling/system/src` — none of it was ever read by
+  anything seed-cli does, and it was the whole reason the command felt
+  slow. The git-URL `update_source` path never had this problem (`git
+  clone` only clones tracked files); the directory-copy path had no
+  equivalent of `.gitignore` until now. Measured on a real checkout: the
+  `copytree()` step dropped from 7.3s to 0.13s.
+
 ## [0.11.0] - 2026-08-05
 
 ### Added
