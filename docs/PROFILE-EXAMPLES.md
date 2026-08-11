@@ -7,6 +7,8 @@ key means, see the [profile reference](PROFILES.md#reference).
 Save any of these as `seedling-profile.toml` next to `seedling.conf` in the
 copy you distribute, and everyone who installs from it gets that environment.
 
+![A ten-row, eight-column matrix comparing every example profile against whether it needs to be offline, a package index, VS Code, Spyder, conda-forge tools, CA certificates, a pre-built offline bundle, and whether it is limited to x86_64 -- Research group, Software team, Both editors, Classroom, Internal mirrors, Internal PyPI only, Air-gapped (VSCodium), Air-gapped (VS Code), Air-gapped (everything), and Just Python.](diagrams/profile-matrix.svg)
+
 ## Contents
 
 | Example | What it's for | Offline | Index | VS Code | Spyder | conda-forge | CA certs | Bundle | x86_64 only |
@@ -75,6 +77,8 @@ want the collection rig to keep working.
 | Offline bundle to build | ❌ | installs straight from the internet |
 | **x86_64 only** | ✅ | Spyder's Qt wheels are x86_64-only |
 
+![One box, pypi.org -- packages and Spyder both come from the public index, straight to each researcher's own machine.](diagrams/profile-pull-research-group.svg)
+
 ```toml
 # seedling-profile.toml -- environment for the lab.
 
@@ -140,6 +144,8 @@ is the one that does actual work.
 | Multi-user share root | ❌ | per-user installs |
 | Offline bundle to build | ❌ | installs straight from the internet |
 | **x86_64 only** | ❌ | VS Code runs on arm64 too |
+
+![Four separate origins -- pypi.org, conda-forge, the VS Code Marketplace, github.com -- each with its own labeled arrow into the engineer's machine.](diagrams/profile-pull-software-team.svg)
 
 ```toml
 # seedling-profile.toml -- the platform team's standard environment.
@@ -253,6 +259,8 @@ uses whichever they open.
 | Offline bundle to build | ❌ | installs straight from the internet |
 | **x86_64 only** | ✅ | the Spyder half pins the whole profile to x86_64 |
 
+![Two origins: pypi.org for the shared venv and Spyder, the VS Code Marketplace for the editor -- no bundle in between.](diagrams/profile-pull-both-editors.svg)
+
 ```toml
 # seedling-profile.toml -- research engineering.
 
@@ -300,6 +308,8 @@ optional.
 | Multi-user share root | ❌ | per-user installs on lab machines |
 | Offline bundle to build | ⚠️ | only if the lab machines have no internet |
 | **x86_64 only** | ✅ | Spyder's Qt wheels are x86_64-only |
+
+![One origin, pypi.org, feeding every lab machine with identical pins -- no bundle this term.](diagrams/profile-pull-classroom.svg)
 
 ```toml
 # seedling-profile.toml -- PHYS-201, autumn term.
@@ -403,6 +413,8 @@ build step you don't need.
 | Multi-user share root | ❌ | per-user installs |
 | Offline bundle to build | ❌ | **no bundle needed** -- the mirrors are reachable |
 | **x86_64 only** | ✅ | Spyder's Qt wheels are x86_64-only |
+
+![Two origins, both internal: artifactory.corp.example alone serves packages, Spyder, conda-forge tools AND interpreters, while gitlab.corp.example serves seedling itself plus repos -- no offline-bundle/ anywhere.](diagrams/profile-pull-internal-mirrors.svg)
 
 ```toml
 # seedling-profile.toml -- the standard environment.
@@ -587,6 +599,10 @@ you point the one you have at a URL and bundle the three you don't:
 | Multi-user share root | ❌ | per-user installs from the share |
 | Offline bundle to build | ⚠️ | **partial** -- everything except the wheels |
 | **x86_64 only** | ✅ | the Spyder half pins the whole profile to x86_64 |
+
+![Everything except the wheels: five sources feed the bundle, one row apiece.](diagrams/profile-build-internal-pypi-only.svg)
+
+![Two origins on the target: artifactory.corp.example stays live for packages and Spyder, while S:\seedling -- the bundle -- hands out everything else from one grouped box.](diagrams/profile-pull-internal-pypi-only.svg)
 
 ```toml
 # seedling-profile.toml -- the standard environment.
@@ -780,6 +796,10 @@ Pairs with an [offline bundle](OFFLINE.md).
 | Offline bundle to build | ✅ | built once on a connected machine |
 | **x86_64 only** | ❌ | VSCodium ships arm64 builds |
 
+![The full offline-bundle/ pipeline -- six sources, each staged into its own bundle folder.](diagrams/profile-build-air-gapped-vscodium.svg)
+
+![One origin on the target: the share. Every capability -- packages, uv, interpreters, tools, the editor, git -- comes out of that single grouped box, one labeled arrow apiece.](diagrams/profile-pull-air-gapped-vscodium.svg)
+
 ```toml
 # seedling-profile.toml -- distributed on the share, applied at install.
 
@@ -903,6 +923,10 @@ The profile is unremarkable; the licensing decision lives in the conf.
 | Multi-user share root | ❌ | per-user installs from the share |
 | Offline bundle to build | ✅ | built once, with `--accept-third-party-terms` |
 | **x86_64 only** | ❌ | VS Code ships arm64 builds |
+
+![The same six-source pipeline as VSCodium, with the official VS Code build staged instead -- the licence acknowledgement is what differs.](diagrams/profile-build-air-gapped-vs-code.svg)
+
+![One origin on the target: the share -- with the official VS Code build inside it instead of VSCodium, keeping Pylance.](diagrams/profile-pull-air-gapped-vs-code.svg)
 
 ```toml
 # seedling-profile.toml -- distributed on the share, applied at install.
@@ -1033,6 +1057,10 @@ Three files do the work. **The profile** describes the environment:
 | Multi-user share root | ✅ | `S:\users\{user}\seedling`, enabling the `admin-*` commands |
 | Offline bundle to build | ✅ | the full build, every flag |
 | **x86_64 only** | ✅ | the Spyder half pins the whole profile to x86_64 |
+
+![The maximal case: seven sources, each staged into its own bundle folder.](diagrams/profile-build-air-gapped-everything.svg)
+
+![Two origins on the target: S:\seedling -- the bundle -- grouped into one box for everything except repos, and git.corp.example, reached live only after install.](diagrams/profile-pull-air-gapped-everything.svg)
 
 ```toml
 # seedling-profile.toml -- the standard environment, applied at install and
@@ -1312,6 +1340,8 @@ seedling only for interpreters and environments.
 | Multi-user share root | ❌ | per-user installs |
 | Offline bundle to build | ❌ | installs straight from the internet |
 | **x86_64 only** | ❌ | no editor, so no Qt constraint |
+
+![One origin, pypi.org, one venv, straight to the user's own machine -- the simplest shape in this whole set.](diagrams/profile-pull-just-python.svg)
 
 ```toml
 # seedling-profile.toml

@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/jrvannucci/seedling/actions/workflows/ci.yml/badge.svg)](https://github.com/jrvannucci/seedling/actions/workflows/ci.yml)
 
+![seedling: a tidy, single-folder global Python distributor and local environment manager -- zero-touch config, offline-first, safe by default, built for scale, and scriptable, all on top of one removable folder.](docs/diagrams/mission.svg)
+
 **Go from nothing to writing Python in one command.** No prior setup, no
 tools to install first, nothing to learn about how Python is packaged.
 Run one line, open a terminal, and start coding. Under the hood it's the

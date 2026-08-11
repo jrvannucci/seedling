@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1152" font-family="Arial, Helvetica, sans-serif">
+<defs>
+  <defs>
+    <style>
+      .head  { font-family: Georgia, 'Times New Roman', serif; }
+      .body  { font-family: Arial, Helvetica, sans-serif; }
+      .fg    { fill: #1B4332; }
+      .fw    { fill: #FFFFFF; }
+      .fmute { fill: #52796F; }
+    </style>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#1B4332"/>
+    </marker>
+    <symbol id="ic-cloud" viewBox="0 0 24 24">
+      <path d="M6.5 18 C3.5 18 2 15.8 2 13.8 C2 11.6 3.8 10 5.8 10.1 C6.4 7.6 8.7 6 11.2 6.3 C13.6 6.6 15.4 8.6 15.5 11 C17.9 11.1 20 13 20 15.3 C20 17.4 18.2 18 17 18 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="ic-box" viewBox="0 0 24 24">
+      <path d="M3 8 L12 4 L21 8 L12 12 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M3 8 V17 L12 21 V12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M21 8 V17 L12 21" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="ic-server" viewBox="0 0 24 24">
+      <rect x="3" y="4" width="18" height="6" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <rect x="3" y="14" width="18" height="6" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <circle cx="7" cy="7" r="1" fill="currentColor"/>
+      <circle cx="7" cy="17" r="1" fill="currentColor"/>
+    </symbol>
+    <symbol id="ic-monitor" viewBox="0 0 24 24">
+      <rect x="2.5" y="4" width="19" height="13" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-folder" viewBox="0 0 24 24">
+      <path d="M3 6.5 C3 5.7 3.7 5 4.5 5 H9.5 L11.5 7.5 H19.5 C20.3 7.5 21 8.2 21 9 V17.5 C21 18.3 20.3 19 19.5 19 H4.5 C3.7 19 3 18.3 3 17.5 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="ic-doc" viewBox="0 0 24 24">
+      <path d="M6 3 H14 L19 8 V20 C19 20.6 18.6 21 18 21 H6 C5.4 21 5 20.6 5 20 V4 C5 3.4 5.4 3 6 3 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M14 3 V8 H19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="8" y1="15.5" x2="16" y2="15.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <line x1="8" y1="19" x2="12.5" y2="19" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</defs>
+<rect x="0" y="0" width="1000" height="1152" fill="#FFFFFF"/>
+
+  <g transform="translate(40,20)">
+    <path d="M12 42 V16" stroke="#1B4332" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    <path d="M12 23 C12 14 5 12 0 14 C0 21 5 25 12 23 Z" fill="#74C69D" stroke="#1B4332" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M12 19 C12 11 20 9 25 11 C25 18 20 22 12 19 Z" fill="#95D5B2" stroke="#1B4332" stroke-width="1.4" stroke-linejoin="round"/>
+  </g>
+  <text x="94" y="54" class="head fg" font-size="25" font-weight="700">Air-gapped (everything)</text>
+  <text x="40" y="79" class="body fmute" font-size="13.5" font-style="italic">Every capability at once -- the maximal case</text>
+
+<rect x="640" y="150" width="320" height="218" rx="12" fill="#1B4332"/>
+<use href="#ic-doc" x="658" y="163" width="22" height="22" color="#FFFFFF"/>
+<text x="692" y="178" class="body fw" font-size="14.0" font-weight="700">seedling-profile.toml</text>
+<text x="658" y="194" class="body" fill="#CFE3D6" font-size="10" font-style="italic">one file, read at install and every</text>
+<text x="658" y="206" class="body" fill="#CFE3D6" font-size="10" font-style="italic">later `seed apply`</text>
+<line x1="658" y1="216" x2="942" y2="216" stroke="#FFFFFF" stroke-width="1" opacity="0.2"/>
+<rect x="658" y="224" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="239" class="body fg" font-size="11.5" font-weight="600">python = [...]  →  python/base/</text>
+<rect x="658" y="252" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="267" class="body fg" font-size="11.5" font-weight="600">[[venv]]  →  python/venvs/</text>
+<rect x="658" y="280" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="295" class="body fg" font-size="11.5" font-weight="600">editor = ...  →  extensions/</text>
+<rect x="658" y="308" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="323" class="body fg" font-size="11.5" font-weight="600">tools = [...]  →  system/conda/</text>
+<rect x="658" y="336" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="351" class="body fg" font-size="11.5" font-weight="600">[[repo]]  →  repo/</text>
+<line x1="800" y1="368" x2="800" y2="406" stroke="#1B4332" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="810" y="393" class="body fmute" font-size="10.5" font-style="italic">install + seed apply</text>
+<rect x="640" y="410" width="320" height="666" rx="12" fill="#EAF3EE" stroke="#1B4332" stroke-width="1.2"/>
+<use href="#ic-monitor" x="662" y="414" width="24" height="24" color="#1B4332"/>
+<text x="696" y="431" class="body fg" font-size="15" font-weight="700">YOUR MACHINE</text>
+<text x="662" y="448" class="body fmute" font-size="10.3" font-style="italic">S:\users\{user}\seedling -- a</text>
+<text x="662" y="463" class="body fmute" font-size="10.3" font-style="italic">private folder per person</text>
+<line x1="662" y1="468" x2="938" y2="468" stroke="#1B4332" stroke-width="1" opacity="0.25"/>
+<text x="662" y="479" class="body fg" font-size="10.5" font-weight="700" letter-spacing="0.6">WHAT THE USER HAS</text>
+<rect x="654" y="493" width="292" height="90" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="499" width="15" height="15" color="#1B4332"/>
+<text x="681" y="510" class="body fg" font-size="12.0" font-weight="700">python/base/</text>
+<text x="681" y="521" class="body fmute" font-size="9.5" font-style="italic">interpreters</text>
+<rect x="664" y="525" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="540" class="body fg" font-size="11.5" font-weight="600">3.12</text>
+<rect x="664" y="552" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="566" class="body fg" font-size="11.5" font-weight="600">3.11</text>
+<rect x="654" y="595" width="292" height="117" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="601" width="15" height="15" color="#1B4332"/>
+<text x="681" y="612" class="body fg" font-size="12.0" font-weight="700">python/venvs/</text>
+<text x="681" y="623" class="body fmute" font-size="9.5" font-style="italic">one folder per venv</text>
+<rect x="664" y="627" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="642" class="body fg" font-size="11.5" font-weight="600">dev</text>
+<rect x="664" y="654" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="668" class="body fg" font-size="11.5" font-weight="600">analysis</text>
+<rect x="664" y="681" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="696" class="body fg" font-size="11.5" font-weight="600">legacy</text>
+<rect x="654" y="724" width="292" height="90" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="730" width="15" height="15" color="#1B4332"/>
+<text x="681" y="741" class="body fg" font-size="12.0" font-weight="700">extensions/</text>
+<text x="681" y="752" class="body fmute" font-size="9.5" font-style="italic">both editors, side by side</text>
+<rect x="664" y="756" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="770" class="body fg" font-size="11.5" font-weight="600">VS Code</text>
+<rect x="664" y="783" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="798" class="body fg" font-size="11.5" font-weight="600">Spyder</text>
+<rect x="654" y="826" width="292" height="117" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="832" width="15" height="15" color="#1B4332"/>
+<text x="681" y="843" class="body fg" font-size="12.0" font-weight="700">system/conda/</text>
+<text x="681" y="854" class="body fmute" font-size="9.5" font-style="italic">conda-forge tool envs</text>
+<rect x="664" y="858" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="872" class="body fg" font-size="11.5" font-weight="600">ripgrep</text>
+<rect x="664" y="885" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="900" class="body fg" font-size="11.5" font-weight="600">pandoc</text>
+<rect x="664" y="912" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="926" class="body fg" font-size="11.5" font-weight="600">gh</text>
+<rect x="654" y="955" width="292" height="90" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="961" width="15" height="15" color="#1B4332"/>
+<text x="681" y="972" class="body fg" font-size="12.0" font-weight="700">repo/</text>
+<text x="681" y="983" class="body fmute" font-size="9.5" font-style="italic">one folder per clone</text>
+<rect x="664" y="987" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="1002" class="body fg" font-size="11.5" font-weight="600">toolkit</text>
+<rect x="664" y="1014" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="1028" class="body fg" font-size="11.5" font-weight="600">analysis-lib</text>
+<rect x="40" y="518" width="470" height="332" rx="12" fill="#EAF3EE" stroke="#1B4332" stroke-width="1.3"/>
+<use href="#ic-box" x="56" y="530" width="20" height="20" color="#1B4332"/>
+<text x="84" y="545" class="body fg" font-size="15.0" font-weight="700">S:\seedling (the bundle)</text>
+<text x="84" y="559" class="body fmute" font-size="11.0" font-style="italic">one shared bundle, staged once</text>
+<rect x="54" y="564" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="585" class="body fw" font-size="13.0" font-weight="700">Packages + Spyder</text>
+<line x1="510" y1="580" x2="636" y2="580" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="574" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">seed install / apply</text>
+<rect x="54" y="604" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="625" class="body fw" font-size="13.0" font-weight="700">uv</text>
+<line x1="510" y1="620" x2="636" y2="620" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="614" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">system/bin/</text>
+<rect x="54" y="644" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="665" class="body fw" font-size="13.0" font-weight="700">Interpreters x2</text>
+<line x1="510" y1="660" x2="636" y2="660" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="654" text-anchor="middle" class="body fmute" font-size="10.1" font-style="italic">seed python 3.12 / 3.11</text>
+<rect x="54" y="684" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="705" class="body fw" font-size="13.0" font-weight="700">conda-forge tools</text>
+<line x1="510" y1="700" x2="636" y2="700" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="694" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">seed forge-install</text>
+<rect x="54" y="724" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="745" class="body fw" font-size="13.0" font-weight="700">Editor</text>
+<line x1="510" y1="740" x2="636" y2="740" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="734" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">extensions/vscode/</text>
+<rect x="54" y="764" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="785" class="body fw" font-size="13.0" font-weight="700">Git</text>
+<line x1="510" y1="780" x2="636" y2="780" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="774" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">extensions/git/</text>
+<rect x="54" y="804" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="825" class="body fw" font-size="13.0" font-weight="700">CA cert</text>
+<line x1="510" y1="820" x2="636" y2="820" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="814" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">system/certs/</text>
+<rect x="40" y="876" width="470" height="92" rx="12" fill="#E9F5EC" stroke="#1B4332" stroke-width="1.3"/>
+<use href="#ic-server" x="56" y="888" width="20" height="20" color="#1B4332"/>
+<text x="84" y="903" class="body fg" font-size="15.0" font-weight="700">git.corp.example</text>
+<text x="84" y="917" class="body fmute" font-size="11.0" font-style="italic">reached only after install</text>
+<rect x="54" y="922" width="442" height="32" rx="9" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.8"/><text x="66" y="943" class="body fg" font-size="13.0" font-weight="700">Repos</text>
+<line x1="510" y1="938" x2="636" y2="938" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="932" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">seed repo-clone</text>
+<text x="40" y="1110" class="body fmute" font-size="12" font-style="italic">Everything in the bundle box above lands under S:\users\{user}\seedling -- one shared bundle, a private folder per person.</text>
+</svg>

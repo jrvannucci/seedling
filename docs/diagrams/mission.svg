@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 850" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <style>
+      .head   { font-family: Georgia, 'Times New Roman', serif; }
+      .fg     { fill: #1B4332; }
+      .fw     { fill: #FFFFFF; }
+      .fsage  { fill: #40916C; }
+      .fmute  { fill: #52796F; }
+      .cardfill { fill: #E9F5EC; }
+      .barfill  { fill: #1B4332; }
+      .stroke2  { stroke: #FFFFFF; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="850" fill="#FFFFFF"/>
+
+  <!-- ============ Header ============ -->
+  <g transform="translate(56,34)">
+    <path d="M12 46 V18" stroke="#1B4332" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M12 26 C12 15 4 13 -2 15 C-2 24 4 29 12 26 Z" fill="#74C69D" stroke="#1B4332" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M12 21 C12 12 22 10 28 12 C28 20 22 24 12 21 Z" fill="#95D5B2" stroke="#1B4332" stroke-width="1.6" stroke-linejoin="round"/>
+  </g>
+  <text x="118" y="78" class="head fg" font-size="46" font-weight="700">seedling</text>
+  <text x="60" y="118" class="fmute" font-size="19" font-style="italic">A tidy, single-folder global Python distributor and local environment manager</text>
+
+  <!-- ============ "what it manages" eyebrow ============ -->
+  <text x="800" y="160" text-anchor="middle" class="fsage" font-size="15" font-weight="700" letter-spacing="1.2">
+    MANAGES:  Python interpreters &#183; venvs &amp; packages &#183; VS Code / Spyder &#183; conda-forge tools &#183; git repos &#183; org-wide profiles
+  </text>
+
+  <!-- ============ Capstone: the promise ============ -->
+  <rect x="60" y="196" width="1480" height="104" rx="18" class="barfill"/>
+  <text x="800" y="238" text-anchor="middle" class="fw head" font-size="27" font-weight="700">One command. Every Python environment,</text>
+  <text x="800" y="276" text-anchor="middle" class="fw head" font-size="27" font-weight="700">handled the same way — online or air-gapped.</text>
+
+  <!-- ============ connectors: capstone -> pillars ============ -->
+  <line x1="196" y1="300" x2="196" y2="345" stroke="#1B4332" stroke-width="2"/>
+  <line x1="498" y1="300" x2="498" y2="345" stroke="#1B4332" stroke-width="2"/>
+  <line x1="800" y1="300" x2="800" y2="345" stroke="#1B4332" stroke-width="2"/>
+  <line x1="1102" y1="300" x2="1102" y2="345" stroke="#1B4332" stroke-width="2"/>
+  <line x1="1404" y1="300" x2="1404" y2="345" stroke="#1B4332" stroke-width="2"/>
+
+  <!-- ============ 5 pillars ============ -->
+  <!-- shared card geometry: width 272, gap 30, y 345-625 (280 tall), x = 60 + i*302 -->
+
+  <!-- Pillar 1: ZERO-TOUCH CONFIG -->
+  <g>
+    <rect x="60" y="345" width="272" height="280" rx="14" class="cardfill" stroke="#1B4332" stroke-width="1.4"/>
+    <circle cx="196" cy="399" r="34" class="barfill"/>
+    <g transform="translate(184,387)">
+      <rect x="0" y="0" width="18" height="24" rx="2" class="stroke2"/>
+      <line x1="4" y1="7" x2="14" y2="7" class="stroke2"/>
+      <line x1="4" y1="12" x2="14" y2="12" class="stroke2"/>
+      <line x1="4" y1="17" x2="10" y2="17" class="stroke2"/>
+    </g>
+    <text x="196" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Zero-touch config</text>
+    <g class="fmute" font-size="15.5" text-anchor="middle">
+      <text x="196" y="495">One file, seedling.conf,</text>
+      <text x="196" y="521">carries every setting.</text>
+      <text x="196" y="547">No environment variables,</text>
+      <text x="196" y="573">ever.</text>
+    </g>
+  </g>
+
+  <!-- Pillar 2: OFFLINE-FIRST -->
+  <g>
+    <rect x="362" y="345" width="272" height="280" rx="14" class="cardfill" stroke="#1B4332" stroke-width="1.4"/>
+    <circle cx="498" cy="399" r="34" class="barfill"/>
+    <g transform="translate(486,387)">
+      <path d="M2 6 Q12 -1 22 6" class="stroke2"/>
+      <path d="M5.5 10.5 Q12 6 18.5 10.5" class="stroke2"/>
+      <path d="M9 15 Q12 13 15 15" class="stroke2"/>
+      <circle cx="12" cy="19" r="1.4" fill="#FFFFFF"/>
+      <line x1="0" y1="0" x2="24" y2="24" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+    </g>
+    <text x="498" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Offline-first</text>
+    <g class="fmute" font-size="15.5" text-anchor="middle">
+      <text x="498" y="495">Every download has an</text>
+      <text x="498" y="521">air-gapped equivalent.</text>
+      <text x="498" y="547">Whole organizations run</text>
+      <text x="498" y="573">with zero internet.</text>
+    </g>
+  </g>
+
+  <!-- Pillar 3: SAFE BY DEFAULT -->
+  <g>
+    <rect x="664" y="345" width="272" height="280" rx="14" class="cardfill" stroke="#1B4332" stroke-width="1.4"/>
+    <circle cx="800" cy="399" r="34" class="barfill"/>
+    <g transform="translate(788,385)">
+      <path d="M12 1 L21 5 V12 C21 18 17 22.5 12 24 C7 22.5 3 18 3 12 V5 Z" class="stroke2"/>
+      <path d="M8 12.5 L11 15.5 L16.5 9" class="stroke2"/>
+    </g>
+    <text x="800" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Safe by default</text>
+    <g class="fmute" font-size="15.5" text-anchor="middle">
+      <text x="800" y="495">Nothing is force-closed</text>
+      <text x="800" y="521">up front. Previews come</text>
+      <text x="800" y="547">before anything destructive,</text>
+      <text x="800" y="573">and locks stop collisions.</text>
+    </g>
+  </g>
+
+  <!-- Pillar 4: BUILT FOR SCALE -->
+  <g>
+    <rect x="966" y="345" width="272" height="280" rx="14" class="cardfill" stroke="#1B4332" stroke-width="1.4"/>
+    <circle cx="1102" cy="399" r="34" class="barfill"/>
+    <g transform="translate(1090,387)">
+      <rect x="0" y="0" width="8.5" height="8.5" rx="1.4" class="stroke2"/>
+      <rect x="11.5" y="0" width="8.5" height="8.5" rx="1.4" class="stroke2"/>
+      <rect x="0" y="11.5" width="8.5" height="8.5" rx="1.4" class="stroke2"/>
+      <rect x="11.5" y="11.5" width="8.5" height="8.5" rx="1.4" class="stroke2"/>
+    </g>
+    <text x="1102" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Built for scale</text>
+    <g class="fmute" font-size="15.5" text-anchor="middle">
+      <text x="1102" y="495">One config, one profile.</text>
+      <text x="1102" y="521">Every machine in an</text>
+      <text x="1102" y="547">organization ends up in</text>
+      <text x="1102" y="573">the exact same state.</text>
+    </g>
+  </g>
+
+  <!-- Pillar 5: SCRIPTABLE TOO -->
+  <g>
+    <rect x="1268" y="345" width="272" height="280" rx="14" class="cardfill" stroke="#1B4332" stroke-width="1.4"/>
+    <circle cx="1404" cy="399" r="34" class="barfill"/>
+    <g transform="translate(1392,387)">
+      <path d="M9 1 L2 12 L9 23" class="stroke2"/>
+      <path d="M15 1 L22 12 L15 23" class="stroke2"/>
+    </g>
+    <text x="1404" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Scriptable too</text>
+    <g class="fmute" font-size="15.5" text-anchor="middle">
+      <text x="1404" y="495">Every read command speaks</text>
+      <text x="1404" y="521">JSON. No shell required —</text>
+      <text x="1404" y="547">built for scripts, CI, and</text>
+      <text x="1404" y="573">AI agents alike.</text>
+    </g>
+  </g>
+
+  <!-- ============ connectors: pillars -> foundation ============ -->
+  <line x1="196" y1="625" x2="196" y2="657" stroke="#1B4332" stroke-width="2"/>
+  <line x1="498" y1="625" x2="498" y2="657" stroke="#1B4332" stroke-width="2"/>
+  <line x1="800" y1="625" x2="800" y2="657" stroke="#1B4332" stroke-width="2"/>
+  <line x1="1102" y1="625" x2="1102" y2="657" stroke="#1B4332" stroke-width="2"/>
+  <line x1="1404" y1="625" x2="1404" y2="657" stroke="#1B4332" stroke-width="2"/>
+
+  <!-- ============ Foundation ============ -->
+  <rect x="60" y="657" width="1480" height="98" rx="14" class="barfill"/>
+  <text x="800" y="695" text-anchor="middle" class="fw" font-size="22" font-weight="700">One folder: ~/seedling</text>
+  <text x="800" y="725" text-anchor="middle" class="fw" font-size="16" opacity="0.88">nothing touches the system outside it — fully removable, no trace left behind</text>
+
+  <!-- ============ Closing line ============ -->
+  <text x="800" y="793" text-anchor="middle" class="fmute" font-size="17" font-style="italic">
+    Consistent, reproducible Python environments — for one developer or a thousand, online or air-gapped.
+  </text>
+</svg>

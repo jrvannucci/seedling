@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1020" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <style>
+      .head   { font-family: Georgia, 'Times New Roman', serif; }
+      .fg     { fill: #1B4332; }
+      .fmute  { fill: #52796F; }
+      .stroke2  { stroke: #FFFFFF; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+    <symbol id="yes" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="11" fill="#1B4332"/>
+      <path d="M7 12.3 L10.4 15.7 L17 8.6" class="stroke2" stroke-width="2.4"/>
+    </symbol>
+    <symbol id="no" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="11" fill="none" stroke="#C7D6CD" stroke-width="2"/>
+    </symbol>
+    <symbol id="warn" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="11" fill="#D4A373"/>
+      <line x1="12" y1="7" x2="12" y2="13.6" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"/>
+      <circle cx="12" cy="16.8" r="1.3" fill="#FFFFFF"/>
+    </symbol>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="1020" fill="#FFFFFF"/>
+
+  <!-- ============ Header ============ -->
+  <g transform="translate(56,20)">
+    <path d="M12 46 V18" stroke="#1B4332" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M12 26 C12 15 4 13 -2 15 C-2 24 4 29 12 26 Z" fill="#74C69D" stroke="#1B4332" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M12 21 C12 12 22 10 28 12 C28 20 22 24 12 21 Z" fill="#95D5B2" stroke="#1B4332" stroke-width="1.6" stroke-linejoin="round"/>
+  </g>
+  <text x="118" y="60" class="head fg" font-size="32" font-weight="700">Ten ready-made deployment profiles</text>
+  <text x="60" y="90" class="fmute" font-size="15.5" font-style="italic">seedling-profile.toml starting points — what each one needs, and what it skips</text>
+
+  <!-- ============ Legend ============ -->
+  <g transform="translate(60,110)" font-size="13.5">
+    <use href="#yes" x="0" y="0" width="22" height="22"/>
+    <text x="30" y="16" class="fg">needed / available</text>
+    <use href="#no" x="215" y="0" width="22" height="22"/>
+    <text x="245" y="16" class="fg">not needed</text>
+    <use href="#warn" x="410" y="0" width="22" height="22"/>
+    <text x="440" y="16" class="fg">depends — see the profile</text>
+  </g>
+
+  <!-- ============ Table header ============ -->
+  <line x1="60" y1="228" x2="1540" y2="228" stroke="#1B4332" stroke-width="1.6"/>
+  <text x="60" y="216" class="fg" font-size="14" font-weight="700">Profile</text>
+  <text x="270" y="216" class="fg" font-size="14" font-weight="700">What it's for</text>
+  <g font-size="13" font-weight="700" class="fg">
+    <g transform="translate(659,214) rotate(-32)"><text text-anchor="start">Offline</text></g>
+    <g transform="translate(777,214) rotate(-32)"><text text-anchor="start">Index</text></g>
+    <g transform="translate(894,214) rotate(-32)"><text text-anchor="start">VS Code</text></g>
+    <g transform="translate(1011,214) rotate(-32)"><text text-anchor="start">Spyder</text></g>
+    <g transform="translate(1129,214) rotate(-32)"><text text-anchor="start">conda-forge</text></g>
+    <g transform="translate(1246,214) rotate(-32)"><text text-anchor="start">CA certs</text></g>
+    <g transform="translate(1364,214) rotate(-32)"><text text-anchor="start">Bundle</text></g>
+    <g transform="translate(1481,214) rotate(-32)"><text text-anchor="start">x86_64 only</text></g>
+  </g>
+
+  <!-- ============ Data rows ============ -->
+  <!-- row geometry: top = 228 + i*68, height 68; icon columns centered at
+       659,777,894,1011,1129,1246,1364,1481; icon 26x26 -->
+
+  <!-- alternating row shading -->
+  <rect x="60" y="228" width="1480" height="68" fill="#F3FAF5"/>
+  <rect x="60" y="364" width="1480" height="68" fill="#F3FAF5"/>
+  <rect x="60" y="500" width="1480" height="68" fill="#F3FAF5"/>
+  <rect x="60" y="636" width="1480" height="68" fill="#F3FAF5"/>
+  <rect x="60" y="772" width="1480" height="68" fill="#F3FAF5"/>
+
+  <!-- row 0: Research group -->
+  <text x="60" y="270" class="fg" font-size="13.5" font-weight="700">Research group</text>
+  <text x="270" y="270" class="fmute" font-size="13.5">Spyder, two venvs</text>
+  <use href="#no"  x="646" y="243" width="26" height="26"/>
+  <use href="#no"  x="764" y="243" width="26" height="26"/>
+  <use href="#no"  x="881" y="243" width="26" height="26"/>
+  <use href="#yes" x="998" y="243" width="26" height="26"/>
+  <use href="#no"  x="1116" y="243" width="26" height="26"/>
+  <use href="#no"  x="1233" y="243" width="26" height="26"/>
+  <use href="#no"  x="1351" y="243" width="26" height="26"/>
+  <use href="#yes" x="1468" y="243" width="26" height="26"/>
+
+  <!-- row 1: Software team -->
+  <text x="60" y="338" class="fg" font-size="13.5" font-weight="700">Software team</text>
+  <text x="270" y="338" class="fmute" font-size="13.5">VS Code, repos cloned</text>
+  <use href="#no"   x="646" y="311" width="26" height="26"/>
+  <use href="#warn" x="764" y="311" width="26" height="26"/>
+  <use href="#yes"  x="881" y="311" width="26" height="26"/>
+  <use href="#no"   x="998" y="311" width="26" height="26"/>
+  <use href="#yes"  x="1116" y="311" width="26" height="26"/>
+  <use href="#no"   x="1233" y="311" width="26" height="26"/>
+  <use href="#no"   x="1351" y="311" width="26" height="26"/>
+  <use href="#no"   x="1468" y="311" width="26" height="26"/>
+
+  <!-- row 2: Both editors -->
+  <text x="60" y="406" class="fg" font-size="13.5" font-weight="700">Both editors</text>
+  <text x="270" y="406" class="fmute" font-size="13.5">One shared venv</text>
+  <use href="#no"  x="646" y="379" width="26" height="26"/>
+  <use href="#no"  x="764" y="379" width="26" height="26"/>
+  <use href="#yes" x="881" y="379" width="26" height="26"/>
+  <use href="#yes" x="998" y="379" width="26" height="26"/>
+  <use href="#no"  x="1116" y="379" width="26" height="26"/>
+  <use href="#no"  x="1233" y="379" width="26" height="26"/>
+  <use href="#no"  x="1351" y="379" width="26" height="26"/>
+  <use href="#yes" x="1468" y="379" width="26" height="26"/>
+
+  <!-- row 3: Classroom -->
+  <text x="60" y="474" class="fg" font-size="13.5" font-weight="700">Classroom</text>
+  <text x="270" y="474" class="fmute" font-size="13.5">Pinned, reproducible</text>
+  <use href="#no"   x="646" y="447" width="26" height="26"/>
+  <use href="#no"   x="764" y="447" width="26" height="26"/>
+  <use href="#no"   x="881" y="447" width="26" height="26"/>
+  <use href="#yes"  x="998" y="447" width="26" height="26"/>
+  <use href="#no"   x="1116" y="447" width="26" height="26"/>
+  <use href="#warn" x="1233" y="447" width="26" height="26"/>
+  <use href="#warn" x="1351" y="447" width="26" height="26"/>
+  <use href="#yes"  x="1468" y="447" width="26" height="26"/>
+
+  <!-- row 4: Internal mirrors -->
+  <text x="60" y="542" class="fg" font-size="13.5" font-weight="700">Internal mirrors</text>
+  <text x="270" y="542" class="fmute" font-size="13.5">No bundle needed</text>
+  <use href="#yes" x="646" y="515" width="26" height="26"/>
+  <use href="#yes" x="764" y="515" width="26" height="26"/>
+  <use href="#no"  x="881" y="515" width="26" height="26"/>
+  <use href="#yes" x="998" y="515" width="26" height="26"/>
+  <use href="#yes" x="1116" y="515" width="26" height="26"/>
+  <use href="#yes" x="1233" y="515" width="26" height="26"/>
+  <use href="#no"  x="1351" y="515" width="26" height="26"/>
+  <use href="#yes" x="1468" y="515" width="26" height="26"/>
+
+  <!-- row 5: Internal PyPI only -->
+  <text x="60" y="610" class="fg" font-size="13.5" font-weight="700">Internal PyPI only</text>
+  <text x="270" y="610" class="fmute" font-size="13.5">Partial bundle</text>
+  <use href="#yes"  x="646" y="583" width="26" height="26"/>
+  <use href="#yes"  x="764" y="583" width="26" height="26"/>
+  <use href="#no"   x="881" y="583" width="26" height="26"/>
+  <use href="#yes"  x="998" y="583" width="26" height="26"/>
+  <use href="#yes"  x="1116" y="583" width="26" height="26"/>
+  <use href="#yes"  x="1233" y="583" width="26" height="26"/>
+  <use href="#warn" x="1351" y="583" width="26" height="26"/>
+  <use href="#yes"  x="1468" y="583" width="26" height="26"/>
+
+  <!-- row 6: Air-gapped (VSCodium) -->
+  <text x="60" y="678" class="fg" font-size="13.5" font-weight="700">Air-gapped (VSCodium)</text>
+  <text x="270" y="678" class="fmute" font-size="13.5">No redistribution rights</text>
+  <use href="#yes"  x="646" y="651" width="26" height="26"/>
+  <use href="#yes"  x="764" y="651" width="26" height="26"/>
+  <use href="#no"   x="881" y="651" width="26" height="26"/>
+  <use href="#no"   x="998" y="651" width="26" height="26"/>
+  <use href="#yes"  x="1116" y="651" width="26" height="26"/>
+  <use href="#warn" x="1233" y="651" width="26" height="26"/>
+  <use href="#yes"  x="1351" y="651" width="26" height="26"/>
+  <use href="#no"   x="1468" y="651" width="26" height="26"/>
+
+  <!-- row 7: Air-gapped (VS Code) -->
+  <text x="60" y="746" class="fg" font-size="13.5" font-weight="700">Air-gapped (VS Code)</text>
+  <text x="270" y="746" class="fmute" font-size="13.5">Keeps Pylance</text>
+  <use href="#yes"  x="646" y="719" width="26" height="26"/>
+  <use href="#yes"  x="764" y="719" width="26" height="26"/>
+  <use href="#yes"  x="881" y="719" width="26" height="26"/>
+  <use href="#no"   x="998" y="719" width="26" height="26"/>
+  <use href="#yes"  x="1116" y="719" width="26" height="26"/>
+  <use href="#warn" x="1233" y="719" width="26" height="26"/>
+  <use href="#yes"  x="1351" y="719" width="26" height="26"/>
+  <use href="#no"   x="1468" y="719" width="26" height="26"/>
+
+  <!-- row 8: Air-gapped (everything) -->
+  <text x="60" y="814" class="fg" font-size="13.5" font-weight="700">Air-gapped (everything)</text>
+  <text x="270" y="814" class="fmute" font-size="13.5">Every capability at once</text>
+  <use href="#yes" x="646" y="787" width="26" height="26"/>
+  <use href="#yes" x="764" y="787" width="26" height="26"/>
+  <use href="#yes" x="881" y="787" width="26" height="26"/>
+  <use href="#yes" x="998" y="787" width="26" height="26"/>
+  <use href="#yes" x="1116" y="787" width="26" height="26"/>
+  <use href="#yes" x="1233" y="787" width="26" height="26"/>
+  <use href="#yes" x="1351" y="787" width="26" height="26"/>
+  <use href="#yes" x="1468" y="787" width="26" height="26"/>
+
+  <!-- row 9: Just Python -->
+  <text x="60" y="882" class="fg" font-size="13.5" font-weight="700">Just Python</text>
+  <text x="270" y="882" class="fmute" font-size="13.5">Interpreters and venvs only</text>
+  <use href="#no" x="646" y="855" width="26" height="26"/>
+  <use href="#no" x="764" y="855" width="26" height="26"/>
+  <use href="#no" x="881" y="855" width="26" height="26"/>
+  <use href="#no" x="998" y="855" width="26" height="26"/>
+  <use href="#no" x="1116" y="855" width="26" height="26"/>
+  <use href="#no" x="1233" y="855" width="26" height="26"/>
+  <use href="#no" x="1351" y="855" width="26" height="26"/>
+  <use href="#no" x="1468" y="855" width="26" height="26"/>
+
+  <line x1="60" y1="908" x2="1540" y2="908" stroke="#1B4332" stroke-width="1.6"/>
+
+  <!-- ============ Footnotes ============ -->
+  <text x="60" y="944" class="fmute" font-size="13.5">
+    <tspan font-weight="700" class="fg">Index</tspan> means a package source is SET, not that you need an Artifactory — a URL for the networked
+  </text>
+  <text x="60" y="966" class="fmute" font-size="13.5">
+    examples, a wheels folder on the share for the air-gapped ones. <tspan font-weight="700" class="fg">x86_64 only</tspan> comes solely from Spyder
+    (no arm64 Qt wheels) — everything else runs on arm64 fine.
+  </text>
+</svg>

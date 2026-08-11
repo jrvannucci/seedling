@@ -12,7 +12,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import tarfile
 import types
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -285,6 +287,111 @@ def test_summary_warns_when_the_bundle_was_never_verified(tmp_path, monkeypatch,
     out = capsys.readouterr().out
     assert "nothing has confirmed this bundle installs" in out
     assert "--verify-only" in out
+
+
+# --- archiving ----------------------------------------------------------------
+# "one file instead of a folder tree" -- packing the finished bundle so it can
+# be copied across the air gap (a USB drive, a one-way transfer station) as a
+# single artifact. shutil.make_archive does the actual work; these pin the
+# format resolution and the folder-layout-on-extraction guarantee.
+
+
+@pytest.mark.parametrize("system,expected", [
+    ("Windows", "zip"), ("Linux", "tar.gz"), ("Darwin", "tar.gz"),
+])
+def test_resolve_archive_format_auto_picks_by_platform(system, expected):
+    assert build_offline.resolve_archive_format("auto", system) == expected
+
+
+@pytest.mark.parametrize("fmt", ["zip", "tar", "tar.gz"])
+def test_resolve_archive_format_explicit_passes_through(fmt):
+    # Whatever the host platform, an explicit choice is never overridden.
+    assert build_offline.resolve_archive_format(fmt, "Windows") == fmt
+    assert build_offline.resolve_archive_format(fmt, "Linux") == fmt
+
+
+def _fake_output_dir(tmp_path) -> Path:
+    out = tmp_path / "offline-bundle"
+    (out / "seedling").mkdir(parents=True)
+    (out / "seedling" / "seedling.conf").write_text("SEEDLING_REPO_URL=x\n")
+    (out / "wheels").mkdir()
+    (out / "wheels" / "hatchling-1.0-py3-none-any.whl").write_text("wheel")
+    (out / "MANIFEST.json").write_text("{}")
+    return out
+
+
+def test_archive_bundle_zip_contains_the_whole_tree_under_one_folder(tmp_path):
+    out = _fake_output_dir(tmp_path)
+    archive = build_offline.archive_bundle(out, "zip")
+    assert archive == tmp_path / "offline-bundle.zip"
+    with zipfile.ZipFile(archive) as zf:
+        names = zf.namelist()
+    # Extracting must reproduce ONE top-level "offline-bundle/" folder --
+    # the same layout install.cmd/seed apply expect -- not the contents
+    # spilled loose at the archive root.
+    assert all(n.startswith("offline-bundle/") for n in names)
+    assert "offline-bundle/seedling/seedling.conf" in names
+    assert "offline-bundle/wheels/hatchling-1.0-py3-none-any.whl" in names
+    assert "offline-bundle/MANIFEST.json" in names
+
+
+def test_archive_bundle_tar_gz_contains_the_whole_tree_under_one_folder(tmp_path):
+    out = _fake_output_dir(tmp_path)
+    archive = build_offline.archive_bundle(out, "tar.gz")
+    assert archive == tmp_path / "offline-bundle.tar.gz"
+    with tarfile.open(archive) as tf:
+        names = tf.getnames()
+    assert all(n.startswith("offline-bundle/") or n == "offline-bundle"
+              for n in names)
+    assert "offline-bundle/seedling/seedling.conf" in names
+
+
+def test_archive_bundle_leaves_the_original_folder_in_place(tmp_path):
+    out = _fake_output_dir(tmp_path)
+    build_offline.archive_bundle(out, "zip")
+    assert (out / "seedling" / "seedling.conf").exists()
+
+
+def test_archive_bundle_returns_none_and_warns_on_failure(tmp_path, monkeypatch,
+                                                          capsys):
+    out = _fake_output_dir(tmp_path)
+
+    def boom(*a, **kw):
+        raise OSError("disk full")
+    monkeypatch.setattr(build_offline.shutil, "make_archive", boom)
+    assert build_offline.archive_bundle(out, "zip") is None
+    assert "Could not create the archive" in capsys.readouterr().out
+
+
+def test_build_without_archive_flag_creates_no_archive_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    out = tmp_path / "b"
+    build_offline.main(["--yes", "--no-vscode", "--no-verify", "-o", str(out)])
+    assert not out.with_suffix(".zip").exists()
+    assert not Path(str(out) + ".tar.gz").exists()
+
+
+def test_build_with_bare_archive_flag_writes_and_reports_it(tmp_path, monkeypatch,
+                                                             capsys):
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    monkeypatch.setattr(build_offline.platform, "system", lambda: "Linux")
+    out = tmp_path / "b"
+    code = build_offline.main(["--yes", "--no-vscode", "--no-verify",
+                              "--archive", "-o", str(out)])
+    assert code == 0
+    archive = Path(str(out) + ".tar.gz")  # "auto" on non-Windows -> tar.gz
+    assert archive.exists()
+    text = capsys.readouterr().out
+    assert "Wrote" in text and archive.name in text
+    assert f"Copy {archive.name}" in text  # "Next steps" points at the archive
+
+
+def test_build_with_explicit_archive_format(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    out = tmp_path / "b"
+    build_offline.main(["--yes", "--no-vscode", "--no-verify",
+                        "--archive", "zip", "-o", str(out)])
+    assert out.with_suffix(".zip").exists()
 
 
 # --- wheel index ------------------------------------------------------------

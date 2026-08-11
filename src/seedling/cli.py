@@ -164,7 +164,7 @@ def _help_groups() -> list[tuple[str, list[tuple[str, str, str]]]]:
 
 
 def print_grouped_help(show_admin: bool = False) -> None:
-    print(colors.bold("seed") + " -- a tidy, single-folder wrapper around uv")
+    print(colors.bold("seed") + " -- a tidy, single-folder global Python distributor and local environment manager")
     print()
     print("Usage: seed <command> [arguments]")
     print()
@@ -193,8 +193,8 @@ def print_grouped_help(show_admin: bool = False) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="seed",
-        description="seedling: a tidy, single-folder wrapper around uv for "
-                     "getting started with Python.",
+        description="seedling: a tidy, single-folder global Python "
+                     "distributor and local environment manager.",
     )
     parser.add_argument("-V", "--version", action="version",
                         version=f"seedling {__version__}",

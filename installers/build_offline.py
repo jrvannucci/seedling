@@ -407,6 +407,43 @@ def write_manifest(output: Path, names: list[str], *, staged: dict) -> Path:
     return path
 
 
+_ARCHIVE_FORMATS = {"zip": "zip", "tar": "tar", "tar.gz": "gztar"}
+
+
+def resolve_archive_format(requested: str, system: str) -> str:
+    """'auto' (the default when --archive is passed with no value) becomes
+    zip on Windows, tar.gz elsewhere -- whichever format that platform's own
+    tools open without installing anything extra. An explicit format passes
+    through unchanged."""
+    if requested != "auto":
+        return requested
+    return "zip" if system == "Windows" else "tar.gz"
+
+
+def archive_bundle(output: Path, fmt: str) -> Path | None:
+    """Pack the whole assembled bundle into one archive file next to it --
+    the folder tree becomes a single file to copy across the air gap, onto
+    a USB drive, or through a one-way transfer station. Built with the
+    stdlib (shutil), so this needs no extra tool on the build machine.
+
+    Archives from the bundle's PARENT directory with the bundle's own name
+    as the base_dir, so the archive contains one top-level folder (e.g.
+    offline-bundle/...), not its contents spilled loose at the root --
+    the same layout `seed apply`/install.cmd expect after extraction.
+
+    Returns the archive's path, or None if it couldn't be written (never
+    fatal to the overall build -- the folder on disk is still complete and
+    usable on its own)."""
+    try:
+        created = shutil.make_archive(
+            str(output), _ARCHIVE_FORMATS[fmt],
+            root_dir=str(output.parent), base_dir=output.name)
+    except OSError as e:
+        warn(f"Could not create the archive: {e}")
+        return None
+    return Path(created)
+
+
 def _progress(done: int, total: int) -> None:
     if not (total and sys.stdout.isatty()):
         return  # a redirected/CI log doesn't benefit from \r updates
@@ -1101,6 +1138,14 @@ def main(argv=None) -> int:
         help="Show the plan (platform, versions, destinations) and exit "
              "without downloading anything.")
     parser.add_argument(
+        "--archive", nargs="?", const="auto", default=None,
+        choices=["auto", "zip", "tar", "tar.gz"], metavar="{zip,tar,tar.gz}",
+        help="After building, also pack the whole bundle into one archive "
+             "file next to it -- one file to carry across the air gap "
+             "instead of a folder tree. Bare --archive picks zip on "
+             "Windows, tar.gz elsewhere; pass a format to choose "
+             "explicitly. The folder itself is left in place either way.")
+    parser.add_argument(
         "--profile", metavar="PATH",
         help="Deployment profile whose venv packages must be in the bundle. "
              "Defaults to seedling-profile.toml next to seedling.conf if it "
@@ -1409,6 +1454,20 @@ def main(argv=None) -> int:
     info("Hand this to whoever asks what the bundle contains -- it lists "
          "every component, its source, and its licence.")
 
+    # 11. Archive (optional): one file instead of a folder tree to carry
+    # across the air gap. Never fatal -- the folder on disk is already a
+    # complete, usable bundle on its own.
+    archive_path = None
+    if args.archive:
+        archive_fmt = resolve_archive_format(args.archive, system)
+        step(12, f"Archive the bundle ({archive_fmt})")
+        info("Packing the whole bundle into one file -- this can take a "
+             "while for a large bundle (VS Code alone is ~300MB).")
+        archive_path = archive_bundle(output, archive_fmt)
+        if archive_path is not None:
+            size_mb = archive_path.stat().st_size / (1024 * 1024)
+            ok(f"Wrote {archive_path}  ({size_mb:.0f} MB)")
+
     # Summary.
     print()
     print(colors.header("Done. Bundle assembled at:"))
@@ -1457,13 +1516,25 @@ def main(argv=None) -> int:
 
     print()
     print("Next steps:")
-    print(f"  1. Copy the whole {output.name}{os.sep} folder to {deploy_root} on "
-          "your target/share.")
-    print("  2. On an offline machine, run install.cmd from the copied "
-          "seedling/ folder.")
-    print("  3. It reads seedling.conf and installs entirely from the bundle.")
-    print("     (After copying, you can re-run --verify-only against the copy "
-          "to prove the transfer was complete.)")
+    if archive_path is not None:
+        print(f"  1. Copy {archive_path.name} to {deploy_root} on your "
+              "target/share -- one file, instead of the whole folder tree.")
+        print(f"  2. Extract it there (it unpacks to one {output.name}{os.sep} "
+              "folder, same layout as the build).")
+        print("  3. On an offline machine, run install.cmd from the extracted "
+              "seedling/ folder.")
+        print("  4. It reads seedling.conf and installs entirely from the bundle.")
+        print("     (After extracting on the share, you can re-run "
+              "--verify-only against THAT copy to prove the transfer -- "
+              "archive included -- was complete.)")
+    else:
+        print(f"  1. Copy the whole {output.name}{os.sep} folder to {deploy_root} on "
+              "your target/share.")
+        print("  2. On an offline machine, run install.cmd from the copied "
+              "seedling/ folder.")
+        print("  3. It reads seedling.conf and installs entirely from the bundle.")
+        print("     (After copying, you can re-run --verify-only against the copy "
+              "to prove the transfer was complete.)")
     if deploy_root == str(output):
         warn("Deploy path = the build path. If you move the folder, update the "
              "three paths in seedling/seedling.conf (or re-run with "
