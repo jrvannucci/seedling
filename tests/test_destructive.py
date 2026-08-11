@@ -197,6 +197,7 @@ def test_purge_strips_hook_lines_old_and_new_layouts(run_cli, home, monkeypatch,
 
 
 @windows_only
+@pytest.mark.xdist_group(name="real_windows_path_registry")
 def test_purge_removes_the_persistent_path_entry(monkeypatch, tmp_path):
     """The registry counterpart of the hook-stripping test above: undoes the
     system\\bin entry install.ps1 adds to the real user PATH (see
@@ -207,7 +208,14 @@ def test_purge_removes_the_persistent_path_entry(monkeypatch, tmp_path):
     throwaway BIN_DIR that cannot collide with anything real, and restored
     to its exact original value in `finally` regardless of outcome -- the
     same real-OS-mechanism testing style winlocks.py's Restart Manager
-    tests already use."""
+    tests already use.
+
+    xdist_group: every test that snapshots/restores the REAL
+    HKCU\\Environment\\PATH (see tests/test_update_and_downloads.py) must
+    land on the same worker as this one, or two workers doing
+    read-modify-restore on the same real key at once can stomp each other's
+    restore -- caught via a real CI failure that only reproduced under
+    -n auto, not in isolation."""
     import winreg
 
     from seedling.commands import purge_cmd

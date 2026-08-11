@@ -375,7 +375,8 @@ def test_self_update_sweeps_a_file_leftover_from_previous_run(run_cli, home, src
     slow", worse than a one-time cost since it never got smaller. Regression
     test for the file leftover specifically, since the existing directory
     leftover test above did not (and could not) have caught this."""
-    leftover = home / "system" / "bin" / "seed-cli.exe.old-99999"
+    exe = "seed-cli.exe" if os.name == "nt" else "seed-cli"
+    leftover = home / "system" / "bin" / f"{exe}.old-99999"
     leftover.parent.mkdir(parents=True, exist_ok=True)
     leftover.write_text("stale exe")
     code, out = run_cli("update-commands")
@@ -474,9 +475,17 @@ def test_update_without_templates_skips_shell_refresh(run_cli, home, src_install
 
 
 @windows_only
+@pytest.mark.xdist_group(name="real_windows_path_registry")
 def test_update_registers_bin_on_windows_path_when_missing(
         run_cli, home, src_installed, monkeypatch):
-    """Windows counterpart of the shell-file refresh above, for the
+    """xdist_group: this test and every other one that snapshots/restores
+    the REAL HKCU\\Environment\\PATH must run on the same worker, never in
+    parallel with each other -- two workers doing read-modify-restore on the
+    same real registry key at once can stomp each other's restore. Caught
+    this via a real CI failure that only reproduced under -n auto, not in
+    isolation.
+
+    Windows counterpart of the shell-file refresh above, for the
     persistent PATH entry instead of a rendered file: an install from
     before system\\bin was added to PATH (or one where it was removed by
     hand) picks it up on the next `update-commands`, not just a reinstall.
@@ -514,6 +523,7 @@ def test_update_registers_bin_on_windows_path_when_missing(
 
 
 @windows_only
+@pytest.mark.xdist_group(name="real_windows_path_registry")
 def test_bin_dir_is_on_process_path_before_reinstalling(
         run_cli, home, src_installed, monkeypatch):
     """`uv tool install` (called right after this) builds its subprocess env
