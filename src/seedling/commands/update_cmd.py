@@ -332,6 +332,20 @@ def run(args) -> int:
         print("Tip: `seed config set update_source <git-url-or-directory>` "
               "gives this command somewhere to update from.")
 
+    # Windows-only: an install from before system\bin was added to the
+    # persistent PATH (or one where the entry was removed by hand) picks it
+    # up here instead of needing a full reinstall -- see
+    # shell_integration.ensure_bin_on_windows_path. No-op (and no message)
+    # everywhere else. Deliberately BEFORE the reinstall below, not after:
+    # this also patches THIS PROCESS's os.environ["PATH"], which is what
+    # keeps uv_tool.run() from printing uv's own "is not on your PATH"
+    # warning moments later -- registering it only after uv already ran
+    # left the registry correct for next time but did nothing for the
+    # warning uv had already printed during the very install that added it.
+    if shell_integration.ensure_bin_on_windows_path():
+        print(f"Added {paths.BIN_DIR} to your PATH "
+              "(new terminals/processes will see it).")
+
     print("Reinstalling the seed CLI ...")
     _sweep_aside_leftovers()
     moved = _move_running_self_aside()
@@ -355,15 +369,6 @@ def run(args) -> int:
         print("Refreshing shell integration ...")
         print("(takes effect in new shells; or re-source "
               f"{refreshed[0]} in this one)")
-
-    # Windows-only, and independent of the refresh() above: an install from
-    # before system\bin was added to the persistent PATH (or one where the
-    # entry was removed by hand) picks it up here instead of needing a full
-    # reinstall. No-op (and no message) everywhere else -- see
-    # shell_integration.ensure_bin_on_windows_path.
-    if shell_integration.ensure_bin_on_windows_path():
-        print(f"Added {paths.BIN_DIR} to your PATH "
-              "(new terminals/processes will see it).")
 
     report_conf_drift(src)
 

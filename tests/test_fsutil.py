@@ -30,6 +30,33 @@ def test_rmtree_missing_path_is_noop(home):
     assert fsutil.robust_rmtree(home / "nope") == []
 
 
+def test_rmtree_deletes_a_plain_file(home):
+    """A rename-aside leftover (see update_cmd._move_running_self_aside) can
+    be a single FILE (seed-cli.exe) just as easily as a directory (the tool
+    venv). shutil.rmtree() always raises NotADirectoryError on a plain file
+    -- no amount of retrying fixes that -- so this used to burn every
+    retry's sleep for nothing, report "failure", and never actually delete
+    the file. Regression test: it must just delete it, immediately."""
+    f = home / "leftover.old-1234"
+    home.mkdir(parents=True, exist_ok=True)
+    f.write_text("stale exe")
+    t0 = time.time()
+    failures = fsutil.robust_rmtree(f)
+    elapsed = time.time() - t0
+    assert failures == []
+    assert not f.exists()
+    assert elapsed < 0.5, f"should not have gone through any retry sleep, took {elapsed:.2f}s"
+
+
+def test_rmtree_clears_a_read_only_file(home):
+    home.mkdir(parents=True, exist_ok=True)
+    f = home / "leftover.old-5678"
+    f.write_text("stale exe")
+    f.chmod(stat.S_IREAD)
+    assert fsutil.robust_rmtree(f) == []
+    assert not f.exists()
+
+
 def test_rmtree_escapes_own_cwd(home, monkeypatch):
     target = home / "python" / "venvs" / "dev"
     target.mkdir(parents=True)

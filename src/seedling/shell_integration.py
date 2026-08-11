@@ -101,16 +101,32 @@ def ensure_bin_on_windows_path() -> bool:
     install.ps1 honors (see tests/conftest.py) -- there is no fake HKCU to
     redirect this into, so tests opt out entirely.
 
-    Returns True if the entry was added (it was missing); False if it was
-    already present, this isn't Windows, or the registry couldn't be read
-    or written (never fatal -- a stale PATH entry is not worth failing
-    `update-commands` over)."""
+    Also patches THIS PROCESS's own os.environ["PATH"] when it's missing
+    there, unconditionally -- independent of whatever the registry branch
+    below finds. The two are separate: this process's os.environ was
+    captured from its parent at launch, so a registry entry an EARLIER
+    `update-commands` run already added doesn't retroactively appear here,
+    and `update_cmd.run()` calls this before reinstalling seed-cli via
+    uv_tool.run() specifically so that subprocess (which builds its own env
+    from os.environ, see uv_tool._build_env) doesn't print uv's own "is not
+    on your PATH" warning during the very install that's supposed to fix it.
+
+    Returns True if the REGISTRY entry was added (it was missing); False if
+    it was already present, this isn't Windows, or the registry couldn't be
+    read or written (never fatal -- a stale PATH entry is not worth failing
+    `update-commands` over). Return value doesn't reflect the os.environ
+    patch, which is best-effort and silent either way."""
     if os.name != "nt" or os.environ.get("SEEDLING_SKIP_PATH_REGISTER"):
         return False
     import winreg
 
     bin_dir = str(paths.BIN_DIR)
     target = bin_dir.rstrip("\\").lower()
+
+    proc_path_entries = os.environ.get("PATH", "").split(os.pathsep)
+    if not any(e.rstrip("\\").lower() == target for e in proc_path_entries):
+        os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
+
     try:
         key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0,
                               winreg.KEY_READ | winreg.KEY_WRITE)

@@ -4,6 +4,7 @@ offline and fast; the fetch/copy logic is what's under test."""
 
 from __future__ import annotations
 
+import os
 import subprocess
 
 import pytest
@@ -363,6 +364,25 @@ def test_self_update_sweeps_leftovers_from_previous_run(run_cli, home, src_insta
     assert not leftover.exists()
 
 
+def test_self_update_sweeps_a_file_leftover_from_previous_run(run_cli, home, src_installed):
+    """The OTHER self-install target (_self_install_targets) is a plain FILE
+    -- seed-cli.exe itself, not a directory -- and its rename-aside leftover
+    is a file too. shutil.rmtree() (what robust_rmtree used to always use)
+    raises NotADirectoryError on a plain file no matter how many times it's
+    retried, so this leftover was never actually swept: it silently failed
+    every single `update-commands` run, forever, one more accumulating on
+    top of it each time -- the actual root cause of "update-commands is
+    slow", worse than a one-time cost since it never got smaller. Regression
+    test for the file leftover specifically, since the existing directory
+    leftover test above did not (and could not) have caught this."""
+    leftover = home / "system" / "bin" / "seed-cli.exe.old-99999"
+    leftover.parent.mkdir(parents=True, exist_ok=True)
+    leftover.write_text("stale exe")
+    code, out = run_cli("update-commands")
+    assert code == 0
+    assert not leftover.exists()
+
+
 # --- shell integration refresh ----------------------------------------------
 # update-commands must re-render system/shell/seed.{ps1,sh} from the (just
 # refreshed) templates -- template changes would otherwise only reach users
@@ -488,6 +508,40 @@ def test_update_registers_bin_on_windows_path_when_missing(
         assert "Added" not in out2
         current2, _ = winreg.QueryValueEx(key, "PATH")
         assert current2.split(";").count(str(paths.BIN_DIR)) == 1
+    finally:
+        winreg.SetValueEx(key, "PATH", 0, value_type, original)
+        winreg.CloseKey(key)
+
+
+@windows_only
+def test_bin_dir_is_on_process_path_before_reinstalling(
+        run_cli, home, src_installed, monkeypatch):
+    """`uv tool install` (called right after this) builds its subprocess env
+    from os.environ (see uv_tool._build_env), so registering the registry
+    entry alone isn't enough -- ensure_bin_on_windows_path() must ALSO patch
+    THIS PROCESS's os.environ["PATH"], and update-commands must call it
+    BEFORE reinstalling, or uv prints its own "is not on your PATH" warning
+    during the very install meant to fix that. Regression test for both the
+    ordering and the os.environ patch, independent of the registry test
+    above (which only checks the registry side)."""
+    src, calls = src_installed
+    monkeypatch.delenv("SEEDLING_SKIP_PATH_REGISTER", raising=False)
+    monkeypatch.delenv("PATH", raising=False)  # simulate a shell that never had it
+
+    from seedling import uv_tool
+    seen_path = []
+    monkeypatch.setattr(uv_tool, "run",
+                         lambda args, **kw: seen_path.append(os.environ.get("PATH", "")))
+
+    import winreg
+    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0,
+                          winreg.KEY_READ | winreg.KEY_WRITE)
+    original, value_type = winreg.QueryValueEx(key, "PATH")
+    try:
+        code, out = run_cli("update-commands")
+        assert code == 0
+        assert len(seen_path) == 1
+        assert str(paths.BIN_DIR) in seen_path[0].split(os.pathsep)
     finally:
         winreg.SetValueEx(key, "PATH", 0, value_type, original)
         winreg.CloseKey(key)

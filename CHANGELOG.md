@@ -155,6 +155,25 @@ what a release involves.
   equivalent of `.gitignore` until now. Measured on a real checkout: the
   `copytree()` step dropped from 7.3s to 0.13s.
 
+- **`seed update-commands` no longer gets slower every time you run it.**
+  On Windows, the self-update rename-aside leftover for `seed-cli.exe`
+  itself is a plain FILE (unlike the tool venv's leftover, a directory) —
+  and `fsutil.robust_rmtree()` always called `shutil.rmtree()`, which
+  raises `NotADirectoryError` on a file no matter how many times it's
+  retried. Every leftover therefore silently failed to clean up, forever,
+  with one more piling up on top of it each run (13 had accumulated on one
+  real machine, each burning a full retry-with-sleep cycle for nothing —
+  measured at ~19s total, down to ~4.5s once cleaned up and fixed).
+  `robust_rmtree()` now handles a file target directly instead of assuming
+  a directory. Also fixed: the same install.ps1/`uv tool install` PATH
+  ordering issue described above applied to `seed update-commands`' own
+  reinstall step too — it was still registering `system\bin` on PATH
+  *after* calling `uv tool install --force --reinstall`, so uv kept
+  printing its "is not on your PATH" warning on every update, right after
+  the entry had just been added. `ensure_bin_on_windows_path()` now also
+  patches this process's own `os.environ["PATH"]` (not just the registry)
+  and is called before the reinstall, not after.
+
 ## [0.11.0] - 2026-08-05
 
 ### Added

@@ -41,13 +41,42 @@ from pathlib import Path
 
 
 def robust_rmtree(path: Path, retries: int = 3, delay: float = 0.75) -> list[str]:
-    """Delete a directory tree. Returns a list of paths that still
+    """Delete a file OR a directory tree. Returns a list of paths that still
     couldn't be removed after all retries (empty on full success)."""
     path = Path(path)
     if not path.exists():
         return []
 
     _escape_if_inside(path)
+
+    if not path.is_dir():
+        # A rename-aside leftover (see update_cmd._move_running_self_aside)
+        # can be a single FILE (seed-cli.exe) just as easily as a directory
+        # (the tool venv) -- shutil.rmtree() always raises
+        # NotADirectoryError on a plain file, which no amount of retrying
+        # or chmod'ing can fix, so a file target used to burn every retry's
+        # sleep for nothing and then report failure without ever actually
+        # deleting anything. Handled here, not per-caller, so every existing
+        # robust_rmtree() call gets the same read-only-bit-clearing retry
+        # behavior regardless of which kind of path it's cleaning up.
+        for attempt in range(retries):
+            try:
+                path.unlink()
+                return []
+            except FileNotFoundError:
+                return []
+            except OSError:
+                try:
+                    os.chmod(path, stat.S_IWRITE)
+                    path.unlink()
+                    return []
+                except FileNotFoundError:
+                    return []
+                except OSError:
+                    pass
+            if attempt < retries - 1:
+                time.sleep(delay)
+        return [str(path)]
 
     failures: list[str] = []
     for attempt in range(retries):
