@@ -12,8 +12,8 @@ separate questions and are read at different times.
 
 A third, optional file — [**custom commands**](CUSTOM-COMMANDS.md) — lets
 you add your own verbs to `seed` itself (`seed lint`, `seed reset`, ...).
-See it in use in the [software team](PROFILE-EXAMPLES.md#software-team) and
-[classroom](PROFILE-EXAMPLES.md#classroom) examples.
+See it in use in the [software team](profile-examples/software-team.md) and
+[classroom](profile-examples/classroom.md) examples.
 
 ---
 

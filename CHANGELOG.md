@@ -45,6 +45,19 @@ what a release involves.
   with wrapping anything. Now: "a tidy, single-folder global Python
   distributor and local environment manager."
 
+- **Each example in `docs/PROFILE-EXAMPLES.md` now has its own page**, under
+  new `docs/profile-examples/<slug>.md` (ten files: `research-group.md`
+  through `just-python.md`), linked from a `{toctree}` on the landing page.
+  `PROFILE-EXAMPLES.md` itself shrank to what it's actually for now —  the
+  intro, the profile-matrix diagram, the "Contents" comparison table (its
+  links now point at the subpages instead of in-page anchors), and the
+  closing "Checking one before you ship it" note, which stayed on the
+  landing page since it applies to every example, not one. The one file had
+  grown to 1,382 lines covering ten unrelated deployments; a reader after
+  "the classroom example" no longer scrolls past nine others to find it, and
+  each subpage gets its own URL/section in the sidebar. `docs/PROFILES.md`'s
+  two links into specific examples were repointed at the new subpages.
+
 ### Added
 
 - **Up to two new diagrams per example under `docs/diagrams/`**,
@@ -85,7 +98,45 @@ what a release involves.
     python/base/`, `[[venv]] → python/venvs/`, `editor = ... →
     extensions/`, ...) — derived straight from that profile's own
     `storage` data, so it can never drift out of sync with the folders it
-    claims to explain.
+    claims to explain. For the four bundle profiles, `profile-pull` also
+    embeds a shrunk copy of `profile-build`'s own content (same markup, a
+    shared `_build_fragment()` helper, so the two never drift apart
+    visually either) in a dashed "BUILT ONCE, ON A CONNECTED MACHINE" box
+    in the space above the origin boxes, with a straight labeled arrow
+    ("moved to the share") into the `seedling-profile.toml` box — so one
+    diagram now shows the whole lifecycle: build once, move it, one config
+    reads it, the machine ends up with what's shown below. The inset
+    scales to fit whatever room is actually there and grows the canvas
+    rather than shrinking past legibility if there isn't enough.
+
+    The build side gets its own config box, too: a `seedling.conf` box
+    sits above `offline-bundle/` (both in the standalone `profile-build`
+    diagrams and inside the "BUILT ONCE" inset), with a downward arrow
+    ("sets these before staging") into it — the identical "config dictates
+    creation of the box below it" language `seedling-profile.toml` already
+    uses above YOUR MACHINE, applied here because it's equally true. Every
+    key it lists is a real `config.get(...)` call made on the *build
+    machine's own* local settings before any staging happens, derived the
+    same way as the profile.toml box's key list (only shown when the
+    profile actually has that capability): `vscode_flavor`,
+    `vscode_extensions`, and `extension_gallery` (all read by
+    `vscode_cmd.flavor()`/`extensions_for()`/`gallery_for()`, all landing
+    in `vendor/vscode/`) when there's an Editor row, plus `conda_channel`
+    (read by `conda_tool.channel()`, controlling where conda-forge tools
+    resolve *from*) when there's a conda-forge tools row. None of this
+    comes from the profile being built, or from the conf that ends up on
+    the share for end users — two config files, two different jobs, now
+    two visually parallel, equally complete boxes instead of one
+    undifferentiated "config."
+
+    Auditing against `build_offline.py`'s own step list also turned up a
+    row that was missing outright: step 1, before uv or anything else, is
+    `stage_repo()` copying the seedling checkout itself (`install.cmd`,
+    `src/`, `installers/`) into the bundle's `seedling/` folder — the one
+    thing every deployed machine actually runs `install.cmd` from. All
+    four bundle profiles' `build` rows now start with a `seedling itself`
+    row for it, and their `pull` groups list it too (`system/src/`), so
+    the picture doesn't silently skip the one piece users literally launch.
 
   Superseded a first pass (`profile-flow-<slug>.svg`, one three-column row
   per capability) that was more literally accurate but, per feedback,

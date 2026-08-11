@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Generate two SVGs per example profile in ../PROFILE-EXAMPLES.md:
+"""Generate two SVGs per example profile documented under
+../profile-examples/<slug>.md (linked from ../PROFILE-EXAMPLES.md):
 
   profile-build-<slug>.svg   only for profiles that build a bundle --
                               sources on the left, the offline-bundle/
@@ -27,10 +28,10 @@ python-builds, a conda channel, the editor, git, and a CA cert), that's ONE
 box with several small chips inside it and one labeled arrow per chip --
 not N separate boxes that happen to all point at the same place.
 
-The data below is transcribed BY HAND from PROFILE-EXAMPLES.md's "Assumes"
-table, TOML, and conf blocks -- there is no automated link between the two.
-If a profile's sources, hosts, or offline shape change there, update its
-entry here too and re-run:
+The data below is transcribed BY HAND from each profile-examples/<slug>.md's
+"Assumes" table, TOML, and conf blocks -- there is no automated link between
+the two. If a profile's sources, hosts, or offline shape change there,
+update its entry here too and re-run:
 
     python docs/diagrams/generate_profile_flows.py
 
@@ -155,43 +156,119 @@ B_HEAD_H = 40   # height of the "offline-bundle/" header drawn inside the box
 B_BOX_PAD = 16  # gap between the box's outer edge and the header/chips it contains
 
 
-def build_part1(slug: str, title: str, subtitle: str, rows: list[dict]) -> None:
+B_CONF_LABEL = "seedling.conf"
+B_CONF_NOTE = "read on this machine, before build-offline stages anything"
+B_CONF_VIA = "sets these before staging"
+B_CONF_GAP = 30  # room for the connector arrow + its label
+
+# which build.py call reads which seedling.conf key, and what it lands as --
+# every one of these is `config.get(...)` on the BUILD MACHINE's own local
+# settings, called from build_offline.py/vscode_cmd.py/conda_tool.py before
+# any staging happens. Keyed by the capability row that key affects, so a
+# profile without conda-forge tools doesn't get a conda_channel line it
+# doesn't use -- same "derive from what's actually there" rule
+# _config_key_lines() follows for the profile.toml box.
+_BUILD_CONF_KEY_FOR = [
+    ("Editor", ["vscode_flavor", "vscode_extensions", "extension_gallery"], "vendor/vscode/"),
+    ("conda-forge tools", ["conda_channel"], "conda-channel/"),
+]
+
+
+def _build_conf_lines(rows: list[dict]) -> list[str]:
+    caps = {r["cap"] for r in rows}
+    return [f"{key}  →  {dest}"
+            for cap, keys, dest in _BUILD_CONF_KEY_FOR if cap in caps
+            for key in keys]
+
+
+def _build_fragment(rows: list[dict]) -> tuple[str, float, float]:
+    """The "sources -> one offline-bundle/ box" content, in its own local
+    coordinate space starting at (0, 0) -- no header, no background, no
+    <svg> wrapper, so it can be dropped into another diagram's <g
+    transform> (scaled down, embedded top-left of profile-pull-<slug>.svg)
+    as well as wrapped standalone by build_part1(). Returns (markup,
+    natural_width, natural_height).
+
+    A profile decides package/tool/venv content, but which editor BUILD
+    gets staged is a build-machine decision seedling.conf makes before the
+    profile is even read -- so that box sits above offline-bundle/ with a
+    downward arrow into it, the same "config dictates creation of the box
+    below it" language already used for seedling-profile.toml above YOUR
+    MACHINE on the pull side."""
     row_h = 54
     gap = 10
-    pitch = row_h + gap
-    table_top = 150
-    table_h = len(rows) * pitch - gap
-    box_top = table_top - B_HEAD_H - B_BOX_PAD
-    box_bottom = table_top + table_h + B_BOX_PAD
-    canvas_h = box_bottom + 40
+    table_h = len(rows) * (row_h + gap) - gap
+    conf_lines = _build_conf_lines(rows)
 
-    svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {B_CANVAS_W} {canvas_h:.0f}" font-family="Arial, Helvetica, sans-serif">']
-    svg.append(f"<defs>{DEFS}</defs>")
-    svg.append(f'<rect x="0" y="0" width="{B_CANVAS_W}" height="{canvas_h:.0f}" fill="{WHITE}"/>')
-    svg.append(header(title, subtitle))
+    note_wrap = _wrap(B_CONF_NOTE, 44) if conf_lines else []
+    conf_items_h = len(conf_lines) * (CFG_ITEM_H + CFG_ITEM_GAP) - CFG_ITEM_GAP if conf_lines else 0
+    conf_h = (44 + len(note_wrap) * 12 + 6 + conf_items_h + 10) if conf_lines else 0.0
+    conf_gap = B_CONF_GAP if conf_lines else 0.0
+
+    y_shift = B_HEAD_H + B_BOX_PAD  # local table_top, leaves room for the
+                                    # box header above row 0
+    table_top = y_shift + conf_h + conf_gap
+    box_top = conf_h + conf_gap
+    box_bottom = table_top + table_h + B_BOX_PAD
+    height = box_bottom
+
+    box_x = B_MID_X - B_BOX_PAD
+    box_w = B_MID_W + 2 * B_BOX_PAD
+
+    svg = []
+    if conf_lines:
+        svg.append(f'<rect x="{box_x:.0f}" y="0" width="{box_w:.0f}" height="{conf_h:.0f}" rx="12" fill="{NAVY}"/>')
+        svg.append(f'<use href="#ic-doc" x="{box_x+16:.0f}" y="12" width="20" height="20" color="{WHITE}"/>')
+        svg.append(f'<text x="{box_x+44:.0f}" y="27" class="body fw" font-size="14" font-weight="700">{esc(B_CONF_LABEL)}</text>')
+        for j, line in enumerate(note_wrap):
+            svg.append(f'<text x="{box_x+16:.0f}" y="{41+j*12:.0f}" class="body" fill="#CFE3D6" font-size="10" font-style="italic">{esc(line)}</text>')
+        keys_top = 41 + len(note_wrap) * 12 + 6
+        svg.append(f'<line x1="{box_x+16:.0f}" y1="{keys_top-8:.0f}" x2="{box_x+box_w-16:.0f}" y2="{keys_top-8:.0f}" stroke="{WHITE}" stroke-width="1" opacity="0.2"/>')
+        for j, line in enumerate(conf_lines):
+            svg.append(subchip(box_x + 16, keys_top + j * (CFG_ITEM_H + CFG_ITEM_GAP), box_w - 32, CFG_ITEM_H, line))
+
+        conn_x = box_x + box_w / 2
+        svg.append(f'<line x1="{conn_x:.0f}" y1="{conf_h:.0f}" x2="{conn_x:.0f}" y2="{box_top-4:.0f}" stroke="{NAVY}" stroke-width="1.6" marker-end="url(#arrow)"/>')
+        via_size = _fit(B_CONF_VIA, box_w - 20, 10.5, px_per_char=5.6)
+        svg.append(f'<text x="{conn_x+10:.0f}" y="{(conf_h+box_top)/2+4:.0f}" class="body fmute" font-size="{via_size:.1f}" font-style="italic">{esc(B_CONF_VIA)}</text>')
 
     svg.append(f'<text x="{B_SRC_X}" y="{table_top-14:.0f}" class="body fg" font-size="12.5" font-weight="700" letter-spacing="0.8">PULLED FROM</text>')
 
     # one box for the whole offline-bundle/ -- everything below is staged
     # into this single folder tree, not N independent destinations
-    box_x = B_MID_X - B_BOX_PAD
-    box_w = B_MID_W + 2 * B_BOX_PAD
     svg.append(f'<rect x="{box_x:.0f}" y="{box_top:.0f}" width="{box_w:.0f}" height="{box_bottom-box_top:.0f}" rx="14" fill="{TARGET_TINT}" stroke="{NAVY}" stroke-width="1.4"/>')
     svg.append(f'<use href="#ic-box" x="{box_x+16:.0f}" y="{box_top+12:.0f}" width="20" height="20" color="{NAVY}"/>')
     svg.append(f'<text x="{box_x+46:.0f}" y="{box_top+27:.0f}" class="body fg" font-size="15" font-weight="700">offline-bundle/</text>')
     svg.append(f'<text x="{box_x+46:.0f}" y="{box_top+41:.0f}" class="body fmute" font-size="11" font-style="italic">everything below is staged into this one folder tree</text>')
 
     for i, r in enumerate(rows):
-        y = table_top + i * pitch
+        y = table_top + i * (row_h + gap)
         cy = y + row_h / 2
         svg.append(f'<text x="{B_CAP_X}" y="{cy+4:.0f}" class="body fg" font-size="12.5" font-weight="700">{esc(r["cap"])}</text>')
         svg.append(cell(B_SRC_X, y, B_SRC_W, row_h, r["src"], r["src_sub"], dark=False))
         svg.append(cell(B_MID_X, y, B_MID_W, row_h, r["mid"], r["mid_sub"], dark=True))
         svg.append(f'<line x1="{B_SRC_X+B_SRC_W}" y1="{cy:.0f}" x2="{B_MID_X-4}" y2="{cy:.0f}" stroke="{NAVY}" stroke-width="1.4" marker-end="url(#arrow)"/>')
 
+    return "".join(svg), float(B_CANVAS_W), height
+
+
+def build_part1(slug: str, title: str, subtitle: str, rows: list[dict]) -> None:
+    fragment, frag_w, frag_h = _build_fragment(rows)
+    top = CONTENT_TOP - (B_HEAD_H + B_BOX_PAD)  # so the fragment's row 0
+                                                # lands at the same content
+                                                # top every other diagram
+                                                # in this set uses
+    canvas_h = top + frag_h + 40
+
+    svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {frag_w:.0f} {canvas_h:.0f}" font-family="Arial, Helvetica, sans-serif">']
+    svg.append(f"<defs>{DEFS}</defs>")
+    svg.append(f'<rect x="0" y="0" width="{frag_w:.0f}" height="{canvas_h:.0f}" fill="{WHITE}"/>')
+    svg.append(header(title, subtitle))
+    svg.append(f'<g transform="translate(0,{top:.0f})">{fragment}</g>')
+
     svg.append("</svg>")
     (OUT_DIR / f"profile-build-{slug}.svg").write_text("\n".join(svg), encoding="utf-8")
-    print(f"wrote profile-build-{slug}.svg  ({B_CANVAS_W}x{canvas_h:.0f}, {len(rows)} rows)")
+    print(f"wrote profile-build-{slug}.svg  ({frag_w:.0f}x{canvas_h:.0f}, {len(rows)} rows)")
 
 
 def brow(cap, src, src_sub, mid, mid_sub):
@@ -262,7 +339,10 @@ def subchip(x: float, y: float, w: float, h: float, label: str) -> str:
             f'<text x="{x+9:.0f}" y="{y+h/2+4:.0f}" class="body fg" font-size="{fs:.1f}" font-weight="600">{esc(label)}</text>')
 
 
-CONFIG_GAP = 42      # space for the connector arrow + its label
+CONTENT_TOP = 110    # where content starts below the header/subtitle --
+                     # shared by the config box and the build inset, so
+                     # both columns start on the same line
+CONFIG_GAP = 34      # space for the connector arrow + its label
 CONFIG_NOTE = "one file, read at install and every later `seed apply`"
 
 # which TOML section in seedling-profile.toml is responsible for each
@@ -292,19 +372,52 @@ CFG_ITEM_H = 22
 CFG_ITEM_GAP = 6
 
 
+INSET_TOP = CONTENT_TOP  # top of the "built once" inset box (its label
+                         # sits above this, in the gap below the subtitle)
+INSET_RIGHT_MARGIN = 110  # room for the connector arrow + "moved to the
+                          # share" label between the inset and the config box
+INSET_ORIGIN_GAP = 20   # gap between the inset's bottom and the origin box
+                        # below it, whichever profile that origin box is
+INSET_MAX_SCALE = 0.52  # never blow the mini build-diagram up past this
+INSET_LABEL = "BUILT ONCE, ON A CONNECTED MACHINE"
+INSET_VIA = "moved to the share"
+
+
 def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
                 machine_note: str, storage: list[dict] | None = None,
                 footnote: str | None = None, config_label: str = "seedling-profile.toml",
-                config_via: str = "install + seed apply") -> None:
+                config_via: str = "install + seed apply",
+                build_rows: list[dict] | None = None) -> None:
     storage = storage or []
     config_lines = _config_key_lines(storage)
     note_wrap = _wrap(CONFIG_NOTE, 40)
     config_items_h = len(config_lines) * (CFG_ITEM_H + CFG_ITEM_GAP) - CFG_ITEM_GAP if config_lines else 0
     config_h = 44 + len(note_wrap) * 12 + (6 + config_items_h if config_lines else 0) + 10
-    base_top = 150
+    base_top = CONTENT_TOP
     table_top = base_top + config_h + CONFIG_GAP
+    machine_x = P_GROUP_X + P_GROUP_W + P_ARROW_GAP
+
+    # the "built once, on a connected machine" inset -- a shrunk copy of
+    # profile-build-<slug>.svg's own content, dropped into the space above
+    # the origin boxes. Its width is capped by the gap to the config
+    # column; its height just follows from that fixed scale, so a taller
+    # build (more rows) makes a taller inset rather than an ever-smaller
+    # one -- the origin box below it is pushed down to make room instead.
+    inset = None
+    inset_bottom = None
+    if build_rows:
+        frag, frag_w, frag_h = _build_fragment(build_rows)
+        avail_w = machine_x - P_GROUP_X - INSET_RIGHT_MARGIN
+        scale = min(avail_w / frag_w, INSET_MAX_SCALE)
+        pad = 10
+        label_h = 22  # room for INSET_LABEL inside the box, above the fragment
+        inset = dict(frag=frag, w=frag_w * scale, h=frag_h * scale, scale=scale,
+                    pad=pad, label_h=label_h)
+        inset_bottom = INSET_TOP + inset["h"] + 2 * pad + label_h
+
     heights = [_group_height(g) for g in groups]
     groups_h = sum(heights) + P_GROUP_GAP * (len(groups) - 1)
+    origin_top = table_top if inset_bottom is None else max(table_top, inset_bottom + INSET_ORIGIN_GAP)
 
     note_lines = _wrap(machine_note, 34)
     storage_heights = [_storage_height(s) for s in storage]
@@ -313,7 +426,12 @@ def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
     # storage location (each with its own nested item chips)
     machine_h = 30 + len(note_lines) * 15 + (M_BULLET_GAP + M_LABEL_H + storage_h if storage else 0) + 14
 
-    total_h = max(groups_h, machine_h)
+    # origin boxes are top-aligned at origin_top rather than centered, so
+    # any slack trails as ordinary bottom margin instead of floating as a
+    # gap above AND below them -- total_h has to cover whichever column
+    # (origin, from origin_top, or the machine box, from table_top) runs
+    # deeper.
+    total_h = max(machine_h, groups_h + (origin_top - table_top))
     canvas_h = table_top + total_h + 50 + (26 if footnote else 0)
 
     svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {P_CANVAS_W} {canvas_h:.0f}" font-family="Arial, Helvetica, sans-serif">']
@@ -321,7 +439,23 @@ def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
     svg.append(f'<rect x="0" y="0" width="{P_CANVAS_W}" height="{canvas_h:.0f}" fill="{WHITE}"/>')
     svg.append(header(title, subtitle))
 
-    machine_x = P_GROUP_X + P_GROUP_W + P_ARROW_GAP
+    if inset:
+        pad = inset["pad"]
+        label_h = inset["label_h"]
+        box_x, box_y = float(P_GROUP_X), float(INSET_TOP)
+        box_w, box_h = inset["w"] + 2 * pad, inset["h"] + 2 * pad + label_h
+        ix, iy = box_x + pad, box_y + pad + label_h
+        svg.append(f'<rect x="{box_x:.0f}" y="{box_y:.0f}" width="{box_w:.0f}" height="{box_h:.0f}" rx="10" fill="none" stroke="{NAVY}" stroke-width="1.3" stroke-dasharray="5 4"/>')
+        svg.append(f'<text x="{box_x+pad:.0f}" y="{box_y+16:.0f}" class="body fg" font-size="11" font-weight="700" letter-spacing="0.6">{esc(INSET_LABEL)}</text>')
+        svg.append(f'<g transform="translate({ix:.1f},{iy:.1f}) scale({inset["scale"]:.4f})">{inset["frag"]}</g>')
+
+        conn_y = box_y + box_h / 2
+        ax1 = box_x + box_w
+        ax2 = float(machine_x)
+        mid_x = (ax1 + ax2) / 2
+        svg.append(f'<line x1="{ax1:.0f}" y1="{conn_y:.0f}" x2="{ax2-4:.0f}" y2="{conn_y:.0f}" stroke="{NAVY}" stroke-width="1.4" marker-end="url(#arrow)"/>')
+        via_size = _fit(INSET_VIA, mid_x - ax1 - 10, 10.5, px_per_char=5.6)
+        svg.append(f'<text x="{mid_x:.0f}" y="{conn_y-8:.0f}" text-anchor="middle" class="body fmute" font-size="{via_size:.1f}" font-style="italic">{esc(INSET_VIA)}</text>')
 
     # the config box -- deliberately the same dark treatment as a "bundle"
     # box elsewhere in this set, so it reads as the one authoritative
@@ -350,7 +484,7 @@ def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
 
     svg.append(f'<rect x="{machine_x:.0f}" y="{table_top:.0f}" width="{P_MACHINE_W:.0f}" height="{total_h:.0f}" rx="12" fill="{TARGET_TINT}" stroke="{NAVY}" stroke-width="1.2"/>')
 
-    content_top = table_top + max(0, (total_h - machine_h) / 2)
+    content_top = table_top
     svg.append(f'<use href="#ic-monitor" x="{machine_x+22:.0f}" y="{content_top+4:.0f}" width="24" height="24" color="{NAVY}"/>')
     svg.append(f'<text x="{machine_x+56:.0f}" y="{content_top+21:.0f}" class="body fg" font-size="15" font-weight="700">YOUR MACHINE</text>')
     m_note_size = _fit(machine_note, P_MACHINE_W - 44, 11.5, px_per_char=5.6)
@@ -380,7 +514,7 @@ def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
                 svg.append(subchip(item_x, iy, item_w, SH_ITEM_H, it_label))
             sub_y += sh + SH_GROUP_GAP
 
-    y = table_top + max(0, (total_h - groups_h) / 2)
+    y = origin_top
     for g, gh in zip(groups, heights):
         icon = _ICONS[g["kind"]]
         fill = _KIND_FILL[g["kind"]]
@@ -557,6 +691,8 @@ PROFILES = [
         title="Internal PyPI only",
         subtitle="Partial bundle -- everything except the wheels",
         build=[
+            brow("seedling itself", "this git checkout", "install.cmd, src/, installers/",
+                "seedling/", "copied in, refreshed every re-run"),
             brow("uv", "astral.sh", "the binary itself",
                 "vendor/uv/", "staged into the bundle"),
             brow("Interpreters", "python-build-standalone", "no internal PBS mirror",
@@ -577,6 +713,7 @@ PROFILES = [
                     item("Spyder", "seed apply"),
                 ]),
                 group("S:\\seedling (the bundle)", "everything else, copied once", kind="bundle", items=[
+                    item("seedling itself", "system/src/"),
                     item("uv", "system/bin/"),
                     item("Interpreters", "seed python"),
                     item("conda-forge tools", "seed forge-install"),
@@ -599,6 +736,8 @@ PROFILES = [
         title="Air-gapped (VSCodium)",
         subtitle="No redistribution rights -- built once, carried in",
         build=[
+            brow("seedling itself", "this git checkout", "install.cmd, src/, installers/",
+                "seedling/", "copied in, refreshed every re-run"),
             brow("Packages", "pypi.org", "every venv package",
                 "wheels/", "staged into the bundle"),
             brow("uv", "astral.sh", "the binary itself",
@@ -615,6 +754,7 @@ PROFILES = [
         pull=dict(
             groups=[
                 group("the share (the bundle)", "offline-bundle/, copied once", kind="bundle", items=[
+                    item("seedling itself", "system/src/"),
                     item("Packages", "seed install"),
                     item("uv", "system/bin/"),
                     item("Interpreters", "seed python"),
@@ -638,6 +778,8 @@ PROFILES = [
         title="Air-gapped (VS Code)",
         subtitle="Keeps Pylance -- built once, carried in",
         build=[
+            brow("seedling itself", "this git checkout", "install.cmd, src/, installers/",
+                "seedling/", "copied in, refreshed every re-run"),
             brow("Packages", "pypi.org", "every venv package",
                 "wheels/", "staged into the bundle"),
             brow("uv", "astral.sh", "the binary itself",
@@ -654,6 +796,7 @@ PROFILES = [
         pull=dict(
             groups=[
                 group("the share (the bundle)", "offline-bundle/, copied once", kind="bundle", items=[
+                    item("seedling itself", "system/src/"),
                     item("Packages", "seed install"),
                     item("uv", "system/bin/"),
                     item("Interpreters", "seed python"),
@@ -677,6 +820,8 @@ PROFILES = [
         title="Air-gapped (everything)",
         subtitle="Every capability at once -- the maximal case",
         build=[
+            brow("seedling itself", "this git checkout", "install.cmd, src/, installers/",
+                "seedling/", "copied in, refreshed every re-run"),
             brow("Packages + Spyder", "pypi.org", "every venv package, per interpreter",
                 "wheels/", "staged into the bundle"),
             brow("uv", "astral.sh", "the binary itself",
@@ -695,6 +840,7 @@ PROFILES = [
         pull=dict(
             groups=[
                 group("S:\\seedling (the bundle)", "one shared bundle, staged once", kind="bundle", items=[
+                    item("seedling itself", "system/src/"),
                     item("Packages + Spyder", "seed install / apply"),
                     item("uv", "system/bin/"),
                     item("Interpreters x2", "seed python 3.12 / 3.11"),
@@ -744,7 +890,8 @@ def main() -> None:
             build_part1(p["slug"], p["title"], p["subtitle"], p["build"])
         pull = p["pull"]
         build_part2(p["slug"], p["title"], p["subtitle"], pull["groups"],
-                    pull["machine_note"], pull.get("storage"), pull.get("footnote"))
+                    pull["machine_note"], pull.get("storage"), pull.get("footnote"),
+                    build_rows=p.get("build"))
 
 
 if __name__ == "__main__":

@@ -777,23 +777,27 @@ def test_editor_validates_without_the_cli_having_been_imported():
 
 
 def test_every_documented_example_profile_is_valid():
-    """Every TOML block in the profile examples page must parse. They're
-    presented as copy-and-ship files, so a stale one is worse than no
-    example at all.
+    """Every TOML block across the profile examples subpages must parse.
+    They're presented as copy-and-ship files, so a stale one is worse than
+    no example at all.
 
-    The page also carries a few custom-commands.toml examples (the
-    software-team and classroom personas demonstrate `seed custom` /
-    `startup_commands` alongside their profile) -- those are `[[command]]`
-    tables, a different schema entirely, and must be routed to
-    custom_commands.parse() instead of being force-fit as a profile."""
+    Each example lives on its own page under docs/profile-examples/ (split
+    out of the single PROFILE-EXAMPLES.md landing page), and a few carry
+    custom-commands.toml examples too (the software-team and classroom
+    personas demonstrate `seed custom` / `startup_commands` alongside their
+    profile) -- those are `[[command]]` tables, a different schema
+    entirely, and must be routed to custom_commands.parse() instead of
+    being force-fit as a profile."""
     import re
 
     from conftest import REPO_ROOT
     from seedling import custom_commands as cc_mod
 
-    page = (REPO_ROOT / "docs" / "PROFILE-EXAMPLES.md").read_text(encoding="utf-8")
+    pages = sorted((REPO_ROOT / "docs" / "profile-examples").glob("*.md"))
+    assert len(pages) >= 5, "profile-examples/ lost its subpages?"
+    page = "\n".join(p.read_text(encoding="utf-8") for p in pages)
     blocks = re.findall(r"```toml\n(.*?)```", page, re.S)
-    assert len(blocks) >= 5, "examples page lost its profiles?"
+    assert len(blocks) >= 5, "examples pages lost their profiles?"
     profile_blocks = [b for b in blocks if "[[command]]" not in b]
     command_blocks = [b for b in blocks if "[[command]]" in b]
     assert profile_blocks, "examples page lost its profiles?"
