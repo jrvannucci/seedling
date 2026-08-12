@@ -35,10 +35,10 @@ update its entry here too and re-run:
 
     python docs/diagrams/generate_profile_flows.py
 
-Unlike the *.mmd -> *.svg diagrams build.py in this same directory, these
-are hand-authored SVG rather than Mermaid: grouped origin boxes with nested
-chips and per-chip labeled arrows don't map onto Mermaid's flowchart
-syntax."""
+Hand-authored SVG, not a markup language rendered by a tool: grouped origin
+boxes with nested chips and per-chip labeled arrows don't map onto a
+flowchart syntax like Mermaid's -- and every diagram under this directory is
+hand-authored SVG for exactly that reason, no exceptions left."""
 
 from __future__ import annotations
 from pathlib import Path
@@ -161,7 +161,7 @@ B_CONF_NOTE = "read on this machine, before build-offline stages anything"
 B_CONF_VIA = "sets these before staging"
 B_CONF_GAP = 30  # room for the connector arrow + its label
 
-# which build.py call reads which seedling.conf key, and what it lands as --
+# which build_offline.py call reads which seedling.conf key, and what it lands as --
 # every one of these is `config.get(...)` on the BUILD MACHINE's own local
 # settings, called from build_offline.py/vscode_cmd.py/conda_tool.py before
 # any staging happens. Keyed by the capability row that key affects, so a

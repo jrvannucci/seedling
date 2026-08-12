@@ -11,9 +11,18 @@ it, so there's no second source of truth to keep in sync:
     people deploying it. ``DOCUMENTATION.md`` is the map that routes between
     them.
 
-Diagrams are pre-rendered SVGs under ``docs/diagrams/`` (each carrying its own
-mermaid source; regenerate with ``docs/diagrams/build.py``), so the build
-needs no mermaid/JS/CDN and the pages render offline.
+Diagrams are pre-rendered SVGs under ``docs/diagrams/``, every one of them a
+hand-authored, pure-Python generator script with no dependency beyond the
+stdlib and each other -- ``generate_profile_flows.py``,
+``generate_command_map.py``, ``generate_family_commands.py``,
+``generate_marketing_flows.py``. That makes them all safe to run on every
+build, so ``_generate_diagrams`` below does exactly that: their SVGs are
+always fresh, never a stale committed artifact someone forgot to regenerate
+after editing a generator's data. (There used to be a third kind -- three
+mermaid diagrams rendered by Node's mermaid-cli via a since-removed
+``build.py`` -- but hand-authoring is no more work for something this
+simple, and it means the docs build needs no mermaid/JS/CDN of any kind,
+committed or not, and the pages render offline.)
 
 Build locally:
 
@@ -99,7 +108,29 @@ def _generate_home(*_args) -> None:
     (_HERE / "index.md").write_text(body + toctree, encoding="utf-8")
 
 
+def _generate_diagrams(*_args) -> None:
+    """Regenerate every SVG diagram (command-map, per-family command
+    breakdowns, profile-flow, the marketing flow diagrams embedded in
+    README.md) before Sphinx reads any sources, so a build always embeds
+    current output rather than a possibly-stale committed SVG. Every
+    generator module is self-contained (stdlib only, aside from importing
+    shared helpers from generate_profile_flows), so this adds no build
+    dependency."""
+    diagrams_dir = _HERE / "diagrams"
+    sys.path.insert(0, str(diagrams_dir))
+    import generate_command_map
+    import generate_family_commands
+    import generate_marketing_flows
+    import generate_profile_flows
+
+    generate_profile_flows.main()
+    generate_command_map.build()
+    generate_family_commands.build()
+    generate_marketing_flows.build()
+
+
 def setup(app):
     # config-inited fires before sources are read, so the generated index.md
-    # is in place by the time Sphinx looks for it.
+    # and diagram SVGs are in place by the time Sphinx looks for them.
     app.connect("config-inited", _generate_home)
+    app.connect("config-inited", _generate_diagrams)

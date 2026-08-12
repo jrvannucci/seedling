@@ -1,10 +1,11 @@
 # seedling documentation
 
-seedling is a single `seed` command that wraps [`uv`](https://astral.sh/uv)
-and keeps every Python interpreter, virtual environment, VS Code install,
-and cloned repo it manages inside one folder: `~/seedling`. Nothing it does
-touches your system Python, `%APPDATA%`, `~/.vscode`, or any of the other
-places these tools normally scatter files into.
+seedling is a single `seed` command — a tidy, single-folder global Python
+distributor and local environment manager — that keeps every Python
+interpreter, virtual environment, VS Code install, and cloned repo it
+manages inside one folder: `~/seedling`. Nothing it does touches your
+system Python, `%APPDATA%`, `~/.vscode`, or any of the other places these
+tools normally scatter files into.
 
 This page is the map. The documentation is split into two tracks — one for
 people **using** seedling, one for people **deploying** it to others.
@@ -20,7 +21,7 @@ Start here if seedling is installed on your own machine, or about to be.
 | **[Using seedling](GUIDE.md)** | How installation works, the folder layout, why `seed` is a shell function, the update model, uninstalling, and troubleshooting. |
 | **[Command reference](COMMANDS.md)** | Every command and flag in detail. |
 | **[Design and safety](DESIGN.md)** | Why deletion is so defensive, what gets logged, how downloads are verified, and how to run seedling unattended. |
-| **[Scripting & automation](COMMANDS.md#scripting--automation)** | The machine-facing surface, in one place: `seed run`, `seed which`, `--json` on every read command, never blocking on a prompt, and how concurrent commands are serialized. |
+| **[Scripting & automation](commands/scripting-and-automation.md)** | The machine-facing surface, in one place: `seed run`, `seed which`, `--json` on every read command, never blocking on a prompt, and how concurrent commands are serialized. |
 
 ---
 
@@ -54,10 +55,10 @@ layout, and running the tests.
 |---|---|
 | Install seedling | [Using seedling → How installation works](GUIDE.md#how-installation-works) |
 | Look up a command | [Command reference](COMMANDS.md) |
-| Drive seedling from a script, CI job or AI agent | [Scripting & automation](COMMANDS.md#scripting--automation) |
-| Get a venv's interpreter path | [`seed which`](COMMANDS.md#seed-which-name---json) |
-| Run something in a venv without a shell | [`seed run`](COMMANDS.md#seed-run--n-venv----command-args) |
-| Read seedling's state as JSON | [Scripting & automation](COMMANDS.md#scripting--automation) |
+| Drive seedling from a script, CI job or AI agent | [Scripting & automation](commands/scripting-and-automation.md) |
+| Get a venv's interpreter path | [`seed which`](commands/venvs-and-packages.md#seed-which-name---json) |
+| Run something in a venv without a shell | [`seed run`](commands/venvs-and-packages.md#seed-run--n-venv----command-args) |
+| Read seedling's state as JSON | [Scripting & automation](commands/scripting-and-automation.md) |
 | Install an editor (VS Code, Spyder) or a Python app | [Command reference](COMMANDS.md) |
 | Standardize the editor across a fleet | [Deployment profiles](PROFILES.md) |
 | Understand where files go | [Using seedling → The folder layout](GUIDE.md#the-folder-layout) |

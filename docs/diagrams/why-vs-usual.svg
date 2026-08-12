@@ -1,25 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 290" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" role="img" aria-label="Getting started with Python: the usual way (hours of setup) versus seedling (one command)">
-  <metadata id="mermaid-source" data-encoding="base64">Zmxvd2NoYXJ0IFRCCiAgICBVWyJHZXR0aW5nIHN0YXJ0ZWQgd2l0aCBQeXRob24iXQogICAgVSAtLT58VGhlIHVzdWFsIHdheXwgTm9ybWFsWyJyZXNlYXJjaCwgaW5zdGFsbCwgYW5kIGNvbm5lY3Qgc2V2ZXJhbCB0b29scyDigJQ8YnIvPmhvdXJzIG9mIHNldHVwIGFuZCBkZWNpc2lvbnM8YnIvPmJlZm9yZSB5b3VyIGZpcnN0IGxpbmUgb2YgY29kZSJdCiAgICBVIC0tPnxXaXRoIHNlZWRsaW5nfCBTZWVkWyJydW4gb25lIGNvbW1hbmQg4oaSIG9wZW4gYSB0ZXJtaW5hbCDihpI8YnIvPnlvdSdyZSB3cml0aW5nIFB5dGhvbiJdCgogICAgc3R5bGUgTm9ybWFsIGZpbGw6IzNhMjAyMCxzdHJva2U6I2EzMyxjb2xvcjojZmZmCiAgICBzdHlsZSBTZWVkIGZpbGw6IzFmM2EyNCxzdHJva2U6IzNhMyxjb2xvcjojZmZmCg==</metadata>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" font-family="Arial, Helvetica, sans-serif">
+
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#8a8a8a"/>
+    <style>
+      .head { font-family: Georgia, 'Times New Roman', serif; }
+      .body { font-family: Arial, Helvetica, sans-serif; }
+    </style>
+    <marker id="mf-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#8A8A8A"/>
     </marker>
   </defs>
-  <path d="M380,68 V100 H200 V156" fill="none" stroke="#8a8a8a" stroke-width="2" marker-end="url(#arrow)"/>
-  <path d="M380,68 V100 H570 V156" fill="none" stroke="#8a8a8a" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="270" y="22" width="220" height="46" rx="8" fill="#22304a" stroke="#4a77aa" stroke-width="2"/>
-  <text x="380" y="50" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold">Getting started with Python</text>
-  <rect x="30" y="158" width="340" height="112" rx="8" fill="#3a2020" stroke="#aa3a3a" stroke-width="2"/>
-  <text x="200" y="194" text-anchor="middle" fill="#fff" font-size="13">
-    <tspan x="200">research, install, and connect several tools —</tspan>
-    <tspan x="200" dy="22">hours of setup and decisions</tspan>
-    <tspan x="200" dy="22">before your first line of code</tspan>
-  </text>
-  <rect x="410" y="158" width="320" height="90" rx="8" fill="#1f3a24" stroke="#3aaa5a" stroke-width="2"/>
-  <text x="570" y="196" text-anchor="middle" fill="#fff" font-size="13">
-    <tspan x="570">run one command → open a terminal →</tspan>
-    <tspan x="570" dy="22">you're writing Python</tspan>
-  </text>
-  <text x="200" y="132" text-anchor="middle" fill="#24292f" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round" font-size="12" font-weight="bold">The usual way</text>
-  <text x="570" y="132" text-anchor="middle" fill="#24292f" stroke="#fff" stroke-width="3" paint-order="stroke" stroke-linejoin="round" font-size="12" font-weight="bold">With seedling</text>
+
+<line x1="380" y1="76" x2="380" y2="102" stroke="#8A8A8A" stroke-width="1.6"/>
+<line x1="205" y1="102" x2="555" y2="102" stroke="#8A8A8A" stroke-width="1.6"/>
+<line x1="205" y1="102" x2="205" y2="174" stroke="#8A8A8A" stroke-width="1.6" marker-end="url(#mf-arrow)"/>
+<line x1="555" y1="102" x2="555" y2="174" stroke="#8A8A8A" stroke-width="1.6" marker-end="url(#mf-arrow)"/>
+<text x="205" y="156" text-anchor="middle" class="body" font-size="13.5" font-weight="700" fill="#1B4332">The usual way</text>
+<text x="555" y="156" text-anchor="middle" class="body" font-size="13.5" font-weight="700" fill="#1B4332">With seedling</text>
+<rect x="230" y="20" width="300" height="56" rx="10" fill="#1B4332" stroke="#1B4332" stroke-width="1.4"/><text x="380" y="53" text-anchor="middle" class="body" font-size="13.5" font-weight="700" fill="#FFFFFF">Getting started with Python</text>
+<rect x="40" y="190" width="330" height="96" rx="10" fill="#9C4A3C" stroke="#9C4A3C" stroke-width="1.4"/><text x="205" y="223" text-anchor="middle" class="body" font-size="13.5" font-weight="700" fill="#FFFFFF">research, install, and connect several tools —</text><text x="205" y="243" text-anchor="middle" class="body" font-size="13.5" font-weight="700" fill="#FFFFFF">hours of setup and decisions</text><text x="205" y="263" text-anchor="middle" class="body" font-size="13.5" font-weight="700" fill="#FFFFFF">before your first line of code</text>
+<rect x="390" y="190" width="330" height="96" rx="10" fill="#1B4332" stroke="#1B4332" stroke-width="1.4"/><text x="555" y="233" text-anchor="middle" class="body" font-size="13.5" font-weight="700" fill="#FFFFFF">run one command → open a terminal →</text><text x="555" y="253" text-anchor="middle" class="body" font-size="13.5" font-weight="700" fill="#FFFFFF">you're writing Python</text>
 </svg>

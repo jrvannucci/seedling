@@ -25,7 +25,7 @@
 
   <!-- ============ "what it manages" eyebrow ============ -->
   <text x="800" y="160" text-anchor="middle" class="fsage" font-size="15" font-weight="700" letter-spacing="1.2">
-    MANAGES:  Python interpreters &#183; venvs &amp; packages &#183; VS Code / Spyder &#183; conda-forge tools &#183; git repos &#183; org-wide profiles
+    MANAGES:  Python interpreters &#183; venvs &amp; packages &#183; PyPI apps &#183; VS Code / Spyder &#183; conda-forge tools &#183; git repos &#183; org-wide profiles
   </text>
 
   <!-- ============ Capstone: the promise ============ -->
@@ -56,9 +56,9 @@
     <text x="196" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Zero-touch config</text>
     <g class="fmute" font-size="15.5" text-anchor="middle">
       <text x="196" y="495">One file, seedling.conf,</text>
-      <text x="196" y="521">carries every setting.</text>
-      <text x="196" y="547">No environment variables,</text>
-      <text x="196" y="573">ever.</text>
+      <text x="196" y="521">holds every setting —</text>
+      <text x="196" y="547">never scattered across</text>
+      <text x="196" y="573">shell profiles or CI.</text>
     </g>
   </g>
 
@@ -92,14 +92,14 @@
     </g>
     <text x="800" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Safe by default</text>
     <g class="fmute" font-size="15.5" text-anchor="middle">
-      <text x="800" y="495">Nothing is force-closed</text>
-      <text x="800" y="521">up front. Previews come</text>
-      <text x="800" y="547">before anything destructive,</text>
-      <text x="800" y="573">and locks stop collisions.</text>
+      <text x="800" y="495">Every destructive command</text>
+      <text x="800" y="521">previews first. File locks</text>
+      <text x="800" y="547">stop install collisions</text>
+      <text x="800" y="573">before they start.</text>
     </g>
   </g>
 
-  <!-- Pillar 4: BUILT FOR SCALE -->
+  <!-- Pillar 4: ORG-WIDE PROFILES -->
   <g>
     <rect x="966" y="345" width="272" height="280" rx="14" class="cardfill" stroke="#1B4332" stroke-width="1.4"/>
     <circle cx="1102" cy="399" r="34" class="barfill"/>
@@ -109,12 +109,12 @@
       <rect x="0" y="11.5" width="8.5" height="8.5" rx="1.4" class="stroke2"/>
       <rect x="11.5" y="11.5" width="8.5" height="8.5" rx="1.4" class="stroke2"/>
     </g>
-    <text x="1102" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Built for scale</text>
+    <text x="1102" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Org-wide profiles</text>
     <g class="fmute" font-size="15.5" text-anchor="middle">
-      <text x="1102" y="495">One config, one profile.</text>
-      <text x="1102" y="521">Every machine in an</text>
-      <text x="1102" y="547">organization ends up in</text>
-      <text x="1102" y="573">the exact same state.</text>
+      <text x="1102" y="495">Write one profile once.</text>
+      <text x="1102" y="521">Every machine that</text>
+      <text x="1102" y="547">installs from it gets</text>
+      <text x="1102" y="573">the identical setup.</text>
     </g>
   </g>
 
@@ -128,10 +128,10 @@
     </g>
     <text x="1404" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Scriptable too</text>
     <g class="fmute" font-size="15.5" text-anchor="middle">
-      <text x="1404" y="495">Every read command speaks</text>
-      <text x="1404" y="521">JSON. No shell required —</text>
+      <text x="1404" y="495">seed-cli runs standalone,</text>
+      <text x="1404" y="521">no shell hook required —</text>
       <text x="1404" y="547">built for scripts, CI, and</text>
-      <text x="1404" y="573">AI agents alike.</text>
+      <text x="1404" y="573">AI agents. JSON on request.</text>
     </g>
   </g>
 
@@ -145,7 +145,7 @@
   <!-- ============ Foundation ============ -->
   <rect x="60" y="657" width="1480" height="98" rx="14" class="barfill"/>
   <text x="800" y="695" text-anchor="middle" class="fw" font-size="22" font-weight="700">One folder: ~/seedling</text>
-  <text x="800" y="725" text-anchor="middle" class="fw" font-size="16" opacity="0.88">nothing touches the system outside it — fully removable, no trace left behind</text>
+  <text x="800" y="725" text-anchor="middle" class="fw" font-size="16" opacity="0.88">no messy global installs, no scattered config — fully removable, no trace left behind</text>
 
   <!-- ============ Closing line ============ -->
   <text x="800" y="793" text-anchor="middle" class="fmute" font-size="17" font-style="italic">

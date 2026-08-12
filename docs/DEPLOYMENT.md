@@ -146,7 +146,7 @@ that differ from the public defaults are written alongside it, into
 existing settings file is never overwritten, so later `seed config set`
 choices survive reinstalls. Changing `seedling.conf` later doesn't reach
 already-installed machines on its own; `seed update-commands` will *report*
-any drift it finds (see [its reference entry](COMMANDS.md#seed-update-commands))
+any drift it finds (see [its reference entry](commands/lifecycle.md#seed-update-commands))
 but never overwrite a setting for you. Resolution order for the install source:
 
 1. `SEEDLING_REPO` environment variable (one-run override)

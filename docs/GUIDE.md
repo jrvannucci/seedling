@@ -35,7 +35,7 @@ from a **local checkout** or a **directory/share** (origins 2 and 3) uses no
 git at all. Separately, `seed repo-clone` (a feature *of* seedling, used
 after it's installed) needs git the same way — reusing that same
 auto-bootstrapped portable copy on Windows; see
-[`seed repo-clone`](COMMANDS.md#seed-repo-clone-git-url) for details.
+[`seed repo-clone`](commands/repos.md#seed-repo-clone-git-url) for details.
 
 ### The four ways to install
 
@@ -326,7 +326,7 @@ command without you explicitly asking it to.**
 This section is entirely about the `seed` command's own code. If what's out
 of date is your *environment* instead — venvs, packages, or repos drifting
 from an organization's [deployment profile](PROFILES.md) — that's
-[`seed apply`](COMMANDS.md#seed-apply-profile---preview---force), a
+[`seed apply`](commands/status.md#seed-apply-profile---preview---force), a
 separate command covered on its own page. Neither updates the other.
 
 The installer doesn't install `seed-cli` from wherever you ran it from — it
@@ -361,7 +361,7 @@ checkout instead if you're developing seedling itself).
 After refreshing, it also re-reads the now-current `seedling.conf` and
 reports (never applies) any *setting* it would now seed differently than
 what's actually configured — see
-[`seed update-commands`](COMMANDS.md#seed-update-commands) for the
+[`seed update-commands`](commands/lifecycle.md#seed-update-commands) for the
 full explanation. Settings are otherwise seeded once, at install time,
 and never re-applied on their own.
 
@@ -395,7 +395,7 @@ seed purge
 ```
 
 To wipe and immediately rebuild instead of just removing, use
-[`seed purge-and-reinstall`](COMMANDS.md#seed-purge-and-reinstall--y) — it purges and
+[`seed purge-and-reinstall`](commands/lifecycle.md#seed-purge-and-reinstall--y) — it purges and
 then reinstalls from the recorded source, preserving your cloned repos.
 
 Two narrower / fallback options:
@@ -485,7 +485,7 @@ into.
   other implementations aren't wired up.
 - `seed kill-processes --system` is machine-wide rather than
   seedling-scoped, by design — see
-  [the command reference](COMMANDS.md#seed-kill-processes-name---system--y---preview---non-interactive).
+  [the command reference](commands/lifecycle.md#seed-kill-processes-name---system--y---preview---non-interactive).
 - `seed repo-clone`/`repo-install` need git; only Windows is auto-bootstrapped
   (via portable MinGit) — macOS/Linux still need system git already present,
   since neither has an equivalent official portable build.
