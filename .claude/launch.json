@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "docs-preview",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8241", "--directory", "docs/_build/html"],
+      "port": 8241
+    }
+  ]
+}

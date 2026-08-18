@@ -18,3 +18,8 @@ vendor/
 # Output of build-offline.cmd (the assembled offline bundle). A distribution
 # artifact, not source -- carried to the air-gapped share, never committed.
 offline-bundle/
+
+# Claude Code: launch.json is shared (a portable dev-server config); the
+# permission allowlist is per-user state and belongs to whoever's machine
+# it grew on.
+.claude/settings.local.json
