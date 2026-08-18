@@ -4,12 +4,8 @@ Complete, working [deployment profiles](PROFILES.md) for real situations.
 Each one is a whole file — copy it, change the names, ship it. For what every
 key means, see the [profile reference](PROFILES.md#reference).
 
-Save any of these as `seedling-profile.toml` next to `seedling.conf` in the
+Save any of these as `profile.toml` next to `global.conf` in the
 copy you distribute, and everyone who installs from it gets that environment.
-
-![A ten-row, eight-column matrix comparing every example profile against whether it needs to be offline, a package index, VS Code, Spyder, conda-forge tools, CA certificates, a pre-built offline bundle, and whether it is limited to x86_64 -- Research group, Software team, Both editors, Classroom, Internal mirrors, Internal PyPI only, Air-gapped (VSCodium), Air-gapped (VS Code), Air-gapped (everything), and Just Python.](diagrams/profile-matrix.svg)
-
-## Contents
 
 | Example | What it's for | Offline | Index | VS Code | Spyder | conda-forge | CA certs | Bundle | x86_64 only |
 | --- | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
@@ -76,7 +72,7 @@ profile-examples/just-python
 on your own machine before it reaches anyone else:
 
 ```
-seed apply ./seedling-profile.toml --preview
+seed apply ./profile.toml --preview
 ```
 
 An invalid profile exits `2` and names the problem. That matters more than it

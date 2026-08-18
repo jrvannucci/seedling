@@ -192,7 +192,7 @@ organization has standardized on.
 > `update-commands` never touches any of what this one manages.
 
 - With no path, uses the profile recorded at install time (the `profile`
-  setting), else `seedling-profile.toml` in the current directory.
+  setting), else `profile.toml` in the current directory.
 - **Idempotent.** Applying twice changes nothing the second time, which is
   what makes it usable both as the install-time provisioning step and as the
   way a fleet picks up later changes to the standard.
@@ -222,6 +222,37 @@ seed apply ./team-profile.toml --force
 
 ---
 
+## `seed profile-check [profile] [--bundle PATH]`
+
+Checks whether a profile can actually be applied from an
+[offline bundle](../OFFLINE.md) — **before** anyone tries it. Written for the
+air-gapped side, where a profile is often authored months after the bundle
+was carried in and there's no way to find out what the share holds short of
+applying it and watching it fail.
+
+- Checks the profile's interpreters, packages (including exact `==` pins),
+  conda-forge tools, editors, and repos with their extras against what the
+  bundle **actually contains** — the real wheelhouse, interpreter mirror,
+  conda channel and staged editor, not what anyone intended to build.
+- With no path, uses the same profile `seed apply` would.
+- The bundle is found automatically when `package_index` is a directory of
+  wheels inside one (which is what an install from a bundle records). Pass
+  `--bundle S:\tools` otherwise.
+- Reports **every** problem at once, not just the first — the round trip to
+  fix one is a walk to a locked room.
+- Reads only; nothing is installed or changed. No network.
+- Exit codes: `0` applies cleanly, `1` the bundle can't satisfy it (each
+  reason is named), `2` the profile itself is invalid.
+
+```
+seed profile-check ./new-team.toml
+```
+
+The connected-machine half of the same check runs inside `build-offline`,
+against [`offline-bundle.toml`](../OFFLINE.md#offline-bundletoml--what-the-share-contains).
+
+---
+
 ## `seed config [get <key> | set <key> <value> | unset <key>]`
 
 Views and changes seedling's own settings, stored in
@@ -247,7 +278,7 @@ setting with its current value and an explanation. The keys:
   (default: `ipython, ruff, ipykernel`). Takes comma-separated input.
 - `python_mirror` / `package_index` — offline sources for interpreters
   and packages (a URL, or a plain directory on a share). Normally seeded
-  from `seedling.conf` at install time; see [OFFLINE.md](../OFFLINE.md).
+  from `global.conf` at install time; see [OFFLINE.md](../OFFLINE.md).
 - `conda_channel` — where `seed forge-install` fetches conda-forge
   command-line tools from (default: `conda-forge`). A URL or local
   directory for an internal mirror or an offline network.

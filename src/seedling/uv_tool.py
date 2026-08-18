@@ -67,7 +67,7 @@ def _build_env(env: dict | None) -> dict:
       ~/seedling/system/cache/uv so it lives inside the seedling folder
       like everything else.
     - the `python_mirror` and `package_index` settings (seeded from
-      seedling.conf at install time -- the offline/air-gapped story) are
+      global.conf at install time -- the offline/air-gapped story) are
       translated into uv's own environment knobs, so users never have to
       set UV_* variables themselves.
 

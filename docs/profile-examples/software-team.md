@@ -23,7 +23,7 @@ is the one that does actual work.
 ![Four separate origins -- pypi.org, conda-forge, the VS Code Marketplace, github.com -- each with its own labeled arrow into the engineer's machine.](../diagrams/profile-pull-software-team.svg)
 
 ```toml
-# seedling-profile.toml -- the platform team's standard environment.
+# profile.toml -- the platform team's standard environment.
 
 python = ["3.12", "3.11"]
 
@@ -85,7 +85,7 @@ vscode_extensions = [
 without them ever discovering the underlying tool names:
 
 ```toml
-# custom-commands.toml -- next to seedling-profile.toml in the distributed copy
+# custom-commands.toml -- next to profile.toml in the distributed copy
 [[command]]
 name = "lint"
 run = ["ruff", "check", "."]
@@ -99,7 +99,7 @@ venv = "dev"
 description = "Run the test suite"
 ```
 
-Wired in `seedling.conf` next to `SEEDLING_PROFILE`:
+Wired in `global.conf` next to `SEEDLING_PROFILE`:
 
 ```sh
 SEEDLING_CUSTOM_COMMANDS="custom-commands.toml"

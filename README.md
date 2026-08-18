@@ -19,7 +19,7 @@ interpreter, virtual environment, and cloned repo stays tidy in one
 predictable location instead of sprawling across your machine. It's also a
 fast way to standardize a team: point it at
 [your own git host or a network share](docs/OFFLINE.md) via
-[`seedling.conf`](seedling.conf), and hand junior or non-technical users a
+[`global.conf`](global.conf), and hand junior or non-technical users a
 fully preconfigured, batteries-included environment they install in a single
 line.
 
@@ -141,7 +141,7 @@ Command names read predictably: a bare noun is the action (`python` installs,
 | `seed run -- <cmd...>` | Run a command in a venv without activating one |
 | `seed which [name]` | Print a venv's python interpreter path |
 | `seed install <pkg...>` | Add packages to the active venv |
-| `seed download-whl <pkg...>` | Download a package + its deps as wheels for an offline install |
+| `seed download-whls <pkg...>` | Download a package + its deps as wheels for an offline install |
 | `seed vscode` | Open the bundled, portable VS Code |
 | `seed spyder` | Open Spyder, wired to your active venv |
 | `seed tool-install <name>` | Install a Python app (Spyder, JupyterLab) in its own env |
@@ -187,7 +187,7 @@ where the usual Python setup path doesn't work:
   already owns. Nothing is written to the registry, `%APPDATA%`, or any
   system location.
 - **Nothing for your users to configure.** You set the values once in
-  [`seedling.conf`](seedling.conf) in the copy you distribute; everyone who
+  [`global.conf`](global.conf) in the copy you distribute; everyone who
   installs from it inherits them. No flags, no environment variables, no
   setup instructions to get wrong.
 - **One file defines the environment.** A
@@ -234,7 +234,7 @@ For a fully disconnected network, see
 
 **Deploying seedling**
 
-- 📘 **[Deployment guide](docs/DEPLOYMENT.md)** — `seedling.conf`,
+- 📘 **[Deployment guide](docs/DEPLOYMENT.md)** — `global.conf`,
   shared-machine installs, admin teardown, rollout, security review.
 - 🧩 **[Deployment profiles](docs/PROFILES.md)** — one file describing the
   venvs, packages and repos your users should end up with.

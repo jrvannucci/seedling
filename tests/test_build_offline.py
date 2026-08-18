@@ -87,7 +87,7 @@ def test_minor_version(filename, expected):
 
 
 def test_write_conf_replaces_in_place(tmp_path):
-    conf = tmp_path / "seedling.conf"
+    conf = tmp_path / "global.conf"
     conf.write_text('SEEDLING_REPO_URL="https://old"\nOTHER="keep"\n',
                     encoding="utf-8")
     build_offline.write_conf(conf, {"SEEDLING_REPO_URL": "https://new"})
@@ -98,7 +98,7 @@ def test_write_conf_replaces_in_place(tmp_path):
 
 
 def test_write_conf_appends_missing_key(tmp_path):
-    conf = tmp_path / "seedling.conf"
+    conf = tmp_path / "global.conf"
     conf.write_text('OTHER="keep"\n', encoding="utf-8")
     build_offline.write_conf(conf, {"SEEDLING_PACKAGE_INDEX": "S:/wheels"})
     assert 'SEEDLING_PACKAGE_INDEX="S:/wheels"' in conf.read_text(encoding="utf-8")
@@ -107,7 +107,7 @@ def test_write_conf_appends_missing_key(tmp_path):
 def test_write_conf_handles_windows_backslash_value(tmp_path):
     """A Windows path value must not be interpreted as a regex-replacement
     escape (the \\U-in-C:\\Users bug)."""
-    conf = tmp_path / "seedling.conf"
+    conf = tmp_path / "global.conf"
     conf.write_text('SEEDLING_PYTHON_MIRROR="x"\n', encoding="utf-8")
     win = r"C:\Users\dev\bundle\python-builds"
     build_offline.write_conf(conf, {"SEEDLING_PYTHON_MIRROR": win})
@@ -117,6 +117,98 @@ def test_write_conf_handles_windows_backslash_value(tmp_path):
 def test_dry_run_returns_zero(tmp_path):
     code = build_offline.main(["--dry-run", "--output", str(tmp_path / "b")])
     assert code == 0
+
+
+# --- offline-bundle.toml: the superset the build is driven by ---------------
+
+def _spec_and_profile(tmp_path, spec: str, profile: str = None):
+    (tmp_path / "profiles").mkdir(parents=True, exist_ok=True)
+    if profile is not None:
+        (tmp_path / "profiles" / "team.toml").write_text(
+            profile, encoding="utf-8")
+    path = tmp_path / "offline-bundle.toml"
+    path.write_text(spec, encoding="utf-8")
+    return path
+
+
+def test_the_bundle_spec_alone_drives_the_build(tmp_path, capsys):
+    """--dry-run prints the resolved plan: it comes from the spec, and the
+    checked profile contributes nothing to it."""
+    spec = _spec_and_profile(
+        tmp_path,
+        'pythons = ["3.12"]\npackages = ["polars"]\n[editor]\nstage = false\n',
+        '[[venv]]\nname = "dev"\npackages = ["polars"]\n')
+    code = build_offline.main(["--dry-run", "--bundle", str(spec),
+                               "--check-profile",
+                               str(tmp_path / "profiles" / "team.toml"),
+                               "--output", str(tmp_path / "out")])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "polars" in out
+    assert "Python      : 3.12" in out
+    assert "skipped" in out, "[editor] stage = false must skip the editor"
+    assert "never folded in" in out
+
+
+def test_a_profile_the_bundle_cant_satisfy_stops_before_downloading(
+        tmp_path, capsys):
+    """The whole point of the superset: this fails on the connected machine,
+    not in the air-gapped room."""
+    spec = _spec_and_profile(
+        tmp_path,
+        '[editor]\nstage = false\n',
+        'editor = "vscode"\n[[venv]]\nname = "dev"\n')
+    code = build_offline.main(["--bundle", str(spec), "--yes",
+                               "--check-profile",
+                               str(tmp_path / "profiles" / "team.toml"),
+                               "--output", str(tmp_path / "out")])
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "can't be satisfied" in out and "team.toml" in out
+    assert not (tmp_path / "out").exists(), "nothing may be downloaded"
+
+
+def test_a_package_only_the_profile_names_is_not_silently_added(
+        tmp_path, capsys):
+    """The inversion, stated as a test: before, naming it in a profile put it
+    in the bundle. Now it's an error the admin has to answer."""
+    spec = _spec_and_profile(
+        tmp_path, 'pythons = ["3.12"]\n',
+        '[[venv]]\nname = "dev"\npackages = ["polars"]\n')
+    code = build_offline.main(["--bundle", str(spec), "--yes",
+                               "--check-profile",
+                               str(tmp_path / "profiles" / "team.toml"),
+                               "--output", str(tmp_path / "out")])
+    out = capsys.readouterr().out
+    assert code == 2 and "polars" in out
+
+
+def test_a_profile_still_stocks_the_bundle_when_there_is_no_spec(
+        tmp_path, capsys):
+    """The pre-bundle path is untouched: with no offline-bundle.toml, a
+    profile remains the best statement of what a fleet needs."""
+    _spec_and_profile(tmp_path, "", '[[venv]]\nname = "dev"\n'
+                                    'packages = ["polars"]\n')
+    code = build_offline.main(["--dry-run", "--bundle=", "--profile",
+                               str(tmp_path / "profiles" / "team.toml"),
+                               "--output", str(tmp_path / "out")])
+    out = capsys.readouterr().out
+    assert code == 0 and "polars" in out
+
+
+def test_an_invalid_bundle_spec_exits_two(tmp_path, capsys):
+    spec = _spec_and_profile(tmp_path, "nonsense = 1\n")
+    code = build_offline.main(["--dry-run", "--bundle", str(spec),
+                               "--output", str(tmp_path / "out")])
+    assert code == 2
+    assert "unknown key" in capsys.readouterr().out
+
+
+def test_an_empty_bundle_flag_ignores_the_file(tmp_path, capsys):
+    _spec_and_profile(tmp_path, "nonsense = 1\n")
+    code = build_offline.main(["--dry-run", "--bundle=",
+                               "--output", str(tmp_path / "out")])
+    assert code == 0, "--bundle= must build without the spec, not fail on it"
 
 
 # --- preflight --------------------------------------------------------------
@@ -138,6 +230,42 @@ def _fake_bundle(tmp_path, versions=("3.12",), floor='">=3.12"'):
         (tag / f"cpython-{v}.9+20260623-x86_64-pc-windows-msvc-"
                "install_only_stripped.tar.gz").write_text("archive")
     return out
+
+
+def test_the_build_cache_covers_pip_as_well_as_uv(tmp_path, monkeypatch):
+    """The wheels are fetched by pip, which keeps its OWN http cache -- so a
+    cache that only covers uv leaves every wheel out of it, and each mirrored
+    interpreter re-downloads the same py3-none-any files."""
+    cache = tmp_path / "cache"
+    env = build_offline._uv_env(cache=cache)
+    assert env["UV_CACHE_DIR"] == str(cache)
+    assert env["PIP_CACHE_DIR"] == str(cache / "pip")
+
+
+def test_no_cache_leaves_both_caches_where_they_were(tmp_path, monkeypatch):
+    """`cache=None` used to point uv at a directory literally named "None"
+    next to wherever the builder happened to run."""
+    monkeypatch.delenv("UV_CACHE_DIR", raising=False)
+    monkeypatch.delenv("PIP_CACHE_DIR", raising=False)
+    env = build_offline._uv_env(cache=None)
+    assert "UV_CACHE_DIR" not in env and "PIP_CACHE_DIR" not in env
+
+
+def test_the_wheel_download_runs_under_that_cache(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_run(cmd, env=None, **kw):
+        seen["cmd"] = cmd
+        seen["env"] = env
+        return types.SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    build_offline._download_wheels_for(
+        Path("uv"), ["pandas"], tmp_path / "wheels", "3.12",
+        tmp_path / "cache")
+    assert seen["cmd"][1:6] == ["tool", "run", "--from", "pip", "pip"], \
+        "wheels are fetched with uvx pip download"
+    assert seen["env"]["PIP_CACHE_DIR"] == str(tmp_path / "cache" / "pip")
 
 
 def test_discover_mirrored_versions(tmp_path):
@@ -313,7 +441,7 @@ def test_resolve_archive_format_explicit_passes_through(fmt):
 def _fake_output_dir(tmp_path) -> Path:
     out = tmp_path / "offline-bundle"
     (out / "seedling").mkdir(parents=True)
-    (out / "seedling" / "seedling.conf").write_text("SEEDLING_REPO_URL=x\n")
+    (out / "seedling" / "global.conf").write_text("SEEDLING_REPO_URL=x\n")
     (out / "wheels").mkdir()
     (out / "wheels" / "hatchling-1.0-py3-none-any.whl").write_text("wheel")
     (out / "MANIFEST.json").write_text("{}")
@@ -330,7 +458,7 @@ def test_archive_bundle_zip_contains_the_whole_tree_under_one_folder(tmp_path):
     # the same layout install.cmd/seed apply expect -- not the contents
     # spilled loose at the archive root.
     assert all(n.startswith("offline-bundle/") for n in names)
-    assert "offline-bundle/seedling/seedling.conf" in names
+    assert "offline-bundle/seedling/global.conf" in names
     assert "offline-bundle/wheels/hatchling-1.0-py3-none-any.whl" in names
     assert "offline-bundle/MANIFEST.json" in names
 
@@ -343,13 +471,13 @@ def test_archive_bundle_tar_gz_contains_the_whole_tree_under_one_folder(tmp_path
         names = tf.getnames()
     assert all(n.startswith("offline-bundle/") or n == "offline-bundle"
               for n in names)
-    assert "offline-bundle/seedling/seedling.conf" in names
+    assert "offline-bundle/seedling/global.conf" in names
 
 
 def test_archive_bundle_leaves_the_original_folder_in_place(tmp_path):
     out = _fake_output_dir(tmp_path)
     build_offline.archive_bundle(out, "zip")
-    assert (out / "seedling" / "seedling.conf").exists()
+    assert (out / "seedling" / "global.conf").exists()
 
 
 def test_archive_bundle_returns_none_and_warns_on_failure(tmp_path, monkeypatch,
@@ -1001,3 +1129,44 @@ def test_no_vscode_still_builds_unattended_with_just_yes(tmp_path, monkeypatch):
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
     assert build_offline.main(["--yes", "--no-vscode", "--no-verify",
                                "-o", str(tmp_path / "b")]) == 0
+
+
+def test_the_spec_supplies_the_deploy_root(tmp_path, capsys):
+    """A share's real path doesn't change between builds; retyping it on
+    every rebuild is how a bundle ends up with a global.conf pointing at
+    someone's scratch directory."""
+    spec = _spec_and_profile(tmp_path, 'deploy_root = "S:\\tools"\n')
+    code = build_offline.main(["--dry-run", "--bundle", str(spec),
+                               "--output", str(tmp_path / "out")])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "Deploy path : S:\tools" in out
+
+
+def test_the_flag_still_beats_the_spec_deploy_root(tmp_path, capsys):
+    spec = _spec_and_profile(tmp_path, 'deploy_root = "S:\\tools"\n')
+    code = build_offline.main(["--dry-run", "--bundle", str(spec),
+                               "--deploy-root", "T:\other",
+                               "--output", str(tmp_path / "out")])
+    assert code == 0
+    assert "Deploy path : T:\other" in capsys.readouterr().out
+
+
+def test_a_spec_for_another_platform_stops_the_build(tmp_path, capsys):
+    """Builds cleanly, installs nowhere: wheels, uv, the interpreters and the
+    editor are all platform-specific, so this has to fail here."""
+    spec = _spec_and_profile(tmp_path, 'platform = "Plan9/sparc"\n')
+    code = build_offline.main(["--dry-run", "--bundle", str(spec),
+                               "--output", str(tmp_path / "out")])
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "Plan9/sparc" in out and "this machine is" in out
+
+
+def test_a_matching_platform_passes(tmp_path, capsys):
+    import platform as _p
+    here = f"{_p.system()}/{build_offline.normalized_arch(_p.machine())}"
+    spec = _spec_and_profile(tmp_path, f'platform = "{here}"\n')
+    code = build_offline.main(["--dry-run", "--bundle", str(spec),
+                               "--output", str(tmp_path / "out")])
+    assert code == 0

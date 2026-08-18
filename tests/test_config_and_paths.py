@@ -125,7 +125,7 @@ def test_public_repo_matches_installer_defaults():
     patterns = {
         "installers/install.sh": r'DEFAULT_SEEDLING_REPO="([^"]+)"',
         "installers/install.ps1": r'\$DefaultSeedlingRepo = "([^"]+)"',
-        "seedling.conf": r'SEEDLING_REPO_URL="([^"]+)"',
+        "global.conf": r'SEEDLING_REPO_URL="([^"]+)"',
     }
     for rel, pattern in patterns.items():
         text = (repo_root / rel).read_text(encoding="utf-8")
@@ -181,3 +181,23 @@ def test_git_dir_is_rebound_into_the_test_home(home):
     from seedling import git_tool
 
     assert home in git_tool.GIT_DIR.parents
+
+
+def test_the_upload_token_is_masked_wherever_settings_are_printed(run_cli, home):
+    """seedling tees command output into ~/seedling/system/logs, so an
+    unmasked token would be written to disk by the act of reading it back."""
+    config.set_value("package_upload_token", "s3cret-token")
+
+    code, out = run_cli("config")
+    assert code == 0
+    assert "s3cret-token" not in out
+    assert "********" in out and "(set)" in out
+
+    code, out = run_cli("config", "get", "package_upload_token")
+    assert code == 0
+    assert "s3cret-token" not in out
+
+
+def test_an_unset_secret_is_not_shown_as_masked(run_cli, home):
+    code, out = run_cli("config", "get", "package_upload_token")
+    assert code == 0 and out.strip() == "", "unset must stay empty for scripts"

@@ -278,7 +278,7 @@ def run(args) -> int:
     if path is None:
         print("No profile to apply.")
         print("Pass one explicitly (`seed apply <file>`), or put a "
-              "seedling-profile.toml in this directory.")
+              "profile.toml in this directory.")
         return 1
 
     try:
@@ -386,7 +386,7 @@ def run(args) -> int:
         name = forge_cmd._spec_name(tool)
         if paths.forge_manifest_file(name).exists():
             continue
-        # conda_channel is already in place (seedling.conf at install time), so
+        # conda_channel is already in place (global.conf at install time), so
         # an offline bundle installs these from its own conda-channel.
         if forge_cmd.install(Namespace(spec=tool)) != 0:
             failed.append(f"tool {name}")

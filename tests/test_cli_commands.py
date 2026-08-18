@@ -22,12 +22,14 @@ ALL_COMMANDS = [
     "tool-install", "tool-list", "tool-remove",
     "forge", "forge-install", "forge-list", "forge-remove",
     "custom",
-    "download-whl", "download-requirements", "download-forge",
+    "download-whls", "download-requirements", "download-forge",
+    "upload-whls",
     "repo-clone", "repo-list", "repo-cd", "vscode-repo", "spyder-repo",
     "repo-open", "repo-install", "remove-repo",
     "vscode", "spyder",
     "summary", "health-check", "logs-viewer", "config", "where",
-    "apply", "kill-processes", "update-commands", "remove-user", "purge",
+    "apply", "profile-check",
+    "kill-processes", "update-commands", "remove-user", "purge",
     "purge-and-reinstall",
 ]
 

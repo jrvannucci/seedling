@@ -23,7 +23,7 @@ optional.
 ![One origin, pypi.org, feeding every lab machine with identical pins -- no bundle this term.](../diagrams/profile-pull-classroom.svg)
 
 ```toml
-# seedling-profile.toml -- PHYS-201, autumn term.
+# profile.toml -- PHYS-201, autumn term.
 
 python = ["3.12"]
 
@@ -60,7 +60,7 @@ single fixed one — and `toplevel = true`
 means it really is just the one word to type, not `seed custom reset`:
 
 ```toml
-# custom-commands.toml -- next to seedling-profile.toml
+# custom-commands.toml -- next to profile.toml
 [[command]]
 name = "reset"
 script = "reset.py"
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 ```
 
 ```sh
-# seedling.conf
+# global.conf
 SEEDLING_CUSTOM_COMMANDS="custom-commands.toml"
 ```
 

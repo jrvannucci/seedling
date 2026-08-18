@@ -13,10 +13,10 @@
 
 set -eu
 
-# Built-in defaults. seedling.conf ships with these same values written
+# Built-in defaults. global.conf ships with these same values written
 # out, so a conf that still matches them changes nothing -- only edited
 # values have any effect. The baked-in copies exist for the piped
-# one-liner install, where no local seedling.conf exists yet to consult.
+# one-liner install, where no local global.conf exists yet to consult.
 DEFAULT_SEEDLING_REPO="https://github.com/jrvannucci/seedling.git"
 DEFAULT_VENV_PACKAGES="ipython,ruff,ipykernel"
 
@@ -24,7 +24,7 @@ SEEDLING_REPO_FROM_ENV="${SEEDLING_REPO:-}"
 SEEDLING_HOME_FROM_ENV="${SEEDLING_HOME:-}"
 SEEDLING_AUTO_SETUP_FROM_ENV="${SEEDLING_AUTO_SETUP:-}"
 SEEDLING_AUTO_VSCODE_FROM_ENV="${SEEDLING_AUTO_VSCODE:-}"
-# Captured before seedling.conf is sourced (which would overwrite it). This
+# Captured before global.conf is sourced (which would overwrite it). This
 # is what lets a user point the PIPED one-liner at their own profile, where
 # there is no local conf to edit:
 #   curl -fsSL .../install.sh | SEEDLING_PROFILE=./team.toml sh
@@ -50,11 +50,11 @@ is_true()  { [ "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" = "true" ]; }
 # 1. Locate the seedling source (local checkout next to this script, or clone)
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-# This script lives in installers/; the repo root (seedling.conf, src/) is
+# This script lives in installers/; the repo root (global.conf, src/) is
 # one level up.
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# seedling.conf at the repo root is the deployment config: organizations
+# global.conf at the repo root is the deployment config: organizations
 # distributing seedling from their own git host or a network drive set the
 # source (and any install-time settings) there ONCE, and their users install
 # with no flags or env vars. Standard internet installs ship a conf whose
@@ -66,6 +66,8 @@ SEEDLING_AUTO_SETUP=""
 SEEDLING_AUTO_VSCODE=""
 SEEDLING_PYTHON_MIRROR=""
 SEEDLING_PACKAGE_INDEX=""
+SEEDLING_PACKAGE_UPLOAD_URL=""
+SEEDLING_PACKAGE_UPLOAD_TOKEN=""
 SEEDLING_NATIVE_TLS=""
 SEEDLING_CONDA_CHANNEL=""
 SEEDLING_VSCODE_FLAVOR=""
@@ -76,13 +78,21 @@ SEEDLING_PROFILE=""
 SEEDLING_CUSTOM_COMMANDS=""
 SEEDLING_STARTUP_COMMANDS=""
 CONF_FILE=""
-if [ -f "$REPO_ROOT/seedling.conf" ]; then
+if [ -f "$REPO_ROOT/global.conf" ]; then
+    CONF_FILE="$REPO_ROOT/global.conf"
+    . "$CONF_FILE"
+elif [ -f "$REPO_ROOT/seedling.conf" ]; then
+    # The pre-rename name. Honored so an organization's customized copy keeps
+    # working through the upgrade: ignoring it would silently install their
+    # fleet from the public internet with default settings, which is a far
+    # worse failure than a warning.
     CONF_FILE="$REPO_ROOT/seedling.conf"
     . "$CONF_FILE"
+    printf '%s\n' "  ! seedling.conf is now global.conf -- rename it; this fallback goes away."
 fi
 
 # Source resolution: SEEDLING_REPO env var (one-run override) beats
-# seedling.conf, which beats the baked-in default.
+# global.conf, which beats the baked-in default.
 if [ -n "$SEEDLING_REPO_FROM_ENV" ]; then
     SEEDLING_REPO="$SEEDLING_REPO_FROM_ENV"
 elif [ -n "$SEEDLING_REPO_URL" ]; then
@@ -361,13 +371,17 @@ if [ "$CLEANUP_ORIGINAL_SRC" = "1" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 2c. Seed seedling's settings from seedling.conf (first install only --
+# 2c. Seed seedling's settings from global.conf (first install only --
 #     an existing settings.json is never touched, so reinstalls don't
 #     clobber choices made later with `seed config set`).
 # ---------------------------------------------------------------------------
 # Piped installs have no local conf, but the clone we just copied does.
-if [ -z "$CONF_FILE" ] && [ -f "$SRC_DIR/seedling.conf" ]; then
-    . "$SRC_DIR/seedling.conf"
+if [ -z "$CONF_FILE" ]; then
+    if [ -f "$SRC_DIR/global.conf" ]; then
+        . "$SRC_DIR/global.conf"
+    elif [ -f "$SRC_DIR/seedling.conf" ]; then
+        . "$SRC_DIR/seedling.conf"          # pre-rename name
+    fi
 fi
 
 # Record where this install came from, so `seed update-commands` knows
@@ -436,6 +450,19 @@ if [ ! -f "$SETTINGS_FILE" ]; then
         [ -n "$entries" ] && entries="$entries,
 "
         entries="$entries  \"package_index\": \"$(json_escape "$SEEDLING_PACKAGE_INDEX")\""
+    fi
+    if [ -n "$SEEDLING_PACKAGE_UPLOAD_URL" ]; then
+        [ -n "$entries" ] && entries="$entries,
+"
+        entries="$entries  \"package_upload_url\": \"$(json_escape "$SEEDLING_PACKAGE_UPLOAD_URL")\""
+    fi
+    # A WRITE credential. Normally left empty in a distributed conf and set
+    # only on the machine that publishes (`seed config set`); seeding it here
+    # would hand every user of this share publish rights to the index.
+    if [ -n "$SEEDLING_PACKAGE_UPLOAD_TOKEN" ]; then
+        [ -n "$entries" ] && entries="$entries,
+"
+        entries="$entries  \"package_upload_token\": \"$(json_escape "$SEEDLING_PACKAGE_UPLOAD_TOKEN")\""
     fi
     # conda-forge channel for `seed forge-install`. Only seeded when overridden
     # (an internal mirror / offline path); the built-in default is conda-forge.
@@ -533,7 +560,7 @@ if [ ! -f "$SETTINGS_FILE" ]; then
     fi
     if [ -n "$entries" ]; then
         printf '{\n%s\n}\n' "$entries" > "$SETTINGS_FILE"
-        info "Seeded seedling settings from seedling.conf"
+        info "Seeded seedling settings from global.conf"
     fi
 fi
 
@@ -638,7 +665,7 @@ SEED_CLI="$SEEDLING_HOME/system/bin/seed-cli"
 # 4b. Default environment: the newest stable Python plus a 'dev' venv (with
 #     the default packages) that every new shell auto-activates -- so a
 #     fresh install is immediately usable with plain `python`/`ipython`.
-#     Skip with SEEDLING_AUTO_SETUP="false" (env var or seedling.conf). Never
+#     Skip with SEEDLING_AUTO_SETUP="false" (env var or global.conf). Never
 #     fatal: a network hiccup here still leaves a working seedling.
 # ---------------------------------------------------------------------------
 if [ -n "$SEEDLING_AUTO_SETUP_FROM_ENV" ]; then

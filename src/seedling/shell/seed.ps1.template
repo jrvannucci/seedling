@@ -11,7 +11,7 @@ $script:SeedlingSettings = Join-Path $script:SeedlingHome "system\config\setting
 
 # seed-cli itself resolves the seedling home from this variable (falling
 # back to ~/seedling). Setting it here is what makes a custom
-# SEEDLING_HOME_DIR from seedling.conf work at runtime, not just at
+# SEEDLING_HOME_DIR from global.conf work at runtime, not just at
 # install time. For default installs this is a no-op.
 $env:SEEDLING_HOME = $script:SeedlingHome
 

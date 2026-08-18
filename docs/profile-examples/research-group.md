@@ -24,7 +24,7 @@ want the collection rig to keep working.
 ![One box, pypi.org -- packages and Spyder both come from the public index, straight to each researcher's own machine.](../diagrams/profile-pull-research-group.svg)
 
 ```toml
-# seedling-profile.toml -- environment for the lab.
+# profile.toml -- environment for the lab.
 
 python = ["3.12"]
 

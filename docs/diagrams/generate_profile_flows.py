@@ -100,6 +100,11 @@ DEFS = f"""
       <line x1="8" y1="15.5" x2="16" y2="15.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
       <line x1="8" y1="19" x2="12.5" y2="19" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
     </symbol>
+    <symbol id="ic-terminal" viewBox="0 0 24 24">
+      <rect x="2.5" y="4" width="19" height="16" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M6.5 9 L10.5 12 L6.5 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="12" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
   </defs>
 """
 
@@ -140,6 +145,25 @@ def cell(x: float, y: float, w: float, h: float, label: str, sub: str, *,
     return "".join(parts)
 
 
+def _trigger_box(x: float, y: float, w: float, label: str, note: str) -> tuple[str, float]:
+    """A "you run this command" box -- SLATE fill, deliberately a third
+    look distinct from both the dark NAVY config-file cards and the light
+    ICE/TARGET_TINT origin/storage boxes, so "a command someone runs"
+    reads as its own kind of thing, not a file and not a place things come
+    from. Neither global.conf nor profile.toml read themselves;
+    something has to be run first, and that's what this box is. Returns
+    (markup, height)."""
+    note_wrap = _wrap(note, int(w / 5.6))
+    h = 44 + len(note_wrap) * 12 + 8
+    parts = [f'<rect x="{x:.0f}" y="{y:.0f}" width="{w:.0f}" height="{h:.0f}" rx="12" fill="{SLATE}"/>']
+    parts.append(f'<use href="#ic-terminal" x="{x+16:.0f}" y="{y+12:.0f}" width="20" height="20" color="{WHITE}"/>')
+    label_size = _fit(label, w - 96, 14, px_per_char=6.4)
+    parts.append(f'<text x="{x+44:.0f}" y="{y+27:.0f}" class="body fw" font-size="{label_size:.1f}" font-weight="700">{esc(label)}</text>')
+    for j, line in enumerate(note_wrap):
+        parts.append(f'<text x="{x+16:.0f}" y="{y+41+j*12:.0f}" class="body" fill="#CFE3D6" font-size="10" font-style="italic">{esc(line)}</text>')
+    return "".join(parts), h
+
+
 # ---------------------------------------------------------------------------
 # Part 1: profile-build-<slug>.svg -- sources -> what's staged into the
 # bundle. Only generated for profiles that have a `build` list (i.e. build
@@ -156,12 +180,16 @@ B_HEAD_H = 40   # height of the "offline-bundle/" header drawn inside the box
 B_BOX_PAD = 16  # gap between the box's outer edge and the header/chips it contains
 
 
-B_CONF_LABEL = "seedling.conf"
+B_CONF_LABEL = "global.conf"
 B_CONF_NOTE = "read on this machine, before build-offline stages anything"
 B_CONF_VIA = "sets these before staging"
 B_CONF_GAP = 30  # room for the connector arrow + its label
 
-# which build_offline.py call reads which seedling.conf key, and what it lands as --
+B_TRIGGER_LABEL = "build-offline.cmd"
+B_TRIGGER_NOTE = "you run this yourself, on a connected machine -- nothing runs on its own"
+B_TRIGGER_GAP = 26
+
+# which build_offline.py call reads which global.conf key, and what it lands as --
 # every one of these is `config.get(...)` on the BUILD MACHINE's own local
 # settings, called from build_offline.py/vscode_cmd.py/conda_tool.py before
 # any staging happens. Keyed by the capability row that key affects, so a
@@ -184,53 +212,69 @@ def _build_conf_lines(rows: list[dict]) -> list[str]:
 def _build_fragment(rows: list[dict]) -> tuple[str, float, float]:
     """The "sources -> one offline-bundle/ box" content, in its own local
     coordinate space starting at (0, 0) -- no header, no background, no
-    <svg> wrapper, so it can be dropped into another diagram's <g
-    transform> (scaled down, embedded top-left of profile-pull-<slug>.svg)
-    as well as wrapped standalone by build_part1(). Returns (markup,
-    natural_width, natural_height).
+    <svg> wrapper, wrapped standalone by build_part1() into
+    profile-build-<slug>.svg. Returns (markup, natural_width,
+    natural_height).
 
-    A profile decides package/tool/venv content, but which editor BUILD
-    gets staged is a build-machine decision seedling.conf makes before the
-    profile is even read -- so that box sits above offline-bundle/ with a
-    downward arrow into it, the same "config dictates creation of the box
-    below it" language already used for seedling-profile.toml above YOUR
-    MACHINE on the pull side."""
+    build-offline.cmd's own arrow runs straight down into offline-bundle/
+    -- what it actually produces. global.conf (when this profile's rows
+    need a key from it) is a build-machine setting read along the way --
+    which editor BUILD to stage, which conda channel -- not a stop on that
+    production line, so it sits beside the arrow instead of on it, with
+    its own short arrow merging into the main one to show it's read as
+    part of the same run."""
     row_h = 54
     gap = 10
     table_h = len(rows) * (row_h + gap) - gap
     conf_lines = _build_conf_lines(rows)
 
-    note_wrap = _wrap(B_CONF_NOTE, 44) if conf_lines else []
+    note_wrap = _wrap(B_CONF_NOTE, 40) if conf_lines else []
     conf_items_h = len(conf_lines) * (CFG_ITEM_H + CFG_ITEM_GAP) - CFG_ITEM_GAP if conf_lines else 0
     conf_h = (44 + len(note_wrap) * 12 + 6 + conf_items_h + 10) if conf_lines else 0.0
-    conf_gap = B_CONF_GAP if conf_lines else 0.0
-
-    y_shift = B_HEAD_H + B_BOX_PAD  # local table_top, leaves room for the
-                                    # box header above row 0
-    table_top = y_shift + conf_h + conf_gap
-    box_top = conf_h + conf_gap
-    box_bottom = table_top + table_h + B_BOX_PAD
-    height = box_bottom
+    conf_w = B_SRC_W
 
     box_x = B_MID_X - B_BOX_PAD
     box_w = B_MID_W + 2 * B_BOX_PAD
 
-    svg = []
-    if conf_lines:
-        svg.append(f'<rect x="{box_x:.0f}" y="0" width="{box_w:.0f}" height="{conf_h:.0f}" rx="12" fill="{NAVY}"/>')
-        svg.append(f'<use href="#ic-doc" x="{box_x+16:.0f}" y="12" width="20" height="20" color="{WHITE}"/>')
-        svg.append(f'<text x="{box_x+44:.0f}" y="27" class="body fw" font-size="14" font-weight="700">{esc(B_CONF_LABEL)}</text>')
-        for j, line in enumerate(note_wrap):
-            svg.append(f'<text x="{box_x+16:.0f}" y="{41+j*12:.0f}" class="body" fill="#CFE3D6" font-size="10" font-style="italic">{esc(line)}</text>')
-        keys_top = 41 + len(note_wrap) * 12 + 6
-        svg.append(f'<line x1="{box_x+16:.0f}" y1="{keys_top-8:.0f}" x2="{box_x+box_w-16:.0f}" y2="{keys_top-8:.0f}" stroke="{WHITE}" stroke-width="1" opacity="0.2"/>')
-        for j, line in enumerate(conf_lines):
-            svg.append(subchip(box_x + 16, keys_top + j * (CFG_ITEM_H + CFG_ITEM_GAP), box_w - 32, CFG_ITEM_H, line))
+    # build-offline.cmd -- nothing above reads itself; someone has to run
+    # this first, on a connected machine, before anything gets staged.
+    trigger_svg, trigger_h = _trigger_box(box_x, 0, box_w, B_TRIGGER_LABEL, B_TRIGGER_NOTE)
 
-        conn_x = box_x + box_w / 2
-        svg.append(f'<line x1="{conn_x:.0f}" y1="{conf_h:.0f}" x2="{conn_x:.0f}" y2="{box_top-4:.0f}" stroke="{NAVY}" stroke-width="1.6" marker-end="url(#arrow)"/>')
-        via_size = _fit(B_CONF_VIA, box_w - 20, 10.5, px_per_char=5.6)
-        svg.append(f'<text x="{conn_x+10:.0f}" y="{(conf_h+box_top)/2+4:.0f}" class="body fmute" font-size="{via_size:.1f}" font-style="italic">{esc(B_CONF_VIA)}</text>')
+    # Its arrow runs straight down into offline-bundle/. global.conf (see
+    # docstring) is parked beside that line rather than stacked on it --
+    # main_gap keeps the same total space the old stacked layout used, so
+    # this is a repositioning, not a resize.
+    main_gap = (B_TRIGGER_GAP + conf_h + B_CONF_GAP) if conf_lines else B_TRIGGER_GAP
+    box_top = trigger_h + main_gap
+
+    y_shift = B_HEAD_H + B_BOX_PAD  # local table_top, leaves room for the
+                                    # box header above row 0
+    table_top = y_shift + box_top
+    box_bottom = table_top + table_h + B_BOX_PAD
+    height = box_bottom
+
+    svg = [trigger_svg]
+    main_x = box_x + box_w / 2
+    svg.append(f'<line x1="{main_x:.0f}" y1="{trigger_h:.0f}" x2="{main_x:.0f}" y2="{box_top-4:.0f}" stroke="{NAVY}" stroke-width="1.6" marker-end="url(#arrow)"/>')
+
+    if conf_lines:
+        conf_mid_y = trigger_h + main_gap / 2
+        conf_top = conf_mid_y - conf_h / 2
+        conf_x = B_SRC_X
+        svg.append(f'<rect x="{conf_x:.0f}" y="{conf_top:.0f}" width="{conf_w:.0f}" height="{conf_h:.0f}" rx="12" fill="{NAVY}"/>')
+        svg.append(f'<use href="#ic-doc" x="{conf_x+16:.0f}" y="{conf_top+12:.0f}" width="20" height="20" color="{WHITE}"/>')
+        svg.append(f'<text x="{conf_x+44:.0f}" y="{conf_top+27:.0f}" class="body fw" font-size="14" font-weight="700">{esc(B_CONF_LABEL)}</text>')
+        for j, line in enumerate(note_wrap):
+            svg.append(f'<text x="{conf_x+16:.0f}" y="{conf_top+41+j*12:.0f}" class="body" fill="#CFE3D6" font-size="10" font-style="italic">{esc(line)}</text>')
+        keys_top = conf_top + 41 + len(note_wrap) * 12 + 6
+        svg.append(f'<line x1="{conf_x+16:.0f}" y1="{keys_top-8:.0f}" x2="{conf_x+conf_w-16:.0f}" y2="{keys_top-8:.0f}" stroke="{WHITE}" stroke-width="1" opacity="0.2"/>')
+        for j, line in enumerate(conf_lines):
+            svg.append(subchip(conf_x + 16, keys_top + j * (CFG_ITEM_H + CFG_ITEM_GAP), conf_w - 32, CFG_ITEM_H, line))
+
+        join_x1 = conf_x + conf_w
+        svg.append(f'<line x1="{join_x1:.0f}" y1="{conf_mid_y:.0f}" x2="{main_x-4:.0f}" y2="{conf_mid_y:.0f}" stroke="{NAVY}" stroke-width="1.6" marker-end="url(#arrow)"/>')
+        via_size = _fit(B_CONF_VIA, main_x - join_x1 - 10, 10.5, px_per_char=5.6)
+        svg.append(f'<text x="{(join_x1+main_x)/2:.0f}" y="{conf_mid_y-8:.0f}" text-anchor="middle" class="body fmute" font-size="{via_size:.1f}" font-style="italic">{esc(B_CONF_VIA)}</text>')
 
     svg.append(f'<text x="{B_SRC_X}" y="{table_top-14:.0f}" class="body fg" font-size="12.5" font-weight="700" letter-spacing="0.8">PULLED FROM</text>')
 
@@ -339,13 +383,34 @@ def subchip(x: float, y: float, w: float, h: float, label: str) -> str:
             f'<text x="{x+9:.0f}" y="{y+h/2+4:.0f}" class="body fg" font-size="{fs:.1f}" font-weight="600">{esc(label)}</text>')
 
 
-CONTENT_TOP = 110    # where content starts below the header/subtitle --
-                     # shared by the config box and the build inset, so
-                     # both columns start on the same line
+CONTENT_TOP = 110    # where content starts below the header/subtitle
 CONFIG_GAP = 34      # space for the connector arrow + its label
 CONFIG_NOTE = "one file, read at install and every later `seed apply`"
 
-# which TOML section in seedling-profile.toml is responsible for each
+# global.conf, drawn as its own card above profile.toml -- the
+# SEEDLING_PROFILE key is what makes the profile below get read AT ALL, so
+# that's a real "does something" relationship, not just a mention in a
+# caption. Same dark-card-plus-downward-arrow language as global.conf's
+# box in the BUILT ONCE inset (which is a *different* reading of the *same*
+# file -- that one's build-time, on the machine that ran build-offline;
+# this one's install-time, on every machine that installs from the result)
+# and as profile.toml's own arrow into YOUR MACHINE below it, so
+# all three "a config file does something" moments in this diagram read the
+# same way.
+CONF2_LABEL = "global.conf"
+CONF2_NOTE = "read at install, on every machine"
+CONF2_VIA = "sets SEEDLING_PROFILE"
+CONF2_GAP = 30
+
+# install.cmd -- the actual trigger. Nothing reads global.conf on its
+# own; a user (or a script) has to run this first, whether that's a
+# double-click on a share/bundle copy or the piped one-liner that
+# downloads and runs it in one step for a public install.
+INSTALL_TRIGGER_LABEL = "install.cmd  /  the one-liner"
+INSTALL_TRIGGER_NOTE = "you (or a script) run this -- on each machine, once"
+INSTALL_TRIGGER_GAP = 26
+
+# which TOML section in profile.toml is responsible for each
 # on-disk storage location -- derived from `storage`, so the config box
 # lists exactly the sections THIS profile actually uses, never a generic
 # list. Order matters: more specific prefixes first.
@@ -372,52 +437,45 @@ CFG_ITEM_H = 22
 CFG_ITEM_GAP = 6
 
 
-INSET_TOP = CONTENT_TOP  # top of the "built once" inset box (its label
-                         # sits above this, in the gap below the subtitle)
-INSET_RIGHT_MARGIN = 110  # room for the connector arrow + "moved to the
-                          # share" label between the inset and the config box
-INSET_ORIGIN_GAP = 20   # gap between the inset's bottom and the origin box
-                        # below it, whichever profile that origin box is
-INSET_MAX_SCALE = 0.52  # never blow the mini build-diagram up past this
-INSET_LABEL = "BUILT ONCE, ON A CONNECTED MACHINE"
-INSET_VIA = "moved to the share"
-
-
 def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
                 machine_note: str, storage: list[dict] | None = None,
-                footnote: str | None = None, config_label: str = "seedling-profile.toml",
-                config_via: str = "install + seed apply",
-                build_rows: list[dict] | None = None) -> None:
+                footnote: str | None = None, config_label: str = "profile.toml",
+                config_via: str = "install + seed apply") -> None:
     storage = storage or []
+    machine_x = P_GROUP_X + P_GROUP_W + P_ARROW_GAP
+
     config_lines = _config_key_lines(storage)
     note_wrap = _wrap(CONFIG_NOTE, 40)
     config_items_h = len(config_lines) * (CFG_ITEM_H + CFG_ITEM_GAP) - CFG_ITEM_GAP if config_lines else 0
     config_h = 44 + len(note_wrap) * 12 + (6 + config_items_h if config_lines else 0) + 10
-    base_top = CONTENT_TOP
-    table_top = base_top + config_h + CONFIG_GAP
-    machine_x = P_GROUP_X + P_GROUP_W + P_ARROW_GAP
 
-    # the "built once, on a connected machine" inset -- a shrunk copy of
-    # profile-build-<slug>.svg's own content, dropped into the space above
-    # the origin boxes. Its width is capped by the gap to the config
-    # column; its height just follows from that fixed scale, so a taller
-    # build (more rows) makes a taller inset rather than an ever-smaller
-    # one -- the origin box below it is pushed down to make room instead.
-    inset = None
-    inset_bottom = None
-    if build_rows:
-        frag, frag_w, frag_h = _build_fragment(build_rows)
-        avail_w = machine_x - P_GROUP_X - INSET_RIGHT_MARGIN
-        scale = min(avail_w / frag_w, INSET_MAX_SCALE)
-        pad = 10
-        label_h = 22  # room for INSET_LABEL inside the box, above the fragment
-        inset = dict(frag=frag, w=frag_w * scale, h=frag_h * scale, scale=scale,
-                    pad=pad, label_h=label_h)
-        inset_bottom = INSET_TOP + inset["h"] + 2 * pad + label_h
+    conf2_key_line = f"SEEDLING_PROFILE  →  {config_label}"
+    conf2_note_wrap = _wrap(CONF2_NOTE, 40)
+    conf2_h = 44 + len(conf2_note_wrap) * 12 + 6 + CFG_ITEM_H + 10
+
+    # install.cmd -- the trigger. Nothing below reads itself; someone runs
+    # this first, which is what reads global.conf.
+    install_trigger_svg, install_trigger_h = _trigger_box(
+        machine_x, CONTENT_TOP, P_MACHINE_W, INSTALL_TRIGGER_LABEL, INSTALL_TRIGGER_NOTE)
+
+    # install.cmd's own arrow runs straight down into profile.toml
+    # -- what actually shapes YOUR MACHINE below. global.conf is a
+    # setting it reads on the way (where the profile even IS), not a stop
+    # on that line, so it sits to the left with its own arrow merging into
+    # the main one -- same "read on the way, not a step in the chain"
+    # language as global.conf's box on the build side. main_gap keeps
+    # the same total space the old stacked layout used, so this is a
+    # repositioning, not a resize.
+    main_gap = INSTALL_TRIGGER_GAP + conf2_h + CONF2_GAP
+    base_top = CONTENT_TOP + install_trigger_h + main_gap
+    table_top = base_top + config_h + CONFIG_GAP
+
+    conf2_mid_y = CONTENT_TOP + install_trigger_h + main_gap / 2
+    conf2_top = conf2_mid_y - conf2_h / 2
+    conf2_x = float(P_GROUP_X)
 
     heights = [_group_height(g) for g in groups]
     groups_h = sum(heights) + P_GROUP_GAP * (len(groups) - 1)
-    origin_top = table_top if inset_bottom is None else max(table_top, inset_bottom + INSET_ORIGIN_GAP)
 
     note_lines = _wrap(machine_note, 34)
     storage_heights = [_storage_height(s) for s in storage]
@@ -426,12 +484,7 @@ def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
     # storage location (each with its own nested item chips)
     machine_h = 30 + len(note_lines) * 15 + (M_BULLET_GAP + M_LABEL_H + storage_h if storage else 0) + 14
 
-    # origin boxes are top-aligned at origin_top rather than centered, so
-    # any slack trails as ordinary bottom margin instead of floating as a
-    # gap above AND below them -- total_h has to cover whichever column
-    # (origin, from origin_top, or the machine box, from table_top) runs
-    # deeper.
-    total_h = max(machine_h, groups_h + (origin_top - table_top))
+    total_h = max(machine_h, groups_h)
     canvas_h = table_top + total_h + 50 + (26 if footnote else 0)
 
     svg = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {P_CANVAS_W} {canvas_h:.0f}" font-family="Arial, Helvetica, sans-serif">']
@@ -439,23 +492,29 @@ def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
     svg.append(f'<rect x="0" y="0" width="{P_CANVAS_W}" height="{canvas_h:.0f}" fill="{WHITE}"/>')
     svg.append(header(title, subtitle))
 
-    if inset:
-        pad = inset["pad"]
-        label_h = inset["label_h"]
-        box_x, box_y = float(P_GROUP_X), float(INSET_TOP)
-        box_w, box_h = inset["w"] + 2 * pad, inset["h"] + 2 * pad + label_h
-        ix, iy = box_x + pad, box_y + pad + label_h
-        svg.append(f'<rect x="{box_x:.0f}" y="{box_y:.0f}" width="{box_w:.0f}" height="{box_h:.0f}" rx="10" fill="none" stroke="{NAVY}" stroke-width="1.3" stroke-dasharray="5 4"/>')
-        svg.append(f'<text x="{box_x+pad:.0f}" y="{box_y+16:.0f}" class="body fg" font-size="11" font-weight="700" letter-spacing="0.6">{esc(INSET_LABEL)}</text>')
-        svg.append(f'<g transform="translate({ix:.1f},{iy:.1f}) scale({inset["scale"]:.4f})">{inset["frag"]}</g>')
+    # install.cmd -- the trigger that reads global.conf in the first
+    # place. Its arrow runs straight to profile.toml below.
+    svg.append(install_trigger_svg)
+    main_x = machine_x + P_MACHINE_W / 2
+    svg.append(f'<line x1="{main_x:.0f}" y1="{CONTENT_TOP+install_trigger_h:.0f}" x2="{main_x:.0f}" y2="{base_top-4:.0f}" stroke="{NAVY}" stroke-width="1.6" marker-end="url(#arrow)"/>')
 
-        conn_y = box_y + box_h / 2
-        ax1 = box_x + box_w
-        ax2 = float(machine_x)
-        mid_x = (ax1 + ax2) / 2
-        svg.append(f'<line x1="{ax1:.0f}" y1="{conn_y:.0f}" x2="{ax2-4:.0f}" y2="{conn_y:.0f}" stroke="{NAVY}" stroke-width="1.4" marker-end="url(#arrow)"/>')
-        via_size = _fit(INSET_VIA, mid_x - ax1 - 10, 10.5, px_per_char=5.6)
-        svg.append(f'<text x="{mid_x:.0f}" y="{conn_y-8:.0f}" text-anchor="middle" class="body fmute" font-size="{via_size:.1f}" font-style="italic">{esc(INSET_VIA)}</text>')
+    # global.conf -- moved beside that arrow with its own arrow merging
+    # into it, showing the one thing it actually DOES here: sets
+    # SEEDLING_PROFILE, which is what makes the box below get read at all
+    # rather than a bare `dev` venv getting created instead.
+    svg.append(f'<rect x="{conf2_x:.0f}" y="{conf2_top:.0f}" width="{P_MACHINE_W:.0f}" height="{conf2_h:.0f}" rx="12" fill="{NAVY}"/>')
+    svg.append(f'<use href="#ic-doc" x="{conf2_x+18:.0f}" y="{conf2_top+13:.0f}" width="22" height="22" color="{WHITE}"/>')
+    svg.append(f'<text x="{conf2_x+52:.0f}" y="{conf2_top+28:.0f}" class="body fw" font-size="14" font-weight="700">{esc(CONF2_LABEL)}</text>')
+    for j, line in enumerate(conf2_note_wrap):
+        svg.append(f'<text x="{conf2_x+18:.0f}" y="{conf2_top+44+j*12:.0f}" class="body" fill="#CFE3D6" font-size="10" font-style="italic">{esc(line)}</text>')
+    conf2_key_top = conf2_top + 44 + len(conf2_note_wrap) * 12 + 6
+    svg.append(f'<line x1="{conf2_x+18:.0f}" y1="{conf2_key_top-8:.0f}" x2="{conf2_x+P_MACHINE_W-18:.0f}" y2="{conf2_key_top-8:.0f}" stroke="{WHITE}" stroke-width="1" opacity="0.2"/>')
+    svg.append(subchip(conf2_x + 18, conf2_key_top, P_MACHINE_W - 36, CFG_ITEM_H, conf2_key_line))
+
+    join_x1 = conf2_x + P_MACHINE_W
+    svg.append(f'<line x1="{join_x1:.0f}" y1="{conf2_mid_y:.0f}" x2="{main_x-4:.0f}" y2="{conf2_mid_y:.0f}" stroke="{NAVY}" stroke-width="1.6" marker-end="url(#arrow)"/>')
+    conf2_via_size = _fit(CONF2_VIA, main_x - join_x1 - 10, 10.5, px_per_char=5.6)
+    svg.append(f'<text x="{(join_x1+main_x)/2:.0f}" y="{conf2_mid_y-8:.0f}" text-anchor="middle" class="body fmute" font-size="{conf2_via_size:.1f}" font-style="italic">{esc(CONF2_VIA)}</text>')
 
     # the config box -- deliberately the same dark treatment as a "bundle"
     # box elsewhere in this set, so it reads as the one authoritative
@@ -514,7 +573,7 @@ def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
                 svg.append(subchip(item_x, iy, item_w, SH_ITEM_H, it_label))
             sub_y += sh + SH_GROUP_GAP
 
-    y = origin_top
+    y = table_top
     for g, gh in zip(groups, heights):
         icon = _ICONS[g["kind"]]
         fill = _KIND_FILL[g["kind"]]
@@ -559,7 +618,7 @@ def _wrap(text: str, width: int) -> list[str]:
             cur = cand
     if cur:
         lines.append(cur)
-    return lines[:2]
+    return lines
 
 
 # ---------------------------------------------------------------------------
@@ -575,6 +634,9 @@ PROFILES = [
         subtitle="Spyder, two venvs -- installs straight from the internet",
         pull=dict(
             groups=[
+                group("github.com", "the public seedling repo", kind="internet", items=[
+                    item("seedling itself", "the install one-liner"),
+                ]),
                 group("pypi.org", "the public package index", kind="internet", items=[
                     item("Packages", "seed venv / apply"),
                     item("Spyder", "seed spyder"),
@@ -582,6 +644,7 @@ PROFILES = [
             ],
             machine_note="each researcher's own ~/seedling",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.12"]),
                 stored("python/venvs/", "one folder per venv", ["collect", "analyse"]),
                 stored("extensions/spyder-config/", "the editor's local settings", ["Spyder"]),
@@ -594,6 +657,10 @@ PROFILES = [
         subtitle="VS Code, repos cloned -- installs straight from the internet",
         pull=dict(
             groups=[
+                group("github.com", "seedling itself, plus platform.git, shared-lib.git", kind="internet", items=[
+                    item("seedling itself", "the install one-liner"),
+                    item("Repos", "seed repo-clone"),
+                ]),
                 group("pypi.org", "package index", kind="internet", items=[
                     item("Packages", "seed apply"),
                 ]),
@@ -603,12 +670,10 @@ PROFILES = [
                 group("VS Code Marketplace", "official build + 4 extensions", kind="internet", items=[
                     item("Editor", "seed apply"),
                 ]),
-                group("github.com", "platform.git, shared-lib.git", kind="internet", items=[
-                    item("Repos", "seed repo-clone"),
-                ]),
             ],
             machine_note="each engineer's own ~/seedling",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.12", "3.11"]),
                 stored("python/venvs/", "one folder per venv", ["dev", "legacy"]),
                 stored("extensions/vscode/", "portable VS Code + extensions", ["VS Code"]),
@@ -623,6 +688,9 @@ PROFILES = [
         subtitle="One shared venv -- installs straight from the internet",
         pull=dict(
             groups=[
+                group("github.com", "the public seedling repo", kind="internet", items=[
+                    item("seedling itself", "the install one-liner"),
+                ]),
                 group("pypi.org", "package index", kind="internet", items=[
                     item("Packages", "seed apply"),
                     item("Spyder", "seed apply"),
@@ -633,6 +701,7 @@ PROFILES = [
             ],
             machine_note="one shared venv, both editors installed",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.12"]),
                 stored("python/venvs/", "one folder per venv", ["work"]),
                 stored("extensions/", "both editors, side by side", ["VS Code", "Spyder"]),
@@ -645,6 +714,9 @@ PROFILES = [
         subtitle="Pinned, reproducible -- installs straight from the internet",
         pull=dict(
             groups=[
+                group("github.com", "the public seedling repo", kind="internet", items=[
+                    item("seedling itself", "the install one-liner"),
+                ]),
                 group("pypi.org", "package index", kind="internet", items=[
                     item("Packages (pinned)", "seed apply"),
                     item("Spyder", "seed spyder"),
@@ -652,6 +724,7 @@ PROFILES = [
             ],
             machine_note="every lab machine, identical pins",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.12"]),
                 stored("python/venvs/", "one folder per venv", ["phys201"]),
                 stored("extensions/spyder-config/", "the editor's local settings", ["Spyder"]),
@@ -678,6 +751,7 @@ PROFILES = [
             ],
             machine_note="every workstation, live over HTTPS each time",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.12"]),
                 stored("python/venvs/", "one folder per venv", ["work"]),
                 stored("extensions/spyder-config/", "the editor's local settings", ["Spyder"]),
@@ -712,7 +786,7 @@ PROFILES = [
                     item("Packages", "seed install"),
                     item("Spyder", "seed apply"),
                 ]),
-                group("S:\\seedling (the bundle)", "everything else, copied once", kind="bundle", items=[
+                group("S:\\seedling (the offline build)", "everything else, copied once", kind="bundle", items=[
                     item("seedling itself", "system/src/"),
                     item("uv", "system/bin/"),
                     item("Interpreters", "seed python"),
@@ -724,6 +798,7 @@ PROFILES = [
             ],
             machine_note="each user's own ~/seedling, off the share",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.12"]),
                 stored("python/venvs/", "one folder per venv", ["work"]),
                 stored("extensions/", "both editors, side by side", ["VS Code", "Spyder"]),
@@ -753,7 +828,7 @@ PROFILES = [
         ],
         pull=dict(
             groups=[
-                group("the share (the bundle)", "offline-bundle/, copied once", kind="bundle", items=[
+                group("the share (the offline build)", "offline-bundle/, copied once", kind="bundle", items=[
                     item("seedling itself", "system/src/"),
                     item("Packages", "seed install"),
                     item("uv", "system/bin/"),
@@ -765,6 +840,7 @@ PROFILES = [
             ],
             machine_note="zero internet, every machine on the target network",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.12"]),
                 stored("python/venvs/", "one folder per venv", ["work"]),
                 stored("extensions/vscode/", "portable VSCodium + extensions", ["VSCodium"]),
@@ -795,7 +871,7 @@ PROFILES = [
         ],
         pull=dict(
             groups=[
-                group("the share (the bundle)", "offline-bundle/, copied once", kind="bundle", items=[
+                group("the share (the offline build)", "offline-bundle/, copied once", kind="bundle", items=[
                     item("seedling itself", "system/src/"),
                     item("Packages", "seed install"),
                     item("uv", "system/bin/"),
@@ -807,6 +883,7 @@ PROFILES = [
             ],
             machine_note="zero internet, every machine on the target network",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.12"]),
                 stored("python/venvs/", "one folder per venv", ["work"]),
                 stored("extensions/vscode/", "portable VS Code -- keeps Pylance", ["VS Code"]),
@@ -839,7 +916,7 @@ PROFILES = [
         ],
         pull=dict(
             groups=[
-                group("S:\\seedling (the bundle)", "one shared bundle, staged once", kind="bundle", items=[
+                group("S:\\seedling (the offline build)", "one shared offline build, staged once", kind="bundle", items=[
                     item("seedling itself", "system/src/"),
                     item("Packages + Spyder", "seed install / apply"),
                     item("uv", "system/bin/"),
@@ -855,13 +932,14 @@ PROFILES = [
             ],
             machine_note="S:\\users\\{user}\\seedling -- a private folder per person",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.12", "3.11"]),
                 stored("python/venvs/", "one folder per venv", ["dev", "analysis", "legacy"]),
                 stored("extensions/", "both editors, side by side", ["VS Code", "Spyder"]),
                 stored("system/conda/", "conda-forge tool envs", ["ripgrep", "pandoc", "gh"]),
                 stored("repo/", "one folder per clone", ["toolkit", "analysis-lib"]),
             ],
-            footnote="Everything in the bundle box above lands under S:\\users\\{user}\\seedling -- one shared bundle, a private folder per person.",
+            footnote="Everything in the offline-build box above lands under S:\\users\\{user}\\seedling -- one shared offline build, a private folder per person.",
         ),
     ),
     dict(
@@ -870,12 +948,16 @@ PROFILES = [
         subtitle="Interpreters and venvs only -- installs straight from the internet",
         pull=dict(
             groups=[
+                group("github.com", "the public seedling repo", kind="internet", items=[
+                    item("seedling itself", "the install one-liner"),
+                ]),
                 group("pypi.org", "package index", kind="internet", items=[
                     item("Packages", "seed venv"),
                 ]),
             ],
             machine_note="the one venv, straight from the internet",
             storage=[
+                stored("system/src/", "seedling's own source", []),
                 stored("python/base/", "interpreters", ["3.13"]),
                 stored("python/venvs/", "one folder per venv", ["work"]),
             ],
@@ -890,8 +972,7 @@ def main() -> None:
             build_part1(p["slug"], p["title"], p["subtitle"], p["build"])
         pull = p["pull"]
         build_part2(p["slug"], p["title"], p["subtitle"], pull["groups"],
-                    pull["machine_note"], pull.get("storage"), pull.get("footnote"),
-                    build_rows=p.get("build"))
+                    pull["machine_note"], pull.get("storage"), pull.get("footnote"))
 
 
 if __name__ == "__main__":

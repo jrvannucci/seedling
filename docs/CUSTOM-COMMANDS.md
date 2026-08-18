@@ -216,7 +216,7 @@ nothing for a user to remember or type:
 seed config set startup_commands "check-mirror, motd"
 ```
 
-or set once for a whole fleet in `seedling.conf` (see
+or set once for a whole fleet in `global.conf` (see
 [distributing it](#distributing-it)):
 
 ```
@@ -276,7 +276,7 @@ rest of the list.
 ## Distributing it
 
 Same shape as a [profile](PROFILES.md#distributing-it): name the file in
-[`seedling.conf`](https://github.com/jrvannucci/seedling/blob/main/seedling.conf),
+[`global.conf`](https://github.com/jrvannucci/seedling/blob/main/global.conf),
 distribute the copy of seedling that carries it (and any `script` files
 alongside it), and every installer run picks it up automatically:
 
@@ -297,7 +297,7 @@ gets refreshed. `startup_commands` is a plain list, recorded once into
 startup](#running-commands-at-startup).
 
 **One thing to know about the piped-one-liner install** (`SEEDLING_CUSTOM_COMMANDS`
-set as an *environment variable* rather than in `seedling.conf`): the
+set as an *environment variable* rather than in `global.conf`): the
 installer copies the TOML file's **whole containing directory**, not just
 the file, so relative `script` entries and their own companion files
 survive — the same thing the conf-distributed form already gets for free

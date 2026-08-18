@@ -4,7 +4,7 @@ build_offline.py -- assemble a self-contained, air-gapped seedling bundle.
 
 Run this on a CONNECTED machine (it needs the internet). It downloads every
 piece an offline install needs, lays them out the way seedling expects, writes
-a matching seedling.conf, and walks you through each step -- asking before it
+a matching global.conf, and walks you through each step -- asking before it
 downloads anything (or pass --yes to let it build the whole thing unattended).
 
 The result is a folder you copy to a share or removable media and install from
@@ -85,7 +85,11 @@ GIT_WIN_LATEST_API = "https://api.github.com/repos/git-for-windows/git/releases/
 #                 `seed update-commands`; without it the install can't finish.
 #   the default venv packages -- created in every new venv.
 # Extra packages your users will `seed install` get appended with --packages.
-REQUIRED_PACKAGES = ["hatchling", "ipython", "ruff", "ipykernel", "pip"]
+#
+# Imported rather than restated: bundle.py's validator credits a bundle with
+# holding these, so if the two lists ever disagreed, a profile would be told
+# a package is present that nothing downloaded.
+from seedling.bundle import ALWAYS_PRESENT as REQUIRED_PACKAGES  # noqa: E402
 
 SRC_PYPROJECT = REPO_ROOT / "src" / "pyproject.toml"
 
@@ -502,9 +506,23 @@ def parse_pbs_target(uv_verbose_stderr: str) -> tuple[str, str] | None:
 # --------------------------------------------------------------------------
 # component builders
 # --------------------------------------------------------------------------
-def _uv_env(*, cache: Path, extra: dict | None = None) -> dict:
+def _uv_env(*, cache: Path | None, extra: dict | None = None) -> dict:
+    """The environment every download runs under.
+
+    `cache=None` means "don't redirect the caches" -- it used to set
+    UV_CACHE_DIR to the string "None", pointing uv at a directory of that
+    name next to wherever the builder ran."""
     env = os.environ.copy()
-    env["UV_CACHE_DIR"] = str(cache)
+    if cache is not None:
+        env["UV_CACHE_DIR"] = str(cache)
+        # The wheels are fetched by pip (uv has no `pip download`), and pip
+        # keeps its OWN http cache -- so pointing only UV_CACHE_DIR here left
+        # every wheel outside the cache this builder maintains. That costs
+        # most exactly where it hurts: a bundle mirroring two interpreters
+        # fetches the same py3-none-any wheels once per pass, and a CI runner
+        # with no user profile cache re-downloads the whole wheelhouse every
+        # build.
+        env["PIP_CACHE_DIR"] = str(Path(cache) / "pip")
     if extra:
         env.update(extra)
     return env
@@ -637,7 +655,7 @@ def _download_wheels_for(uv_exe: Path, packages: list[str], wheels_dir: Path,
 def build_wheels(uv_exe: Path, packages: list[str], wheels_dir: Path,
                  py_versions: list[str], cache: Path) -> bool:
     """Download every wheel (and its dependencies) the offline index needs, via
-    `uvx pip download` -- the same mechanism as `seed download-whl`.
+    `uvx pip download` -- the same mechanism as `seed download-whls`.
 
     Runs once PER mirrored interpreter into the same flat wheelhouse. That
     matters whenever more than one version is mirrored: `--python-version`
@@ -1034,7 +1052,7 @@ def stage_repo(output: Path) -> Path:
     re-running cheap -- but the repo copy is the one thing that changes between
     runs, and it's seconds to redo. Reusing it silently shipped the source as
     it was on the FIRST build: you'd edit the repo, re-run, watch step 8 rewrite
-    seedling.conf, and get a bundle that looked freshly built around stale
+    global.conf, and get a bundle that looked freshly built around stale
     code. The vendor/ payloads are preserved across the refresh, so this costs
     nothing but the copy."""
     seedling_copy = output / "seedling"
@@ -1068,7 +1086,7 @@ def stage_repo(output: Path) -> Path:
 
 
 def write_conf(conf_path: Path, values: dict[str, str]) -> None:
-    """Set KEY="value" entries in a seedling.conf, replacing existing lines and
+    """Set KEY="value" entries in a global.conf, replacing existing lines and
     appending any that are missing. Mirrors the installers' conf format."""
     text = conf_path.read_text(encoding="utf-8") if conf_path.exists() else ""
     for key, value in values.items():
@@ -1118,7 +1136,7 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--deploy-root", default="",
         help="The path the bundle will live at on the TARGET machines (e.g. "
-             r"S:\tools). seedling.conf is written with paths under it. "
+             r"S:\tools). global.conf is written with paths under it. "
              "Default: the output folder's own absolute path.")
     parser.add_argument(
         "--yes", action="store_true",
@@ -1146,10 +1164,24 @@ def main(argv=None) -> int:
              "Windows, tar.gz elsewhere; pass a format to choose "
              "explicitly. The folder itself is left in place either way.")
     parser.add_argument(
+        "--bundle", metavar="PATH",
+        help="The offline-bundle.toml declaring what this share contains -- "
+             "the superset profiles are validated against. Defaults to "
+             "offline-bundle.toml next to global.conf if it exists. Pass "
+             "--bundle= (empty) to ignore it.")
+    parser.add_argument(
+        "--check-profile", metavar="PATH", action="append",
+        dest="check_profiles", default=None,
+        help="Validate this profile against the bundle (before and after "
+             "building) without adding anything to it. Repeatable -- one "
+             "bundle commonly serves several teams.")
+    parser.add_argument(
         "--profile", metavar="PATH",
         help="Deployment profile whose venv packages must be in the bundle. "
-             "Defaults to seedling-profile.toml next to seedling.conf if it "
-             "exists. Pass --profile= (empty) to ignore it.")
+             "Only stocks the bundle when there is no offline-bundle.toml; "
+             "with one, the superset is already declared and this profile is "
+             "validated against it instead. Defaults to profile.toml next to "
+             "global.conf. Pass --profile= (empty) to ignore it.")
     parser.add_argument(
         "--accept-third-party-terms", action="store_true",
         help="Acknowledge that you hold the rights to redistribute the "
@@ -1166,31 +1198,96 @@ def main(argv=None) -> int:
     versions = [v.strip() for v in args.pythons.split(",") if v.strip()] or [""]
     extra_packages = [p.strip() for p in args.packages.split(",") if p.strip()]
 
-    # A profile declares which venvs its users get and what goes in them, so
-    # it -- not a hand-maintained --packages list -- is the authority on what
-    # the wheel set must contain. Keeping the two in sync by hand is exactly
-    # the drift that shows up as a failed install in the air-gapped room,
-    # long after the bundle left.
+    # offline-bundle.toml is the superset, and it stands alone: it says what
+    # the share will hold without consulting any profile. The flags below
+    # remain overrides for a one-off build.
+    from seedling import bundle as bundle_mod, profile as profile_mod
+    declared: bundle_mod.Bundle | None = None
+    bundle_path = None
+    if args.bundle is None:
+        bundle_path = bundle_mod.find(REPO_ROOT)
+    elif args.bundle:
+        bundle_path = Path(args.bundle).expanduser()
+    if bundle_path is not None:
+        try:
+            declared = bundle_mod.load(bundle_path)
+        except bundle_mod.BundleError as e:
+            warn(f"{bundle_path}: {e}")
+            info("Fix it, or pass --bundle= to build without it.")
+            return 2
+
+    # --profile is the pre-bundle way to stock the wheel set: with no
+    # offline-bundle.toml, a profile is still the best statement of what a
+    # fleet needs. With one, the superset is already declared, so a profile
+    # is something to CHECK against it, never something to grow it -- a
+    # superset assembled from the profile it judges can never say no.
     profile_packages: list[str] = []
     profile_tools: list[str] = []
-    profile_path = None
-    if args.profile is None:
-        candidate = REPO_ROOT / "seedling-profile.toml"
-        profile_path = candidate if candidate.is_file() else None
+    legacy_profile = None
+    if args.profile is None and declared is None:
+        # seedling-profile.toml is the pre-rename name, still picked up so a
+        # bundle built from an un-renamed copy keeps covering its profile.
+        legacy_profile = next(
+            (REPO_ROOT / name for name in ("profile.toml",
+                                           "seedling-profile.toml")
+             if (REPO_ROOT / name).is_file()), None)
     elif args.profile:
-        profile_path = Path(args.profile).expanduser()
-    if profile_path is not None:
-        from seedling import profile as profile_mod
+        legacy_profile = Path(args.profile).expanduser()
+
+    check_paths = [Path(p).expanduser() for p in (args.check_profiles or [])]
+    if legacy_profile is not None and declared is not None:
+        # Both given: the declaration wins on contents, and the profile joins
+        # the ones being validated rather than silently widening the bundle.
+        check_paths.append(legacy_profile)
+        legacy_profile = None
+
+    if legacy_profile is not None:
         try:
-            loaded = profile_mod.load(profile_path)
-            profile_packages = loaded.package_set()
-            profile_tools = loaded.tool_set()
+            loaded = profile_mod.load(legacy_profile)
         except profile_mod.ProfileError as e:
-            warn(f"{profile_path}: {e}")
+            warn(f"{legacy_profile}: {e}")
             info("Fix the profile, or pass --profile= to build without it.")
+            return 2
+        profile_packages = loaded.package_set()
+        profile_tools = loaded.tool_set()
+
+    profiles: list[profile_mod.Profile] = []
+    for path in check_paths:
+        try:
+            profiles.append(profile_mod.load(path))
+        except profile_mod.ProfileError as e:
+            warn(f"{path}: {e}")
+            return 2
+
+    # Checked against the DECLARATION before anything is downloaded: with the
+    # superset stated outright, every axis is judged here -- packages, tools,
+    # interpreters, editor, repo extras. Reality is checked again after the
+    # build, since a declaration can promise what a download failed to deliver.
+    if declared is not None and profiles:
+        intent = bundle_mod.Inventory.from_bundle(declared)
+        blocking: list[str] = []
+        for path, prof in zip(check_paths, profiles):
+            for problem in bundle_mod.check_profile(prof, intent):
+                blocking.append(f"{Path(path).name}: {problem}")
+        if blocking:
+            print()
+            warn("These profiles can't be satisfied by the bundle as declared:")
+            for line in blocking:
+                print(f"  - {line}")
+            info("Nothing was downloaded. Fix offline-bundle.toml (or the "
+                 "profile) and re-run.")
             return 2
 
     extra_tools = [t.strip() for t in args.tools.split(",") if t.strip()]
+    if declared is not None:
+        extra_tools += declared.tools
+        extra_packages += declared.packages
+        if not args.pythons and declared.pythons:
+            versions = list(declared.pythons)
+        if declared.mingit:
+            args.mingit = True
+        if not declared.vscode:
+            args.no_vscode = True
     conda_tools = list(dict.fromkeys(extra_tools + profile_tools))
 
     packages = REQUIRED_PACKAGES + [
@@ -1224,9 +1321,29 @@ def main(argv=None) -> int:
     print("  " + colors.warn(
         "The bundle targets THIS platform. Build on the same OS/arch as your "
         "offline machines."))
+    # A spec that names its target platform is checked against the machine
+    # doing the building. Getting this wrong produces a bundle that builds
+    # cleanly and then can't install anywhere it's carried -- the failure this
+    # warning has always described, now caught instead of narrated.
+    if declared is not None and declared.platform:
+        want = declared.platform.strip().lower()
+        have = f"{system}/{arch}".lower()
+        if want != have:
+            print()
+            warn(f"offline-bundle.toml targets {declared.platform}, but this "
+                 f"machine is {system}/{arch}.")
+            info("Build on that platform, or change `platform` in the spec. "
+                 "Wheels, uv, the interpreters and the editor are all "
+                 "platform-specific.")
+            return 2
     print(f"  Output      : {output}")
-    deploy_root = (args.deploy_root or str(output)).rstrip("/\\")
-    print(f"  Deploy path : {deploy_root}  (edit seedling.conf if this changes)")
+    # --deploy-root, else the spec's, else the output folder itself. The spec
+    # is where a share's real path belongs: it doesn't change between builds,
+    # and retyping it on every rebuild is how a bundle ends up with a
+    # global.conf pointing at someone's scratch directory.
+    deploy_root = (args.deploy_root or (declared.deploy_root if declared else None)
+                   or str(output)).rstrip("/\\")
+    print(f"  Deploy path : {deploy_root}  (edit global.conf if this changes)")
     floor = seedling_python_floor()
     floor_note = (f"  (seedling itself needs >={'.'.join(str(p) for p in floor)})"
                   if floor else "")
@@ -1234,10 +1351,13 @@ def main(argv=None) -> int:
     print(f"  Wheels      : {', '.join(packages)}")
     if conda_tools:
         print(f"  Conda tools : {', '.join(conda_tools)}  (via micromamba)")
-    if profile_path is not None:
-        print(f"  Profile     : {profile_path}"
-              + (f"  (contributed {len(profile_packages)} package(s))"
-                 if profile_packages else ""))
+    if bundle_path is not None and declared is not None:
+        print(f"  Bundle spec : {bundle_path}")
+    for path in check_paths:
+        print(f"  Checking    : {path}  (validated, never folded in)")
+    if profile_packages:
+        print(f"  Profile     : {legacy_profile}  (contributed "
+              f"{len(set(profile_packages))} package(s))")
     print(f"  VS Code     : {'skipped (--no-vscode)' if args.no_vscode else 'yes (~300MB, with extensions)'}")
     if system == "Windows":
         print(f"  MinGit      : {'yes (--mingit)' if args.mingit else 'no (pass --mingit to include it)'}")
@@ -1396,8 +1516,8 @@ def main(argv=None) -> int:
     else:
         info("Skip unless a TLS-inspecting proxy re-signs HTTPS on your network.")
 
-    # 9. seedling.conf.
-    step(9, "Write seedling.conf")
+    # 9. global.conf.
+    step(9, "Write global.conf")
     conf_values = {
         "SEEDLING_REPO_URL": f"{deploy_root}\\seedling" if system == "Windows"
         else f"{deploy_root}/seedling",
@@ -1412,8 +1532,8 @@ def main(argv=None) -> int:
         conf_values["SEEDLING_CONDA_CHANNEL"] = (
             f"{deploy_root}\\conda-channel" if system == "Windows"
             else f"{deploy_root}/conda-channel")
-    write_conf(seedling_copy / "seedling.conf", conf_values)
-    ok(f"Wrote {seedling_copy / 'seedling.conf'} pointing at {deploy_root}.")
+    write_conf(seedling_copy / "global.conf", conf_values)
+    ok(f"Wrote {seedling_copy / 'global.conf'} pointing at {deploy_root}.")
     for k, v in conf_values.items():
         info(f"  {k}={v}")
 
@@ -1430,10 +1550,32 @@ def main(argv=None) -> int:
     elif ask("Run the preflight check now?", default=True, auto=auto):
         verified = verify_bundle(output, seedling_copy, uv_exe, packages)
 
+    # Every profile against what ACTUALLY landed, not what was declared. This
+    # is the check that catches a `pip download` that failed for one package,
+    # a tool the channel couldn't solve, or an editor step that was skipped --
+    # none of which the pre-build gate can see, and all of which otherwise
+    # surface as a failed install on the far side of the air gap.
+    profiles_ok = True
+    if profiles:
+        step(11, "Check every profile against the finished bundle")
+        real = bundle_mod.Inventory.discover(output)
+        for path, prof in zip(check_paths, profiles):
+            problems = bundle_mod.check_profile(prof, real)
+            if not problems:
+                ok(f"{Path(path).name}: applies cleanly against this bundle.")
+                continue
+            profiles_ok = False
+            warn(f"{Path(path).name}: {len(problems)} thing(s) missing:")
+            for problem in problems:
+                print(f"    - {problem}")
+        if not profiles_ok:
+            info("Users on the air-gapped side would hit these. Add what's "
+                 "missing to offline-bundle.toml and re-run.")
+
     # 10. Manifest: what actually landed, and under what terms. Written from
     # the real outcomes above, so a partial build produces an honest record
     # rather than a description of what was intended.
-    step(11, "Record what was staged (MANIFEST.json)")
+    step(12, "Record what was staged (MANIFEST.json)")
     staged = {
         "uv": uv_exe is not None,
         "python-build-standalone": mirror_ok,
@@ -1460,7 +1602,7 @@ def main(argv=None) -> int:
     archive_path = None
     if args.archive:
         archive_fmt = resolve_archive_format(args.archive, system)
-        step(12, f"Archive the bundle ({archive_fmt})")
+        step(13, f"Archive the bundle ({archive_fmt})")
         info("Packing the whole bundle into one file -- this can take a "
              "while for a large bundle (VS Code alone is ~300MB).")
         archive_path = archive_bundle(output, archive_fmt)
@@ -1523,7 +1665,7 @@ def main(argv=None) -> int:
               "folder, same layout as the build).")
         print("  3. On an offline machine, run install.cmd from the extracted "
               "seedling/ folder.")
-        print("  4. It reads seedling.conf and installs entirely from the bundle.")
+        print("  4. It reads global.conf and installs entirely from the bundle.")
         print("     (After extracting on the share, you can re-run "
               "--verify-only against THAT copy to prove the transfer -- "
               "archive included -- was complete.)")
@@ -1532,14 +1674,17 @@ def main(argv=None) -> int:
               "your target/share.")
         print("  2. On an offline machine, run install.cmd from the copied "
               "seedling/ folder.")
-        print("  3. It reads seedling.conf and installs entirely from the bundle.")
+        print("  3. It reads global.conf and installs entirely from the bundle.")
         print("     (After copying, you can re-run --verify-only against the copy "
               "to prove the transfer was complete.)")
     if deploy_root == str(output):
         warn("Deploy path = the build path. If you move the folder, update the "
-             "three paths in seedling/seedling.conf (or re-run with "
+             "three paths in seedling/global.conf (or re-run with "
              "--deploy-root).")
-    return 0
+    # A bundle that can't satisfy its own profiles is a failed build, even
+    # though every download succeeded: carrying it in would hand the failure
+    # to users who can't fix it from there.
+    return 0 if profiles_ok else 1
 
 
 if __name__ == "__main__":

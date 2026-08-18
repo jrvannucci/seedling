@@ -10,6 +10,7 @@ from .commands import (
     admin_cmd,
     apply_cmd,
     auto_activate_cmd,
+    bundle_cmd,
     config_cmd,
     custom_cmd,
     deactivate_cmd,
@@ -85,9 +86,10 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("forge-remove", "<name>", "Remove a conda-forge tool"),
     ]),
     ("Offline utilities -- stage packages/tools to carry to an air-gapped machine", [
-        ("download-whl", "<package...>", "Download a package + its deps as wheels"),
+        ("download-whls", "<package...>", "Download a package + its deps as wheels"),
         ("download-requirements", "<req.txt>", "Download a requirements file's wheels"),
         ("download-forge", "<name...>", "Download a conda-forge tool + its deps as a channel"),
+        ("upload-whls", "<dir>", "Publish a wheel directory to your internal index"),
     ]),
     ("Git repos", [
         ("repo-clone", "<git-url>", "Clone a repo into ~/seedling/repo"),
@@ -106,6 +108,7 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
     (_CUSTOM_GROUP_TITLE, []),
     ("Utilities", [
         ("apply", "[profile] [--preview]", "Apply a deployment profile (venvs, packages, repos)"),
+        ("profile-check", "[profile]", "Check a profile against an offline bundle's contents"),
         ("config", "[get|set|unset]", "View or change seedling settings"),
         ("kill-processes", "[name] [--system]", "Force-close seedling's processes (or all, or named)"),
         ("update-commands", "[--from-branch B]", "Update the seed CLI itself"),
@@ -357,7 +360,7 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Anything after this is passed straight to `uv pip show`")
 
     p_dl_whl = sub.add_parser(
-        "download-whl",
+        "download-whls",
         help="Download a package and all its dependencies as wheels for an offline install")
     p_dl_whl.add_argument(
         "args", nargs=argparse.REMAINDER,
@@ -382,6 +385,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_dl_forge.add_argument(
         "-d", "--dest", default=None,
         help="Directory to write the channel into (default ./conda-channel)")
+
+    p_up_whl = sub.add_parser(
+        "upload-whls",
+        help="Upload a directory of wheels to your organization's package index")
+    # One REMAINDER, like the download-* commands: argparse assigns a bare
+    # positional into a following REMAINDER, so the directory is taken from
+    # the tokens instead (and --repository-url is pulled out alongside it).
+    p_up_whl.add_argument(
+        "args", nargs=argparse.REMAINDER,
+        help="<dir> [--repository-url URL] plus any `twine upload` flags "
+             "(e.g. --skip-existing).")
 
     p_vscode = sub.add_parser("vscode", help="Install (if needed) and open VS Code")
     p_vscode.add_argument("path", nargs="?", help="Path to open (defaults to cwd)")
@@ -514,7 +528,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_apply.add_argument("path", nargs="?",
                          help="Profile file to apply. Omit to use the one "
                               "recorded at install time, else "
-                              "seedling-profile.toml in this directory.")
+                              "profile.toml in this directory.")
     # Used by the installers to learn a profile's editor BEFORE they decide
     # whether to start the VS Code background job -- see apply_cmd.
     p_apply.add_argument("--print-editor", dest="print_editor",
@@ -523,6 +537,18 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Also install the profile's missing packages "
                               "into venvs that already exist. Never deletes "
                               "or recreates anything.")
+
+    p_profile_check = sub.add_parser(
+        "profile-check",
+        help="Check a profile against what an offline bundle actually holds")
+    p_profile_check.add_argument(
+        "profile", nargs="?",
+        help="Profile to check. Omit to use the one recorded at install "
+             "time, else profile.toml in this directory.")
+    p_profile_check.add_argument(
+        "--bundle", metavar="PATH", default=None,
+        help="The offline bundle to check against. Found automatically when "
+             "package_index is a directory of wheels inside one.")
 
     p_update = sub.add_parser("update-commands",
                     help="Update the seed CLI itself from its source in ~/seedling/system/src")
@@ -630,7 +656,8 @@ def _passthrough_handlers() -> dict:
         "uninstall": uninstall_cmd.run,
         "package-list": list_cmd.list_packages,
         "show": show_cmd.run,
-        "download-whl": download_cmd.run_whl,
+        "download-whls": download_cmd.run_whl,
+        "upload-whls": download_cmd.run_upload,
         "download-requirements": download_cmd.run_requirements,
     }
 
@@ -753,7 +780,7 @@ def _dispatch_main(argv: list[str]) -> int:
         "uninstall": uninstall_cmd.run,
         "package-list": list_cmd.list_packages,
         "show": show_cmd.run,
-        "download-whl": download_cmd.run_whl,
+        "download-whls": download_cmd.run_whl,
         "download-requirements": download_cmd.run_requirements,
         "vscode": vscode_cmd.run,
         "spyder": spyder_cmd.run,
@@ -771,6 +798,7 @@ def _dispatch_main(argv: list[str]) -> int:
         "purge": purge_cmd.run,
         "purge-and-reinstall": purge_cmd.run,
         "apply": apply_cmd.run,
+        "profile-check": bundle_cmd.check,
         "kill-processes": kill_cmd.run,
         "update-commands": update_cmd.run,
         "summary": summary_cmd.run,

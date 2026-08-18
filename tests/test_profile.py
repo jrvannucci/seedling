@@ -16,7 +16,7 @@ from seedling.commands import apply_cmd
 
 
 def _write(tmp_path, text: str):
-    p = tmp_path / "seedling-profile.toml"
+    p = tmp_path / "profile.toml"
     p.write_text(text, encoding="utf-8")
     return p
 
@@ -102,7 +102,7 @@ def test_invalid_profiles_are_rejected(text, fragment):
 
 
 def test_install_time_settings_are_not_settable_from_a_profile():
-    """seedling.conf owns anything that must be right BEFORE seed-cli runs.
+    """global.conf owns anything that must be right BEFORE seed-cli runs.
     Allowing a profile to rewrite it would create two sources of truth."""
     for key in ("update_source", "package_index", "python_mirror",
                 "native_tls", "ca_cert", "shared_root", "profile"):
@@ -173,13 +173,30 @@ def test_find_prefers_explicit_then_config_then_cwd(home, tmp_path, monkeypatch)
 
     config.set_value("profile", None)
     monkeypatch.chdir(tmp_path)
-    assert profile_mod.find(None) == tmp_path / "seedling-profile.toml"
+    assert profile_mod.find(None) == tmp_path / "profile.toml"
 
 
 def test_find_returns_none_when_there_is_nothing(home, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "seedling-profile.toml").unlink(missing_ok=True)
+    (tmp_path / "profile.toml").unlink(missing_ok=True)
     assert profile_mod.find(None) is None
+
+
+def test_find_still_answers_to_the_pre_rename_filename(home, tmp_path, monkeypatch):
+    """seedling-profile.toml was the name before the rename. A draft still
+    carrying it must be found, not silently left unapplied."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "profile.toml").unlink(missing_ok=True)
+    legacy = tmp_path / "seedling-profile.toml"
+    legacy.write_text("", encoding="utf-8")
+    assert profile_mod.find(None) == legacy
+
+
+def test_the_current_filename_wins_over_the_old_one(home, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    current = _write(tmp_path, "")
+    (tmp_path / "seedling-profile.toml").write_text("", encoding="utf-8")
+    assert profile_mod.find(None) == current
 
 
 def test_a_recorded_profile_that_no_longer_exists_is_ignored(home, tmp_path, monkeypatch):
@@ -605,7 +622,7 @@ class TestProfileEditor:
     the way `tools = [...]` already does for conda-forge programs."""
 
     def _write(self, tmp_path, body):
-        path = tmp_path / "seedling-profile.toml"
+        path = tmp_path / "profile.toml"
         path.write_text(body, encoding="utf-8")
         return path
 
@@ -698,7 +715,7 @@ class TestProfileEditorList:
     commands -- so restricting the profile to one was an artificial limit."""
 
     def _write(self, tmp_path, body):
-        path = tmp_path / "seedling-profile.toml"
+        path = tmp_path / "profile.toml"
         path.write_text(body, encoding="utf-8")
         return path
 
@@ -798,10 +815,21 @@ def test_every_documented_example_profile_is_valid():
     page = "\n".join(p.read_text(encoding="utf-8") for p in pages)
     blocks = re.findall(r"```toml\n(.*?)```", page, re.S)
     assert len(blocks) >= 5, "examples pages lost their profiles?"
-    profile_blocks = [b for b in blocks if "[[command]]" not in b]
+    # A THIRD schema now shares the fence: the air-gapped examples carry an
+    # offline-bundle.toml (what the share holds) alongside their profile.
+    # Routed to bundle.parse() by tests/test_bundle.py; skipped here rather
+    # than force-fit, exactly as the [[command]] blocks already were.
+    def _is_bundle(block: str) -> bool:
+        return ("offline-bundle.toml" in block
+                or re.search(r"^pythons\s*=", block, re.M) is not None)
+
+    profile_blocks = [b for b in blocks
+                      if "[[command]]" not in b and not _is_bundle(b)]
     command_blocks = [b for b in blocks if "[[command]]" in b]
+    bundle_blocks = [b for b in blocks if _is_bundle(b)]
     assert profile_blocks, "examples page lost its profiles?"
     assert command_blocks, "examples page lost its custom-commands.toml demos?"
+    assert bundle_blocks, "the air-gapped examples lost their bundle specs?"
     for block in profile_blocks:
         profile_mod.parse(block)      # raises ProfileError if invalid
     for block in command_blocks:

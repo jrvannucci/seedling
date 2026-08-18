@@ -23,7 +23,7 @@ shorter ones:
 | **[Venvs & packages](commands/venvs-and-packages.md)** *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `run`, `which`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `show`, `remove-venv`, `remove-venv-all` |
 | **[Python applications](commands/python-apps.md)** *(run, not imported — each in its own env)* | `tool-install <name>` *(install)*, `tool-list`, `tool-remove` |
 | **[Command-line tools from conda-forge](commands/conda-forge-tools.md)** *(the non-Python tools)* | `forge <cmd>` *(run)*, `forge-install <name>` *(install)*, `forge-list`, `forge-remove` |
-| **[Offline utilities](commands/offline-utilities.md)** *(stage packages/tools for an air-gapped machine)* | `download-whl <package...>`, `download-requirements <req.txt>`, `download-forge <name...>` |
+| **[Offline utilities](commands/offline-utilities.md)** *(stage packages/tools for an air-gapped machine)* | `download-whls <package...>`, `download-requirements <req.txt>`, `download-forge <name...>` |
 | **[Repos](commands/repos.md)** | `repo-clone`, `repo-list`, `repo-cd`, `repo-open`, `repo-install`, `remove-repo` |
 | **[Editors & IDEs](commands/editors.md)** *(installed on demand)* | `vscode`, `vscode-repo`, `spyder`, `spyder-repo` |
 | **[Custom commands](commands/custom.md)** *(your organization's own — see [CUSTOM-COMMANDS.md](CUSTOM-COMMANDS.md))* | `custom <name>` *(run)* |

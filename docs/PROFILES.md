@@ -6,9 +6,15 @@ interpreters, venvs, packages and repos from the single command they already
 run. Later, when the standard changes, they re-run `seed apply` and pick up
 the difference.
 
-`seedling.conf` says *where seedling gets things from*. A profile says *what
+`global.conf` says *where seedling gets things from*. A profile says *what
 to set up once seedling works*. They are separate files because they answer
 separate questions and are read at different times.
+
+On an air-gapped network a third file joins them:
+[`offline-bundle.toml`](OFFLINE.md#offline-bundletoml--what-the-share-contains)
+says *what the share contains* — the superset every profile is validated
+against, both when the bundle is built and later, from inside, with
+[`seed profile-check`](commands/status.md#seed-profile-check-profile---bundle-path).
 
 A third, optional file — [**custom commands**](CUSTOM-COMMANDS.md) — lets
 you add your own verbs to `seed` itself (`seed lint`, `seed reset`, ...).
@@ -37,7 +43,7 @@ See it in use in the [software team](profile-examples/software-team.md) and
 > file for each. The one below walks through the syntax key by key.
 
 ```toml
-# seedling-profile.toml -- the standard environment for the data team.
+# profile.toml -- the standard environment for the data team.
 schema = 1
 
 # Interpreters to install. Omit to use whatever `seed python` picks.
@@ -115,7 +121,7 @@ Two things happen that are worth knowing:
   plain environment instead, you wouldn't find out until something you
   expected was missing.
 
-The environment variable wins over any `SEEDLING_PROFILE` in `seedling.conf`,
+The environment variable wins over any `SEEDLING_PROFILE` in `global.conf`,
 matching how `SEEDLING_REPO` and `SEEDLING_HOME` already override their conf
 equivalents for one run.
 
@@ -124,10 +130,10 @@ equivalents for one run.
 ## Distributing it
 
 Put the file in the copy of seedling you distribute and name it in
-[`seedling.conf`](https://github.com/jrvannucci/seedling/blob/main/seedling.conf):
+[`global.conf`](https://github.com/jrvannucci/seedling/blob/main/global.conf):
 
 ```
-SEEDLING_PROFILE="seedling-profile.toml"
+SEEDLING_PROFILE="profile.toml"
 ```
 
 That is the whole handoff. Your users run the same `install.cmd` they would
@@ -252,7 +258,7 @@ profile itself is invalid.
 
 Install-time settings — `update_source`, `package_index`, `python_mirror`,
 `native_tls`, `ca_cert` — deliberately **cannot** be set from a profile. They
-must be correct *before* seed-cli runs, so `seedling.conf` owns them; letting
+must be correct *before* seed-cli runs, so `global.conf` owns them; letting
 a profile rewrite them would create two sources of truth for one value.
 
 **Validation is strict.** An unknown key, a duplicate venv name, two default
@@ -265,18 +271,25 @@ whole fleet: a typo should fail once for you, not quietly for each user.
 
 ## Offline bundles
 
-`build-offline.cmd` reads the profile automatically (or takes `--profile
-PATH`) and adds every package the profile's venvs need to the wheel set — and
-every tool in its `tools` list to a bundled conda channel (vendoring
-micromamba alongside it). On the target, `seed apply` then installs those
-tools from the bundle, with no internet and no separate folder to carry.
+How a profile and an offline bundle relate depends on whether the share has
+an [`offline-bundle.toml`](OFFLINE.md#offline-bundletoml--what-the-share-contains):
 
-This matters more than it sounds. Without it, the profile and the bundler's
-`--packages`/`--tools` lists are hand-maintained copies of the same thing, and
-any drift between them surfaces as a failed install on the air-gapped side,
-long after the bundle was carried there. Deriving one from the other removes
-that failure mode. The preflight check then verifies the wheel side before it
-leaves.
+**With one** (the current model), it declares the superset on its own and a
+profile is *validated* against it, never folded into it — `build-offline
+--check-profile PATH` before and after building, and
+[`seed profile-check`](commands/status.md#seed-profile-check-profile---bundle-path)
+from inside the air gap afterwards. A profile naming a package the share
+doesn't carry is an error you see on the connected machine, not a failed
+install in a locked room.
 
-Pass `--profile=` (empty) to build a bundle that deliberately doesn't match
-the repo's profile.
+**Without one**, `build-offline.cmd` reads the profile automatically (or takes
+`--profile PATH`) and adds every package the profile's venvs need to the wheel
+set — and every tool in its `tools` list to a bundled conda channel (vendoring
+micromamba alongside it). That still beats hand-maintaining the bundler's
+`--packages`/`--tools` lists as copies of the profile, where any drift
+surfaces as a failed install on the air-gapped side. Pass `--profile=` (empty)
+to build a bundle that deliberately doesn't match the repo's profile.
+
+Either way, on the target `seed apply` installs the profile's tools from the
+bundle, with no internet and no separate folder to carry, and the preflight
+check verifies the wheel side before the bundle leaves.

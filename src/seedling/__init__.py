@@ -15,7 +15,7 @@ __version__ = "0.11.0"
 #
 # The installers can't import Python, so install.sh/install.ps1 carry the
 # same URL as their own baked-in default -- that's the true bootstrap, since
-# a piped `curl ... | sh` has no seedling.conf beside it to read. A test
+# a piped `curl ... | sh` has no global.conf beside it to read. A test
 # asserts the three stay in agreement.
 PUBLIC_REPO = "https://github.com/jrvannucci/seedling.git"
 PUBLIC_RAW_BASE = "https://raw.githubusercontent.com/jrvannucci/seedling/main"

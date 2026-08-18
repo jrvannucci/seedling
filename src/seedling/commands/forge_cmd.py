@@ -112,7 +112,7 @@ def _remove_shims(commands: list[str]) -> None:
 
 
 def download_tool(args) -> int:
-    """`seed download-forge <name>...` -- the conda analogue of download-whl:
+    """`seed download-forge <name>...` -- the conda analogue of download-whls:
     resolve a tool and its dependencies on a connected machine and write them
     into a local channel to carry to an air-gapped one."""
     specs = getattr(args, "specs", None) or []

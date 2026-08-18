@@ -10,7 +10,7 @@ you point the one you have at a URL and bundle the three you don't:
 
 | Needs | Comes from |
 |---|---|
-| Python packages | 🌐 the internal PyPI, over HTTPS |
+| Python packages | 🌐 the internal PyPI, over HTTPS — optionally *stocked* from the bundle's `wheels/` |
 | Interpreters | 📦 bundled `python-builds/` |
 | conda-forge tools | 📦 bundled `conda-channel/` |
 | VS Code | 📦 bundled `vendor/vscode/` |
@@ -30,7 +30,7 @@ you point the one you have at a URL and bundle the three you don't:
 | Bundled git (MinGit) | ✅ | `--mingit`; no git host to clone from either |
 | A reachable git host | ❌ | no `[[repo]]` entries |
 | Multi-user share root | ❌ | per-user installs from the share |
-| Offline bundle to build | ⚠️ | **partial** -- everything except the wheels |
+| Offline bundle to build | ⚠️ | **partial** -- the wheels are optional, and useful mainly as the set you *publish* to the internal index |
 | **x86_64 only** | ✅ | the Spyder half pins the whole profile to x86_64 |
 
 ![Everything except the wheels: five sources feed the bundle, one row apiece.](../diagrams/profile-build-internal-pypi-only.svg)
@@ -38,7 +38,7 @@ you point the one you have at a URL and bundle the three you don't:
 ![Two origins on the target: artifactory.corp.example stays live for packages and Spyder, while S:\seedling -- the bundle -- hands out everything else from one grouped box.](../diagrams/profile-pull-internal-pypi-only.svg)
 
 ```toml
-# seedling-profile.toml -- the standard environment.
+# profile.toml -- the standard environment.
 
 python = ["3.12"]
 
@@ -60,7 +60,7 @@ The conf is where this shape becomes visible — **a URL and directory paths
 side by side**:
 
 ```sh
-# seedling.conf -- in the copy on the share.
+# global.conf -- in the copy on the share.
 
 # Install seedling itself from the share: no git, no network.
 SEEDLING_REPO_URL="S:\seedling\seedling"
@@ -78,25 +78,83 @@ SEEDLING_CONDA_CHANNEL="S:\seedling\conda-channel"
 # ship the PEM in vendor/certs/ and leave native_tls off.
 SEEDLING_NATIVE_TLS="false"
 
-SEEDLING_PROFILE="seedling-profile.toml"
+SEEDLING_PROFILE="profile.toml"
 ```
 
-**Building it.** The wheel step is the one you can skip, because the mirror
-already serves packages. `build-offline` is a walkthrough, so run it *without*
-`--yes` and answer **no** at "Download the wheels now?", then yes to the rest:
+**What the share holds.** Even here the bundle declares its own contents —
+and on this network that list has a second job, below:
+
+```toml
+# offline-bundle.toml -- next to global.conf.
+
+pythons = ["3.12"]
+
+# Every distribution the fleet needs. On this network these can either be
+# left to the proxy, or built here and PUBLISHED into the internal index --
+# see "Two ways to feed the index" below. `spyder` is listed because it's an
+# ordinary PyPI application, editor or not.
+packages = [
+    "pandas", "numpy", "requests", "pytest", "spyder", "httpx", "openpyxl",
+]
+
+tools = ["ripgrep", "pandoc"]
+
+[editor]
+flavor = "microsoft"
+
+[git]
+mingit = true
+```
+
+**Building it:**
 
 ```
-build-offline.cmd --profile seedling-profile.toml ^
-                  --python 3.12 ^
-                  --tools ripgrep,pandoc ^
-                  --mingit ^
+build-offline.cmd --check-profile profile.toml ^
                   --deploy-root "S:\seedling" ^
                   --accept-third-party-terms
 ```
 
-Staging the wheels anyway is harmless and gives you a fallback if the mirror
-goes down — but then `package_index` must point at `S:\seedling\wheels`
-instead of the URL, since only one of the two can be the package source.
+**Two ways to feed the index.** The wheel step is the one that's optional
+here, and which way you go decides what `package_index` points at:
+
+1. **Let the proxy serve them.** `build-offline` is a walkthrough, so run it
+   *without* `--yes` and answer **no** at "Download the wheels now?", then
+   yes to the rest. `package_index` stays the Artifactory URL. Simplest, and
+   right when the proxy really does reach everything your profiles name.
+2. **Build the wheels and upload them into the internal index.** Answer
+   **yes**, and `wheels/` becomes exactly the set of distributions your
+   fleet needs — resolved with their full dependency closures, once per
+   mirrored interpreter — ready to publish into a *hosted* repository
+   alongside the proxy:
+
+   ```sh
+   seed config set package_upload_url https://artifactory.corp.example/api/pypi/pypi-local/
+   seed config set package_upload_token <a token with write access>
+   seed upload-whls S:\seedling\wheels
+   ```
+
+   [`seed upload-whls`](../commands/offline-utilities.md) runs `uvx twine
+   upload` for you, honors the `ca_cert` this network needs, and passes the
+   token through the environment rather than a command line. Set the token
+   **only on this publishing machine**: leaving
+   `SEEDLING_PACKAGE_UPLOAD_TOKEN` empty in the conf you distribute is what
+   keeps write access off every user's machine.
+
+   `package_index` still points at the index URL -- the
+   bundle was the *source* of what you published, not the runtime source.
+   This is the option to take when the proxy is allowlisted, when it can't
+   reach a package you need, or when you want the exact resolved set pinned
+   in your own repository rather than whatever the proxy resolves later.
+
+   `--check-profile` is doing real work in this flow: it verifies the wheel
+   set covers every profile *before* you publish it, so a missing package is
+   caught on the build machine rather than by the first user whose
+   `seed apply` can't resolve.
+
+Either way, staging the wheels is harmless — it also gives you a fallback if
+the mirror goes down, though using it as the fallback means pointing
+`package_index` at `S:\seedling\wheels` instead of the URL, since only one of
+the two can be the package source at a time.
 
 **Why it's shaped this way**
 
@@ -138,8 +196,8 @@ Note what is *absent*: no `wheels/`, because the internal PyPI serves those.
 offline-bundle/                    -> copied to S:\seedling
 ├── MANIFEST.json
 ├── seedling/                      users run install.cmd from here
-│   ├── seedling.conf              the mixed URL + directory conf above
-│   ├── seedling-profile.toml
+│   ├── global.conf              the mixed URL + directory conf above
+│   ├── profile.toml
 │   └── vendor/
 │       ├── uv/
 │       │   ├── uv.exe

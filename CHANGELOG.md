@@ -13,6 +13,32 @@ what a release involves.
 
 ### Changed (breaking)
 
+- **`seed download-whl` is now `seed download-whls`.** It has always taken
+  several packages at once (`seed download-whls pandas polars httpx`) and
+  written a whole wheelhouse; the singular name described neither its input
+  nor its output. Plural also lines it up with the new `upload-whls` below.
+
+  **To migrate:** `seed download-whl ...` -> `seed download-whls ...`.
+
+- **The three config files are renamed for what they are, not what ships
+  them:** `seedling.conf` → **`global.conf`**, `seedling-profile.toml` →
+  **`profile.toml`**. Inside a copy of seedling, every file is seedling's —
+  the prefix carried no information and cost a word in every sentence about
+  them. The names now line up as one vocabulary alongside the new
+  `offline-bundle.toml` (below).
+
+  **To migrate:** rename the files in your distributed copy. `SEEDLING_PROFILE`
+  in the conf takes any filename, so a profile named something else needs no
+  change beyond the conf's own rename.
+
+  **The old names still work**, deliberately: the installers, the uninstallers,
+  `seed update-commands`' drift report, `seed apply`'s local lookup, and
+  `build-offline`'s default `--profile` all fall back to them, and the
+  installers warn when they do. An organization's customized `seedling.conf`
+  being silently ignored would install their fleet from the public internet
+  with default settings — a much worse failure than a rename that lags. The
+  fallback goes away in a later release.
+
 - **The PyPI-application family (`app-install`/`app-list`/`app-remove`) is
   now `tool-install`/`tool-list`/`tool-remove`, and the conda-forge family
   (`tool`/`tool-install`/`tool-list`/`tool-remove`/`download-tool`) is now
@@ -122,6 +148,91 @@ what a release involves.
   two links into specific examples were repointed at the new subpages.
 
 ### Added
+
+- **`seed upload-whls <dir>`** — publish a directory of wheels *into* your
+  organization's package index, for the networks whose air gap has a door: an
+  internal PyPI users can already reach, which just doesn't have the packages
+  yet. Resolve the set on a connected machine, publish once, and every user
+  installs from the index they already have — no share to mount, no
+  directory index to configure. It takes a bundle's `wheels/` directly, which
+  is the [internal-PyPI deployment](docs/profile-examples/internal-pypi-only.md)
+  in one line. Runs `uvx twine upload`, the same ephemeral-tool pattern as
+  `download-whls`, and honors `ca_cert` — an internal index behind a
+  re-signing proxy is exactly where it runs.
+
+  Two new settings, `package_upload_url` and `package_upload_token`
+  (`SEEDLING_PACKAGE_UPLOAD_URL` / `_TOKEN` in `global.conf`). The URL is its
+  own setting rather than derived from `package_index`, because servers that
+  do both use different paths for reading and writing
+  (`.../simple` vs `.../api/pypi/<repo>/`), so deriving one from the other
+  would fail more often than it worked.
+
+  **The token is handled as the write credential it is:** passed to twine
+  through the environment and never on a command line (visible to `ps`, kept
+  in shell history, echoed into seedling's own log), and **masked wherever
+  seedling prints settings** — `seed config` and `seed config get` both
+  show `********  (set)`, since seedling tees command output to
+  `~/seedling/system/logs` and reading a token back would otherwise write it
+  to disk. Note that every `global.conf` value is seeded into every user's
+  settings at install time, so a token placed in the copy you distribute
+  grants your whole fleet publish rights: leave it empty there and set it on
+  the publishing machine with `seed config set package_upload_token`. Leave
+  it unset entirely and twine's own `TWINE_USERNAME`/`TWINE_PASSWORD` or
+  `~/.pypirc` apply.
+
+- **`offline-bundle.toml` — a standalone declaration of what an air-gapped
+  share contains**, and the superset every profile is now validated against:
+
+  ```toml
+  schema = 1
+  pythons = ["3.12", "3.11"]
+  packages = ["pandas", "scipy", "polars", "spyder"]
+  tools = ["ripgrep", "pandoc"]
+
+  [editor]
+  flavor = "microsoft"
+  extensions = ["ms-python.python", "charliermarsh.ruff"]
+
+  [[repo]]
+  url = "https://git.corp/team/plotpress.git"
+  extras = ["gui", "test"]
+  ```
+
+  **It knows nothing about profiles, deliberately.** The dependency runs one
+  way — profiles conform to the bundle, never the reverse. A superset
+  assembled from the profiles it ships could never refuse one: it would grow
+  to fit whatever was asked, and "will this profile work here?" would answer
+  itself. Declared outright, it is a contract. (`hatchling`, `ipython`,
+  `ruff`, `ipykernel` and `pip` are always downloaded and never need
+  declaring; the validator and the builder share one list, so neither can
+  credit the bundle with a package nothing fetched.)
+
+  `build-offline` reads it by default (`--bundle PATH`, `--bundle=` to
+  ignore) and builds from it alone. **`--check-profile PATH`** (repeatable —
+  one share commonly serves several teams) validates a profile against it
+  twice, since a declaration and a download fail differently: **before**
+  downloading, against what the bundle declares, across every axis — packages
+  with their `==` pins, interpreters, tools, editors, repo extras — exiting
+  `2` on the connected machine where the fix costs nothing; and **after**,
+  against what actually landed, which is what catches a `pip download` that
+  failed for one package. A bundle that can't satisfy a checked profile exits
+  `1`, because carrying it in would hand the failure to users who can't fix
+  it from there.
+
+  `--profile` keeps its old meaning only where the old model still applies:
+  with no `offline-bundle.toml`, a profile stocks the wheel set. With one,
+  the superset is already declared, so a `--profile` is validated against it
+  rather than silently widening it.
+
+- **`seed profile-check [profile] [--bundle PATH]`** — the same check from
+  inside the air gap, against the bundle on disk rather than anyone's
+  intentions. Written for the profile authored months after the bundle
+  arrived, where the only way to find out what the share holds was to apply
+  something and watch it fail. Reports every unsatisfiable interpreter,
+  package (including exact `==` pins), conda-forge tool, editor and repo
+  extra at once — the round trip to fix one is a walk to a locked room.
+  Changes nothing, needs no network, and on a machine installed from a bundle
+  it finds the share from `package_index` with no argument at all.
 
 - **The three README diagrams that were still mermaid (`why-vs-usual.svg`,
   `install-flow.svg`, `lifecycle.svg`) are now hand-authored SVG**, styled
@@ -418,6 +529,68 @@ what a release involves.
   exits with uv's own code, with no extra `error: ... failed` wrapper.
 
 ### Fixed
+
+- **The profile-pull diagrams (`profile-pull-<slug>.svg`) were missing
+  step one: how `seedling itself` gets onto the machine.** Five profiles
+  that install straight from the internet with no override (research
+  group, software team, both editors, classroom, just Python) showed
+  packages and editors arriving from `pypi.org`/the Marketplace as if
+  `seed-cli` already existed on the machine — there was no `github.com`
+  origin at all. Added one, pulling `seedling itself` via "the install
+  one-liner" (software team's existing `github.com` group, already there
+  for its repos, gained the item instead of a new group). Every profile's
+  `storage` also gained a `system/src/` entry, so that arrow has a
+  landing chip to point at instead of the side of the box in general.
+
+  From there, three more passes landed on the current shape, each fixing
+  what the last one still didn't show:
+
+  1. **`seedling.conf` got its own card and arrow** — before, the profile
+     box's note just said "read at install and every later `seed apply`,"
+     with nothing explaining *why*, so a reader could easily think the
+     profile gets picked up automatically with nothing to configure.
+  2. **A trigger box was added to both diagrams** — even with
+     `seedling.conf` drawn in, neither diagram showed the actual
+     *command a human runs* that starts any of this: `build-offline.cmd`
+     for the build side, `install.cmd` / the one-liner for the pull side.
+     Each is a distinct slate-colored card, explicit that nothing runs on
+     its own ("you run this yourself, on a connected machine" /
+     "you (or a script) run this -- on each machine, once").
+  3. **The arrows got re-routed and the BUILT ONCE inset was removed.**
+     Stacking trigger → `seedling.conf` → the actual product implied the
+     trigger's job was to read the config, when its real job is to
+     *produce* the thing below — `offline-bundle/` on the build side,
+     `seedling-profile.toml` on the pull side. Each trigger's arrow now
+     runs straight down to what it produces; `seedling.conf` sits beside
+     that arrow instead, with its own short arrow merging into the main
+     one, showing it's read on the way rather than a stop on the line.
+     `profile-pull-<slug>.svg` also **no longer embeds a shrunk copy of
+     `profile-build-<slug>.svg`** — the two questions ("where did the
+     bundle come from" vs. "where does a deployed machine reach out to")
+     are answered by two fully separate files now, not one diagram
+     nested inside the other. The bundle profiles' origin box, previously
+     labeled `(the bundle)`, is now `(the offline build)` — that's what
+     the folder actually is, and the old wording read as if "the bundle"
+     were some third thing distinct from what `build-offline` produces.
+
+  Building the second pass surfaced an unrelated bug in `_wrap()`: it
+  silently truncated any label past two lines (`return lines[:2]`), which
+  is why the new `seedling.conf` card's note kept getting cut off
+  mid-sentence at first — every box that uses `_wrap()` already sizes
+  itself from the actual line count, so the cap served no purpose and is
+  removed.
+
+- **`docs/PROFILE-EXAMPLES.md` no longer shows the same ten-example
+  comparison twice** — the page had both `profile-matrix.svg` (a diagram)
+  and a markdown table immediately below it, covering the identical
+  information. Kept the table, not the diagram: it's the one with links
+  straight to each example. The now-unreferenced `profile-matrix.svg` is
+  deleted. Also removed the `## Contents` heading directly above the
+  page's hidden `{toctree}` — sphinx_rtd_theme was nesting the ten
+  example links a level deeper in the sidebar than necessary, under a
+  "Contents" node that didn't correspond to anything meaningful once the
+  table replaced it; the sidebar now lists them as direct children of
+  "Profile examples," one level flatter.
 
 - **Updating from an unreachable directory `update_source`** (an unmounted
   network share) no longer prints the misleading "Downloading the latest

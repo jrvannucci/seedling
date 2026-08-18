@@ -63,6 +63,20 @@ extensions = [
 myst_heading_anchors = 4
 myst_enable_extensions = ["colon_fence", "deflist"]
 
+
+# See docs/github_slug.py for why this exists and why it lives there. The
+# path insert is what makes it importable BY NAME at unpickle time too, which
+# is the whole reason it isn't defined inline here.
+sys.path.insert(0, str(_HERE))
+from github_slug import github_slug  # noqa: E402
+
+myst_heading_slug_func = github_slug
+
+# The slug function above is a function object, which Sphinx can't pickle into
+# its config cache -- a warning about a cache it simply won't use, on every
+# build. Nothing else about the build changes.
+suppress_warnings = ["config.cache"]
+
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "sphinx_rtd_theme"

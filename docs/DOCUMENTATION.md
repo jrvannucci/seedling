@@ -32,7 +32,7 @@ lab, a restricted network.
 
 | | |
 |---|---|
-| **[Deployment guide](DEPLOYMENT.md)** | `seedling.conf`, shared-machine installs, the elevated `admin-*` teardown family, a rollout checklist, and the answers to a security review. |
+| **[Deployment guide](DEPLOYMENT.md)** | `global.conf`, shared-machine installs, the elevated `admin-*` teardown family, a rollout checklist, and the answers to a security review. |
 | **[Deployment profiles](PROFILES.md)** | One file describing the environment your users should end up with — interpreters, named venvs and their packages, repos — applied at install and re-applied with `seed apply`. |
 | **[Profile examples](PROFILE-EXAMPLES.md)** | Complete, working profiles for real situations — a research group, a software team, a classroom, an air-gapped fleet. Copy one and change the names. |
 | **[Custom commands](CUSTOM-COMMANDS.md)** | Add your organization's own verbs to `seed` (`seed lint`, `seed bootstrap`) and, optionally, run some of them automatically in every new shell. |
@@ -68,7 +68,7 @@ layout, and running the tests.
 | Standardize a team's setup | [Profile examples](PROFILE-EXAMPLES.md) |
 | Add my own verbs to `seed` | [Custom commands](CUSTOM-COMMANDS.md) |
 | Give everyone the same venvs and packages | [Profile examples](PROFILE-EXAMPLES.md) |
-| Point installs at an internal source | [Deployment guide → `seedling.conf`](DEPLOYMENT.md#deployment-configuration-seedlingconf) |
+| Point installs at an internal source | [Deployment guide → `global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf) |
 | Install with no internet | [Offline networks](OFFLINE.md) |
 | Put many users on one machine | [Deployment guide → Shared-machine installs](DEPLOYMENT.md#shared-machine-multi-user-installs) |
 | Tear down another user's install | [Deployment guide → Admin commands](DEPLOYMENT.md#admin-commands-shared-root-teardown) |

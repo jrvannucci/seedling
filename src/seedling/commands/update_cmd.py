@@ -111,19 +111,24 @@ def _parse_conf(text: str) -> dict[str, str]:
 
 def report_conf_drift(refreshed_src: Path) -> None:
     """After refreshing from `update_source`, check whether the org's
-    seedling.conf now asks for something different than what's already
+    global.conf now asks for something different than what's already
     configured on this machine, and say so -- never applies anything.
 
     `seed update-commands` only ever refreshes seed-cli's own code; it has
-    never re-seeded settings.json from a changed seedling.conf (settings
+    never re-seeded settings.json from a changed global.conf (settings
     are seeded once, at install time). An org moving a share path or
     changing an index previously left every existing user's machine
     silently out of sync with no way to discover it short of something
     breaking. This closes the DISCOVERY gap without touching the
     auto-apply-vs-respect-local-customization tradeoff: it tells you
     exactly what changed and the command to apply it, and stops there."""
-    conf_path = refreshed_src / "seedling.conf"
-    if not conf_path.is_file():
+    # seedling.conf is the pre-rename name: an org whose share still carries it
+    # must keep getting drift reports, since that share is exactly where the
+    # rename hasn't happened yet.
+    conf_path = next((refreshed_src / name
+                      for name in ("global.conf", "seedling.conf")
+                      if (refreshed_src / name).is_file()), None)
+    if conf_path is None:
         return
     try:
         conf = _parse_conf(conf_path.read_text(encoding="utf-8-sig"))
@@ -146,7 +151,7 @@ def report_conf_drift(refreshed_src: Path) -> None:
 
     print()
     print(colors.warn(
-        "The organization's seedling.conf now sets these differently than "
+        "The organization's global.conf now sets these differently than "
         "what's configured on this machine (settings are only ever seeded "
         "at install time, never re-applied automatically):"))
     for key, current, new in drifted:

@@ -26,7 +26,7 @@ toplevel = true
 name = "motd"
 run = ["python", "-c", "print('seedling: remember to pull the latest team scripts before you start.')"]
 description = "Message of the day -- a startup_commands worked example"
-# See startup_commands in seedling.conf / seed config set below: this one is
+# See startup_commands in global.conf / seed config set below: this one is
 # meant to run automatically in every new shell, not be typed by hand.
 
 [[command]]

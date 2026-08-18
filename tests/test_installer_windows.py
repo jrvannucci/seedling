@@ -60,7 +60,7 @@ def _settings(home):
 
 
 def _write_conf(copy, **overrides):
-    conf = copy / "seedling.conf"
+    conf = copy / "global.conf"
     text = conf.read_text(encoding="utf-8")
     import re
     for key, value in overrides.items():
@@ -316,20 +316,20 @@ def test_vscode_config_dir_absent_when_unset(ps_install_env):
 # --- deployment profiles (the freshest, most intricate PS logic) -----------
 
 def _profile(copy, body):
-    (copy / "seedling-profile.toml").write_text(body, encoding="utf-8")
+    (copy / "profile.toml").write_text(body, encoding="utf-8")
 
 
 def test_conf_profile_is_applied_and_replaces_dev_venv(ps_install_env):
     copy, home, fake_profile, run = ps_install_env
     _profile(copy, '[[venv]]\nname = "team"\ndefault = true\n')
-    _write_conf(copy, SEEDLING_PROFILE="seedling-profile.toml",
+    _write_conf(copy, SEEDLING_PROFILE="profile.toml",
                 SEEDLING_AUTO_VSCODE="false")
     result = run()
     assert result.returncode == 0, result.stdout + result.stderr
     calls = _calls(home)
     assert "seed-cli apply" in calls
     assert "seed-cli venv dev" not in calls
-    assert _settings(home)["profile"].endswith("seedling-profile.toml")
+    assert _settings(home)["profile"].endswith("profile.toml")
 
 
 def test_env_var_lets_a_user_supply_their_own_profile(ps_install_env, tmp_path):
@@ -348,9 +348,9 @@ def test_env_var_lets_a_user_supply_their_own_profile(ps_install_env, tmp_path):
 
 def test_env_var_beats_the_conf(ps_install_env, tmp_path):
     copy, home, fake_profile, run = ps_install_env
-    (copy / "seedling-profile.toml").write_text(
+    (copy / "profile.toml").write_text(
         '[[venv]]\nname = "fromconf"\n', encoding="utf-8")
-    _write_conf(copy, SEEDLING_PROFILE="seedling-profile.toml")
+    _write_conf(copy, SEEDLING_PROFILE="profile.toml")
     mine = tmp_path / "mine.toml"
     mine.write_text('[[venv]]\nname = "fromenv"\n', encoding="utf-8")
     run({"SEEDLING_PROFILE": str(mine), "SEEDLING_AUTO_VSCODE": "false"})

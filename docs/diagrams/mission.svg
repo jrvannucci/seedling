@@ -55,7 +55,7 @@
     </g>
     <text x="196" y="463" text-anchor="middle" class="fg" font-size="20" font-weight="700">Zero-touch config</text>
     <g class="fmute" font-size="15.5" text-anchor="middle">
-      <text x="196" y="495">One file, seedling.conf,</text>
+      <text x="196" y="495">One file, global.conf,</text>
       <text x="196" y="521">holds every setting —</text>
       <text x="196" y="547">never scattered across</text>
       <text x="196" y="573">shell profiles or CI.</text>

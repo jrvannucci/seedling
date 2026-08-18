@@ -28,7 +28,7 @@ Three files do the work. **The profile** describes the environment:
 ![Two origins on the target: S:\seedling -- the bundle -- grouped into one box for everything except repos, and git.corp.example, reached live only after install.](../diagrams/profile-pull-air-gapped-everything.svg)
 
 ```toml
-# seedling-profile.toml -- the standard environment, applied at install and
+# profile.toml -- the standard environment, applied at install and
 # re-applied with `seed apply` whenever this file changes.
 
 schema = 1
@@ -82,7 +82,7 @@ install = "analysis"
 
 [config]
 # Every key a profile is allowed to set. The install-time settings -- the
-# mirror, the index, TLS, the update source -- belong in seedling.conf
+# mirror, the index, TLS, the update source -- belong in global.conf
 # instead: they have to be right before seed-cli runs at all.
 default_base = "312"
 default_venv = "dev"
@@ -98,11 +98,11 @@ vscode_extensions = [
 ]
 ```
 
-**`seedling.conf`** carries everything that must be true *before* seed-cli
+**`global.conf`** carries everything that must be true *before* seed-cli
 exists — the share paths, TLS, and the multi-user layout:
 
 ```sh
-# seedling.conf -- shipped in the copy on the share.
+# global.conf -- shipped in the copy on the share.
 
 # Install from the share itself: a directory, not a git URL, so neither git
 # nor a network is needed to install, or to `seed update-commands` later.
@@ -117,8 +117,11 @@ SEEDLING_PYTHON_MIRROR="S:\seedling\python-builds"
 SEEDLING_PACKAGE_INDEX="S:\seedling\wheels"
 SEEDLING_CONDA_CHANNEL="S:\seedling\conda-channel"
 
-# The editor build and extension set the BUNDLE contains -- decided here, on
-# the build machine, not in the profile.
+# The editor build and extension set every INSTALLED machine gets -- decided
+# here, not in the profile. Note these seed each user's settings at install
+# time; what the builder STAGES into vendor/vscode/ comes from the build
+# machine's own seedling settings, so set the same values there before
+# building (see docs/OFFLINE.md #7).
 SEEDLING_VSCODE_FLAVOR="microsoft"
 SEEDLING_EXTENSION_GALLERY="https://openvsx.corp.example/vscode"
 SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-python.vscode-pylance,ms-python.debugpy,ms-toolsai.jupyter,charliermarsh.ruff"
@@ -129,17 +132,61 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-python.vscode-pylance,ms-python.
 SEEDLING_NATIVE_TLS="false"
 
 # Apply the profile automatically at install.
-SEEDLING_PROFILE="seedling-profile.toml"
+SEEDLING_PROFILE="profile.toml"
 ```
 
-**Building it**, once, on a connected machine:
+**What the share holds**, declared once and independently of any profile.
+This is the file `--check-profile` and `seed profile-check` validate against:
+
+```toml
+# offline-bundle.toml -- next to global.conf in the copy you distribute.
+
+schema = 1
+
+pythons = ["3.12", "3.11"]
+
+# Every distribution any profile may name, plus room for what users will want
+# later -- on this network nobody can add one. `spyder` is here because an
+# editor named in a profile is still an ordinary PyPI application, and
+# `requests`/`flask` carry the pins the legacy venv asks for.
+packages = [
+    "pytest", "pytest-cov", "mypy", "ruff", "ipython",
+    "pandas", "numpy", "scipy", "matplotlib", "jupyterlab", "openpyxl",
+    "requests==2.32.3", "flask==3.0.3",
+    "spyder", "httpx", "polars",
+]
+
+tools = ["ripgrep", "pandoc", "gh"]
+
+[editor]
+flavor = "microsoft"
+gallery = "https://openvsx.corp.example/vscode"
+extensions = [
+    "ms-python.python", "ms-python.vscode-pylance", "ms-python.debugpy",
+    "ms-toolsai.jupyter", "charliermarsh.ruff",
+]
+
+[git]
+mingit = true
+
+# The internal repos, and every extra a profile may select from them --
+# resolving a repo's optional dependencies needs a clone, which only the
+# connected machine can do.
+[[repo]]
+url = "https://git.corp.example/platform/toolkit.git"
+extras = []
+
+[[repo]]
+url = "https://git.corp.example/platform/analysis-lib.git"
+extras = []
+```
+
+**Building it**, once, on a connected machine. The spec supplies the
+interpreters, packages, tools and MinGit, so the only flags left are where it
+lands and the licence acknowledgement:
 
 ```
-build-offline.cmd --profile seedling-profile.toml ^
-                  --python 3.12,3.11 ^
-                  --tools ripgrep,pandoc,gh ^
-                  --packages spyder ^
-                  --mingit ^
+build-offline.cmd --check-profile profile.toml ^
                   --deploy-root "S:\seedling" ^
                   --accept-third-party-terms
 ```
@@ -163,7 +210,7 @@ build-offline.cmd --profile seedling-profile.toml ^
   else — there is no separate artifact for it, but its wheels do have to be
   staged. Without this, `seed apply` reaches the Spyder step and finds
   nothing to install from.
-- **`--deploy-root`** writes the bundle's `seedling.conf` with the paths the
+- **`--deploy-root`** writes the bundle's `global.conf` with the paths the
   *target* will see, which are not where you built it. Get it wrong and every
   path in the shipped conf points at your build machine.
 - **`extension_gallery` appears in both files on purpose.** The conf value is
@@ -196,8 +243,8 @@ offline-bundle/                       -> copied to S:\seedling
 ├── seedling/                         users run install.cmd from here
 │   ├── install.cmd                   what users actually run
 │   ├── installers/                   install.ps1, install.sh
-│   ├── seedling.conf                 the conf above, --deploy-root applied
-│   ├── seedling-profile.toml         the profile above
+│   ├── global.conf                 the conf above, --deploy-root applied
+│   ├── profile.toml         the profile above
 │   ├── src/                          seedling's own source
 │   └── vendor/
 │       ├── uv/

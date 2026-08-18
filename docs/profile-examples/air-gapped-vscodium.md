@@ -24,7 +24,7 @@ Pairs with an [offline bundle](../OFFLINE.md).
 ![One origin on the target: the share. Every capability -- packages, uv, interpreters, tools, the editor, git -- comes out of that single grouped box, one labeled arrow apiece.](../diagrams/profile-pull-air-gapped-vscodium.svg)
 
 ```toml
-# seedling-profile.toml -- distributed on the share, applied at install.
+# profile.toml -- distributed on the share, applied at install.
 
 python = ["3.12"]
 
@@ -38,12 +38,43 @@ packages = ["pandas", "numpy", "requests", "pytest"]
 default = true
 ```
 
-**Which editor build is decided in `seedling.conf`, not here.** The bundler
-stages the editor *before* any profile is applied, so it reads the conf on
-the build machine:
+The share declares its own contents, and the profile above is checked against
+them:
+
+```toml
+# offline-bundle.toml -- what the share will hold. Sits next to global.conf;
+# build-offline reads it by default.
+
+pythons = ["3.12"]
+
+# Everything any profile may name, plus what users may `seed install` later.
+# hatchling/ipython/ruff/ipykernel/pip are always bundled -- no need to list.
+packages = ["pandas", "numpy", "requests", "pytest", "httpx", "openpyxl"]
+
+tools = ["ripgrep", "pandoc"]
+
+[editor]
+flavor = "vscodium"
+extensions = ["ms-python.python", "ms-toolsai.jupyter", "charliermarsh.ruff"]
+
+[git]
+mingit = true
+```
+
+Build it, checking the profile against the declaration before anything
+downloads — and again against what actually landed:
 
 ```sh
-# seedling.conf, in the copy you distribute
+build-offline.cmd --check-profile profile.toml --deploy-root "S:\seedling"
+```
+
+**Which editor build gets staged is decided on the build machine.** The
+bundler stages the editor *before* any profile is applied, and reads the
+build machine's own seedling settings to do it — so the conf you distribute
+sets it for your users, and `[editor] flavor` above records the intent:
+
+```sh
+# global.conf, in the copy you distribute
 SEEDLING_VSCODE_FLAVOR="vscodium"
 SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ruff"
 ```
@@ -58,11 +89,25 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ru
   design — so the Python extension falls back to its bundled Jedi server.
   If your organization *does* hold Marketplace rights, see
   [the next example](air-gapped-vs-code.md).
-- The bundler reads the *profile* for everything else, so `build-offline`
-  stages wheels for every package listed and a conda channel for every tool
-  — no second hand-kept list. Build it with
-  `build-offline.cmd --profile seedling-profile.toml`.
-- Nothing here mentions the share's paths: those live in `seedling.conf`
+- **Set the flavor on the build machine too, not only in this conf.** The
+  bundler stages whichever editor the *build machine's own* seedling settings
+  name (`seed config get vscode_flavor`), because it drives seedling's own
+  installer — a conf it never installed from doesn't reach it. Build with the
+  flavor unset and you stage the **official** build and Marketplace
+  extensions: the restricted components this whole example exists to avoid.
+  Either install seedling on the builder from this copy (the installer seeds
+  the setting from the conf) or run `seed config set vscode_flavor vscodium`
+  first. See [the note in OFFLINE.md](../OFFLINE.md#7-vs-code-optional).
+- **`offline-bundle.toml` declares the share; the profile conforms to it.**
+  It lists more than this profile needs (`httpx`, `openpyxl`) because a user
+  on an isolated network can't add one later. `--check-profile` proves the
+  profile is a subset — a package it names that the share won't carry fails
+  the build on the connected machine, and
+  [`seed profile-check`](../commands/status.md#seed-profile-check-profile---bundle-path)
+  answers the same question for a profile written later, from inside.
+  Only `[editor] flavor`/`extensions` are declarative for now — see the
+  previous bullet.
+- Nothing here mentions the share's paths: those live in `global.conf`
   (`SEEDLING_PACKAGE_INDEX` and friends), which is install-time configuration
   a profile deliberately can't override.
 
@@ -72,8 +117,9 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ru
 offline-bundle/
 ├── MANIFEST.json            what was staged, and under what licence
 ├── seedling/                users run install.cmd from here
-│   ├── seedling.conf            written with your --deploy-root paths
-│   ├── seedling-profile.toml    the profile above
+│   ├── global.conf            written with your --deploy-root paths
+│   ├── offline-bundle.toml    what the share holds (read back by profile-check)
+│   ├── profile.toml           the profile above
 │   └── vendor/
 │       ├── uv/                  uv.exe, uvx.exe
 │       ├── vscode/              app/  (portable VSCodium + Open VSX exts)

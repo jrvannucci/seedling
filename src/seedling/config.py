@@ -40,6 +40,17 @@ KNOWN_KEYS: dict[str, str] = {
         "(Artifactory/Nexus/devpi), or a plain directory of wheels (e.g. a "
         "network share -- becomes the one and only package source, with "
         "the internet index disabled). Empty/null means pypi.org."),
+    "package_upload_url": (
+        "Where `seed upload-whls` publishes wheels: the UPLOAD endpoint of "
+        "your internal index, which is usually NOT the same URL as "
+        "package_index (Artifactory .../api/pypi/<repo>/ vs .../simple). "
+        "Empty/null means uploads need --repository-url."),
+    "package_upload_token": (
+        "API token for package_upload_url. A WRITE credential -- set it on "
+        "the machine that publishes, with `seed config set`, and leave it "
+        "out of the global.conf you distribute, or every user gets publish "
+        "rights. Masked wherever seedling prints settings. Empty/null falls "
+        "back to twine's own TWINE_USERNAME/TWINE_PASSWORD or ~/.pypirc."),
     "native_tls": (
         "Use the operating system's certificate trust store for HTTPS "
         "instead of the bundled one -- for internal mirrors/indexes whose "
@@ -87,7 +98,7 @@ KNOWN_KEYS: dict[str, str] = {
         "TOML file describing the interpreters, venvs, packages and repos "
         "this deployment expects. Recorded at install time from "
         "SEEDLING_PROFILE. Empty/null means `seed apply` looks for "
-        "seedling-profile.toml in the current directory instead."),
+        "profile.toml in the current directory instead."),
     "custom_commands": (
         "Path to a TOML file declaring your organization's own `seed custom "
         "<name>` commands -- one [[command]] entry each, run = [...] for a "
@@ -113,6 +124,20 @@ KNOWN_KEYS: dict[str, str] = {
         "nothing runs at startup. See docs/CUSTOM-COMMANDS.md."),
 }
 
+# Settings whose VALUE must never be printed. seedling tees command output
+# into ~/seedling/system/logs, so an unmasked token would be written to disk
+# by the very act of running `seed config`.
+SECRET_KEYS = {"package_upload_token"}
+
+
+def mask(key: str, value: Any) -> Any:
+    """The value as it may be displayed: secrets become a fixed placeholder
+    that still distinguishes set from unset."""
+    if key in SECRET_KEYS and value not in (None, ""):
+        return "********  (set)"
+    return value
+
+
 _DEFAULTS: dict[str, Any] = {
     "default_base": None,
     "default_venv": None,
@@ -122,6 +147,8 @@ _DEFAULTS: dict[str, Any] = {
     "venv_default_packages": ["ipython", "ruff", "ipykernel"],
     "python_mirror": None,
     "package_index": None,
+    "package_upload_url": None,
+    "package_upload_token": None,
     "native_tls": None,
     "ca_cert": None,
     "shared_root": None,

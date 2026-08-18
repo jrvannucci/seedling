@@ -5,7 +5,7 @@
 # The normal way to uninstall is `seed purge` (more thorough, and it knows
 # its own install location). This script is the FALLBACK for when seed-cli
 # itself is broken and can't run. It resolves the install location the same
-# way the installer did -- SEEDLING_HOME env override, else seedling.conf's
+# way the installer did -- SEEDLING_HOME env override, else global.conf's
 # SEEDLING_HOME_DIR with "~" and "{user}" expansion -- so relocated and
 # shared multi-user installs are targeted correctly, not a hardcoded
 # ~/seedling.
@@ -13,11 +13,15 @@ set -eu
 
 SEEDLING_HOME_FROM_ENV="${SEEDLING_HOME:-}"
 
-# This script lives in installers/; seedling.conf is at the repo root above.
+# This script lives in installers/; global.conf is at the repo root above.
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 SEEDLING_HOME_DIR=""
-[ -f "$REPO_ROOT/seedling.conf" ] && . "$REPO_ROOT/seedling.conf"
+if [ -f "$REPO_ROOT/global.conf" ]; then
+    . "$REPO_ROOT/global.conf"
+elif [ -f "$REPO_ROOT/seedling.conf" ]; then
+    . "$REPO_ROOT/seedling.conf"            # pre-rename name
+fi
 
 # Home resolution: env override, else conf's SEEDLING_HOME_DIR (leading "~"
 # means $HOME), else the default -- identical to the installer.

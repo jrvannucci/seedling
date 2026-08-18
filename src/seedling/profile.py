@@ -2,7 +2,7 @@
 Deployment profiles: one declarative file describing the environment an
 organization wants its users to end up with.
 
-`seedling.conf` answers "where does seedling get things from" and is read by
+`global.conf` answers "where does seedling get things from" and is read by
 the shell installers. A profile answers "what should be set up once seedling
 works" -- interpreters, venvs and their packages, repos to clone, settings --
 and is read only here, by Python. That split is deliberate: install.sh and
@@ -33,7 +33,7 @@ SCHEMA = 1
 
 # Keys `seed apply` may write via [config]. Deliberately a subset of
 # config.KNOWN_KEYS: the install-source and TLS settings belong to
-# seedling.conf (they must be right *before* seed-cli runs), and letting a
+# global.conf (they must be right *before* seed-cli runs), and letting a
 # profile rewrite them would give two sources of truth for the same value.
 SETTABLE_KEYS = {
     "default_base",
@@ -358,7 +358,7 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
         _require(key in SETTABLE_KEYS,
                  f"[config] {key!r} cannot be set from a profile. "
                  f"Settable here: {', '.join(sorted(SETTABLE_KEYS))}. "
-                 f"Install-time settings belong in seedling.conf.")
+                 f"Install-time settings belong in global.conf.")
         profile.settings[key] = value
 
     # A default venv must exist in the profile, or the setting points at
@@ -379,6 +379,11 @@ def load(path: Path) -> Profile:
     return parse(text, path=Path(path))
 
 
+# The conventional filename, and the pre-rename one still answered to. A draft
+# named the old way keeps being found rather than silently going unapplied.
+LOCAL_NAMES = ("profile.toml", "seedling-profile.toml")
+
+
 def find(explicit: str | None = None) -> Path | None:
     """Resolve which profile to apply: an explicit path, else the one
     recorded at install time, else a conventional file in the current
@@ -390,5 +395,8 @@ def find(explicit: str | None = None) -> Path | None:
         candidate = Path(str(recorded)).expanduser()
         if candidate.is_file():
             return candidate
-    local = Path.cwd() / "seedling-profile.toml"
-    return local if local.is_file() else None
+    for name in LOCAL_NAMES:
+        local = Path.cwd() / name
+        if local.is_file():
+            return local
+    return None

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1164 458" font-family="Arial, Helvetica, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1164 502" font-family="Arial, Helvetica, sans-serif">
 <defs>
   <defs>
     <style>
@@ -40,9 +40,14 @@
       <line x1="8" y1="15.5" x2="16" y2="15.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
       <line x1="8" y1="19" x2="12.5" y2="19" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
     </symbol>
+    <symbol id="ic-terminal" viewBox="0 0 24 24">
+      <rect x="2.5" y="4" width="19" height="16" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M6.5 9 L10.5 12 L6.5 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="12" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
   </defs>
 </defs>
-<rect x="0" y="0" width="1164" height="458" fill="#FFFFFF"/>
+<rect x="0" y="0" width="1164" height="502" fill="#FFFFFF"/>
 
   <g transform="translate(40,20)">
     <path d="M12 42 V16" stroke="#1B4332" stroke-width="2.6" stroke-linecap="round" fill="none"/>
@@ -70,7 +75,11 @@
 <rect x="40" y="328" width="300" height="30" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.95"/>
 <text x="52" y="348" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#1B4332">seed apply [profile] [--preview] [--force]</text>
 <text x="364" y="346" class="body" font-size="12.5" fill="#52796F">Brings this machine in line with a deployment profile, idempotently -- never destroys an existing venv or repo.</text>
-<rect x="40" y="368" width="300" height="30" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.95"/>
-<text x="52" y="388" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#1B4332">seed config [get|set|unset]</text>
-<text x="364" y="386" class="body" font-size="12.5" fill="#52796F">Views and changes seedling's own settings (default_venv, package_index, vscode_flavor, ...).</text>
+<rect x="40" y="370" width="300" height="30" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.95"/>
+<text x="52" y="390" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#1B4332">seed profile-check [profile] [--bundle PATH]</text>
+<text x="364" y="380" class="body" font-size="12.5" fill="#52796F">Checks a profile against what an offline bundle actually holds -- before anyone on the air-gapped side tries to apply</text>
+<text x="364" y="397" class="body" font-size="12.5" fill="#52796F">it.</text>
+<rect x="40" y="412" width="300" height="30" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.95"/>
+<text x="52" y="432" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#1B4332">seed config [get|set|unset]</text>
+<text x="364" y="430" class="body" font-size="12.5" fill="#52796F">Views and changes seedling's own settings (default_venv, package_index, vscode_flavor, ...).</text>
 </svg>

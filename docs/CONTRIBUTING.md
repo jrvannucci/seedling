@@ -38,7 +38,7 @@ and overwrites `~/seedling/system/src` wholesale — so edit in your checkout, n
 in the installed copy (edits there don't survive an update).
 
 > An explicit `SEEDLING_REPO` (env, one run) or `SEEDLING_REPO_URL`
-> (`seedling.conf`) still wins over the checkout directory if you'd rather
+> (`global.conf`) still wins over the checkout directory if you'd rather
 > updates come from a URL — see below.
 
 ---
@@ -67,7 +67,7 @@ To point an install at a fork's URL in the first place, set it at install time
 
 ```
 README.md
-seedling.conf         deployment config: install/update source URL (or directory) + install-time settings
+global.conf         deployment config: install/update source URL (or directory) + install-time settings
 install.cmd           generic installer entry point: batch on Windows, `sh ./install.cmd` on macOS/Linux
 uninstall.cmd         generic uninstaller entry point (same dual-platform trick)
 build-offline.cmd     builds an offline distribution bundle (dual-platform launcher; NOT a seed command)
@@ -75,14 +75,14 @@ installers/
   install.sh          the real POSIX installer (also what the curl one-liner runs)
   install.ps1         the real Windows installer (also what the irm one-liner runs)
   uninstall.sh / uninstall.ps1   full removal, including the shell hook (same end state as `seed purge`)
-  build_offline.py    the offline bundle builder (downloads uv + interpreters + wheels, writes seedling.conf)
+  build_offline.py    the offline bundle builder (downloads uv + interpreters + wheels, writes global.conf)
   build_offline.sh    POSIX launcher for build-offline.cmd (finds Python, runs build_offline.py)
 docs/
   DOCUMENTATION.md    the documentation map (routes to the two tracks below)
   GUIDE.md            using seedling: install, layout, updates, troubleshooting
   COMMANDS.md         every command and flag
   DESIGN.md           why deletion is defensive, logging, download verification
-  DEPLOYMENT.md       deploying to others: seedling.conf, shared roots, admin teardown
+  DEPLOYMENT.md       deploying to others: global.conf, shared roots, admin teardown
   OFFLINE.md          fully-offline / air-gapped deployment guide
   LICENSING.md        redistribution posture; what is downloaded, under what terms
   CONTRIBUTING.md     this guide

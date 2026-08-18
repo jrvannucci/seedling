@@ -78,18 +78,18 @@ templates, so shell-side changes ship with updates too. Your profile hook
 points at that file by path, so the refresh takes effect in new shells
 automatically — nothing in your profile is touched.
 
-**It also tells you if `seedling.conf` changed underneath you.** Settings
+**It also tells you if `global.conf` changed underneath you.** Settings
 (`seed config`'s values, like `package_index` or `venv_default_packages`)
-are seeded from `seedling.conf` once, at install time, and never
+are seeded from `global.conf` once, at install time, and never
 re-applied automatically — an org changing a share path or an index later
 previously left every existing machine silently out of sync, discoverable
 only when something broke. After refreshing, this command re-reads the
-(now current) `seedling.conf` and reports anything it now sets
+(now current) `global.conf` and reports anything it now sets
 differently than what's actually configured here, with the exact
 `seed config set` to apply it:
 
 ```
-The organization's seedling.conf now sets these differently than what's
+The organization's global.conf now sets these differently than what's
 configured on this machine (settings are only ever seeded at install
 time, never re-applied automatically):
   package_index: 'https://old.example/simple' -> 'https://new.example/simple'

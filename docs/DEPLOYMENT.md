@@ -14,7 +14,7 @@ This page is the deployment track. It assumes you are setting seedling up
 ## Contents
 
 - [Who this is for](#who-this-is-for)
-- [Deployment configuration: `seedling.conf`](#deployment-configuration-seedlingconf)
+- [Deployment configuration: `global.conf`](#deployment-configuration-globalconf)
 - [Shared-machine (multi-user) installs](#shared-machine-multi-user-installs)
 - [Choosing an editor](#choosing-an-editor)
 - Defining the environment itself → **[PROFILES.md](PROFILES.md)**
@@ -47,16 +47,16 @@ unreliable, or unauditable:
   with no per-user setup instructions to follow or get wrong.
 
 The mechanism in all four cases is the same: you edit
-[`seedling.conf`](https://github.com/jrvannucci/seedling/blob/main/seedling.conf)
+[`global.conf`](https://github.com/jrvannucci/seedling/blob/main/global.conf)
 in the copy of the repo you distribute, and everyone who installs from that
 copy inherits your settings. **Your users never set an environment variable,
 pass a flag, or edit a file.**
 
 ---
 
-### Deployment configuration: `seedling.conf`
+### Deployment configuration: `global.conf`
 
-`seedling.conf` at the repo root is the single place a deployment's paths
+`global.conf` at the repo root is the single place a deployment's paths
 and install-time settings live. Every setting is listed in the file with
 its default value written out, so there's no guessing what can be changed
 or what the current behavior is — values left at their defaults change
@@ -138,19 +138,19 @@ or environment variables:
   the `startup_commands` setting; see
   [Running commands at startup](CUSTOM-COMMANDS.md#running-commands-at-startup).
 
-How it's applied: both installers read `seedling.conf` at the repo root
+How it's applied: both installers read `global.conf` at the repo root
 (a piped install reads the copy inside the repo it just cloned). The
 install source is always recorded as `update_source`, and other values
 that differ from the public defaults are written alongside it, into
 `~/seedling/system/config/settings.json` on **first install only** — an
 existing settings file is never overwritten, so later `seed config set`
-choices survive reinstalls. Changing `seedling.conf` later doesn't reach
+choices survive reinstalls. Changing `global.conf` later doesn't reach
 already-installed machines on its own; `seed update-commands` will *report*
 any drift it finds (see [its reference entry](commands/lifecycle.md#seed-update-commands))
 but never overwrite a setting for you. Resolution order for the install source:
 
 1. `SEEDLING_REPO` environment variable (one-run override)
-2. `SEEDLING_REPO_URL` from `seedling.conf`
+2. `SEEDLING_REPO_URL` from `global.conf`
 3. the baked-in public default (what the piped one-liner uses)
 
 ### Shared-machine (multi-user) installs
@@ -163,7 +163,7 @@ location with a `{user}` token so each person still gets a private,
 conflict-free copy.
 
 For example, to install every user under `C:\seedling\<their-name>`, set in
-the distributed `seedling.conf`:
+the distributed `global.conf`:
 
 ```
 SEEDLING_HOME_DIR="C:\seedling\{user}"
@@ -405,7 +405,7 @@ The questions that come up in a review, and where the answer is documented:
 |---|---|
 | What does it write outside its own folder? | The shell hook line in the user's profile. Nothing else — no registry, no `%APPDATA%`, no system paths. See [the folder layout](GUIDE.md#the-folder-layout). |
 | Does it need administrator rights? | No. Only the [`admin-*` family](#admin-commands-shared-root-teardown) does, and only for cross-user teardown. |
-| Where does code come from? | Whatever you set in `seedling.conf`. Pointed at internal mirrors, it never contacts github.com or pypi.org — see [OFFLINE.md](OFFLINE.md). |
+| Where does code come from? | Whatever you set in `global.conf`. Pointed at internal mirrors, it never contacts github.com or pypi.org — see [OFFLINE.md](OFFLINE.md). |
 | Are downloads verified? | Yes — SHA-256 against the publisher's checksum, with an explicit warning when no checksum can be obtained. See [Download verification](DESIGN.md#download-verification). |
 | Is there an audit trail? | Every command is logged, one plain-text file per day, under `system/logs/`. See [Command logging](DESIGN.md#command-logging). |
 | Can it be removed completely? | `seed purge` deletes the install directory and the shell hook. `admin-purge-all-users` does it for every user under a shared root. Both support `--preview` to show exactly what would go, first. |

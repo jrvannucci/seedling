@@ -28,7 +28,7 @@ The profile is unremarkable; the licensing decision lives in the conf.
 ![One origin on the target: the share -- with the official VS Code build inside it instead of VSCodium, keeping Pylance.](../diagrams/profile-pull-air-gapped-vs-code.svg)
 
 ```toml
-# seedling-profile.toml -- distributed on the share, applied at install.
+# profile.toml -- distributed on the share, applied at install.
 
 python = ["3.12"]
 
@@ -43,18 +43,39 @@ default = true
 ```
 
 ```sh
-# seedling.conf, in the copy you distribute.
+# global.conf, in the copy you distribute.
 # "microsoft" is the default, but state it explicitly here -- this file is
 # what a reviewer reads to see which build was staged.
 SEEDLING_VSCODE_FLAVOR="microsoft"
 SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-python.vscode-pylance,ms-python.debugpy,ms-toolsai.jupyter,charliermarsh.ruff"
 ```
 
+The share declares its own contents, and the profile is checked against them:
+
+```toml
+# offline-bundle.toml -- what the share will hold, next to global.conf.
+
+pythons = ["3.12"]
+
+# More than the profile needs: nobody on an isolated network can add one
+# later. hatchling/ipython/ruff/ipykernel/pip are always bundled.
+packages = ["pandas", "numpy", "requests", "pytest", "mypy", "httpx", "openpyxl"]
+
+tools = ["ripgrep", "pandoc"]
+
+[editor]
+flavor = "microsoft"
+extensions = [
+    "ms-python.python", "ms-python.vscode-pylance", "ms-python.debugpy",
+    "ms-toolsai.jupyter", "charliermarsh.ruff",
+]
+```
+
 Build it with the acknowledgement, which is deliberately **not** covered by
 `--yes`:
 
 ```
-build-offline.cmd --profile seedling-profile.toml --accept-third-party-terms
+build-offline.cmd --check-profile profile.toml --accept-third-party-terms
 ```
 
 **Why it's shaped this way**
@@ -68,6 +89,13 @@ build-offline.cmd --profile seedling-profile.toml --accept-third-party-terms
   redistribution *you* are performing. seedling grants no rights; the flag is
   you asserting you hold them. It resists `--yes` on purpose, so an
   unattended build can't acknowledge licence terms on your behalf.
+- **The extension list above reaches your users, not the bundler.** It seeds
+  each machine's `vscode_extensions` at install time; what gets *staged* into
+  `vendor/vscode/` is whatever the build machine's own settings say. The
+  default set already includes Pylance, so this example builds correctly
+  either way — but if you trim or extend the list here, set the same list on
+  the builder (`seed config set vscode_extensions "..."`) or the bundle won't
+  match. See [the note in OFFLINE.md](../OFFLINE.md#7-vs-code-optional).
 - The bundle's `MANIFEST.json` lists every component with its licence and
   whether it was staged. That file is what to hand a security review rather
   than re-deriving the answer.
@@ -85,8 +113,9 @@ and `MANIFEST.json` records those as `restricted` — which is exactly what
 offline-bundle/
 ├── MANIFEST.json            lists VS Code + extensions as RESTRICTED
 ├── seedling/
-│   ├── seedling.conf
-│   ├── seedling-profile.toml
+│   ├── global.conf
+│   ├── offline-bundle.toml
+│   ├── profile.toml
 │   └── vendor/
 │       ├── uv/                  uv.exe, uvx.exe
 │       ├── vscode/

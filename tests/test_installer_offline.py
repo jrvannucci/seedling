@@ -57,8 +57,8 @@ def _settings(seedling_home):
 
 
 def _write_conf(copy, **overrides):
-    """Rewrite seedling.conf values in the repo copy."""
-    conf = copy / "seedling.conf"
+    """Rewrite global.conf values in the repo copy."""
+    conf = copy / "global.conf"
     text = conf.read_text()
     for key, value in overrides.items():
         import re
@@ -310,18 +310,18 @@ class TestProfile:
     instead of the built-in single-'dev'-venv setup."""
 
     def _profile(self, copy, body: str):
-        (copy / "seedling-profile.toml").write_text(body, encoding="utf-8")
+        (copy / "profile.toml").write_text(body, encoding="utf-8")
 
     def test_profile_is_recorded_and_applied(self, install_env):
         copy, fake_home, home, run_install = install_env
         self._profile(copy, '[[venv]]\nname = "team"\ndefault = true\n')
-        _write_conf(copy, SEEDLING_PROFILE="seedling-profile.toml")
+        _write_conf(copy, SEEDLING_PROFILE="profile.toml")
         result = run_install()
         assert result.returncode == 0, result.stdout + result.stderr
         # Recorded against the COPY inside ~/seedling, so `seed apply` keeps
         # working after the install share goes away.
         recorded = _settings(home)["profile"]
-        assert recorded.endswith("seedling-profile.toml")
+        assert recorded.endswith("profile.toml")
         assert "system" in recorded.replace("\\", "/")
         assert "seed-cli apply" in _calls(home)
 
@@ -330,7 +330,7 @@ class TestProfile:
         asked for, alongside the ones the profile declares."""
         copy, fake_home, home, run_install = install_env
         self._profile(copy, '[[venv]]\nname = "team"\n')
-        _write_conf(copy, SEEDLING_PROFILE="seedling-profile.toml")
+        _write_conf(copy, SEEDLING_PROFILE="profile.toml")
         run_install()
         calls = _calls(home)
         assert "seed-cli apply" in calls
@@ -379,9 +379,9 @@ class TestProfile:
 
     def test_env_var_beats_the_conf(self, install_env, tmp_path):
         copy, fake_home, home, run_install = install_env
-        (copy / "seedling-profile.toml").write_text(
+        (copy / "profile.toml").write_text(
             '[[venv]]\nname = "fromconf"\n', encoding="utf-8")
-        _write_conf(copy, SEEDLING_PROFILE="seedling-profile.toml")
+        _write_conf(copy, SEEDLING_PROFILE="profile.toml")
         mine = tmp_path / "mine.toml"
         mine.write_text('[[venv]]\nname = "fromenv"\n', encoding="utf-8")
         run_install(f"SEEDLING_PROFILE='{mine.as_posix()}'")

@@ -44,7 +44,7 @@ There are four install origins. Whichever one you use is saved as the
 "reinstall later" hint) keeps pointing back at it. **The thing that differs
 between them is what you configure up front** — origins 1 and 2 need nothing;
 origins 3 and 4 are set once in
-[`seedling.conf`](DEPLOYMENT.md#deployment-configuration-seedlingconf) so your users don't
+[`global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf) so your users don't
 have to.
 
 **1. Public GitHub** — the default, for anyone on the open internet
@@ -58,19 +58,19 @@ have to.
 - *Recorded as:* the checkout **directory** itself, so `seed update-commands` re-copies from that working tree. (An explicit `SEEDLING_REPO`/`SEEDLING_REPO_URL` override records a URL instead.) Developing seedling? The [contributor guide](CONTRIBUTING.md) builds the edit → update loop on this.
 
 **3. Directory / network share** — for machines with no GitHub access at all
-- *Configure:* set `SEEDLING_REPO_URL` to a **folder** holding a copy of this repo, in [`seedling.conf`](DEPLOYMENT.md#deployment-configuration-seedlingconf).
+- *Configure:* set `SEEDLING_REPO_URL` to a **folder** holding a copy of this repo, in [`global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf).
 - *Install:* run `install.cmd`; your users pass no flags of their own.
 - *Recorded as:* that directory.
-- *More:* [Deployment configuration](DEPLOYMENT.md#deployment-configuration-seedlingconf) — and, for a fully disconnected network, the [offline guide](OFFLINE.md).
+- *More:* [Deployment configuration](DEPLOYMENT.md#deployment-configuration-globalconf) — and, for a fully disconnected network, the [offline guide](OFFLINE.md).
 
 **4. Self-hosted git** — a private GitHub Enterprise / GitLab / fork URL
-- *Configure:* set `SEEDLING_REPO_URL` to the **git URL**, in [`seedling.conf`](DEPLOYMENT.md#deployment-configuration-seedlingconf).
+- *Configure:* set `SEEDLING_REPO_URL` to the **git URL**, in [`global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf).
 - *Install:* run `install.cmd` (or the one-liner with `SEEDLING_REPO` set).
 - *Recorded as:* that URL.
-- *More:* [Deployment configuration](DEPLOYMENT.md#deployment-configuration-seedlingconf).
+- *More:* [Deployment configuration](DEPLOYMENT.md#deployment-configuration-globalconf).
 
 Origins 3 and 4 are the organization-deployment story: set the source **once**
-in the [`seedling.conf`](DEPLOYMENT.md#deployment-configuration-seedlingconf) you
+in the [`global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf) you
 distribute, and everyone installs with no flags or environment variables at
 all. To install from a different source for a **single run** without editing
 anything, set the `SEEDLING_REPO` environment variable instead — see
@@ -358,7 +358,7 @@ hand-edited something. Note that updating *overwrites* the private copy —
 hand-edits there don't survive an update (edit and reinstall from a real
 checkout instead if you're developing seedling itself).
 
-After refreshing, it also re-reads the now-current `seedling.conf` and
+After refreshing, it also re-reads the now-current `global.conf` and
 reports (never applies) any *setting* it would now seed differently than
 what's actually configured — see
 [`seed update-commands`](commands/lifecycle.md#seed-update-commands) for the
@@ -408,7 +408,7 @@ Two narrower / fallback options:
   **standalone fallback for when `seed` itself is broken** and `seed purge`
   can't run. Run from your copy of the repo; it needs no working seed-cli
   (pure shell/PowerShell). It resolves the install location the same way
-  the installer did — `SEEDLING_HOME` env override, else `seedling.conf`'s
+  the installer did — `SEEDLING_HOME` env override, else `global.conf`'s
   `SEEDLING_HOME_DIR` with `~`/`{user}` expansion — so relocated and
   shared-root installs are targeted correctly. (For removing *other* users'
   installs on a shared machine, that's the elevated
@@ -425,7 +425,7 @@ curl -fsSL https://raw.githubusercontent.com/jrvannucci/seedling/main/installers
 irm https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/uninstall.ps1 | iex
 ```
 
-Piped like this there's no local `seedling.conf` to read, so it targets the
+Piped like this there's no local `global.conf` to read, so it targets the
 **default `~/seedling`**. For a relocated or `{user}` install, tell it where
 to look with `SEEDLING_HOME`:
 

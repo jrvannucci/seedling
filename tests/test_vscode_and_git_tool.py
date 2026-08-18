@@ -338,7 +338,7 @@ def test_run_streamed_tags_output(home, capsys):
 
 
 # --------------------------------------------------------------------------
-# Editor flavor / extension gallery / extension list (seedling.conf plumbing)
+# Editor flavor / extension gallery / extension list (global.conf plumbing)
 # --------------------------------------------------------------------------
 
 def test_flavor_defaults_to_microsoft(home):

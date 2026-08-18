@@ -22,7 +22,7 @@ seedling only for interpreters and environments.
 ![One origin, pypi.org, one venv, straight to the user's own machine -- the simplest shape in this whole set.](../diagrams/profile-pull-just-python.svg)
 
 ```toml
-# seedling-profile.toml
+# profile.toml
 
 python = ["3.13"]
 
@@ -33,7 +33,7 @@ default = true
 ```
 
 Omitting `editor` means `seed apply` installs none. Whether the installer
-sets up VS Code is then `SEEDLING_AUTO_VSCODE`'s decision in `seedling.conf`
+sets up VS Code is then `SEEDLING_AUTO_VSCODE`'s decision in `global.conf`
 — set it to `"false"` for a genuinely editor-free install.
 
 Point your own editor at the environment with the interpreter path:

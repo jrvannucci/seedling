@@ -18,12 +18,12 @@ UNINSTALL_SH = REPO_ROOT / "installers" / "uninstall.sh"
 
 
 def _mini_repo(tmp_path, home_dir_value):
-    """A minimal repo copy: installers/uninstall.sh + a seedling.conf whose
+    """A minimal repo copy: installers/uninstall.sh + a global.conf whose
     SEEDLING_HOME_DIR is `home_dir_value`."""
     copy = tmp_path / "copy"
     (copy / "installers").mkdir(parents=True)
     shutil.copy(UNINSTALL_SH, copy / "installers" / "uninstall.sh")
-    (copy / "seedling.conf").write_text(f'SEEDLING_HOME_DIR="{home_dir_value}"\n')
+    (copy / "global.conf").write_text(f'SEEDLING_HOME_DIR="{home_dir_value}"\n')
     return copy
 
 

@@ -10,7 +10,7 @@ __SEEDLING_CLI="$__SEEDLING_HOME/system/bin/seed-cli"
 
 # seed-cli itself resolves the seedling home from this variable (falling
 # back to ~/seedling). Exporting it here is what makes a custom
-# SEEDLING_HOME_DIR from seedling.conf work at runtime, not just at
+# SEEDLING_HOME_DIR from global.conf work at runtime, not just at
 # install time. For default installs this is a no-op.
 export SEEDLING_HOME="$__SEEDLING_HOME"
 

@@ -71,7 +71,8 @@ def show(args) -> int:
     print(f"seedling settings ({paths.CONFIG_FILE}):")
     print()
     for key, description in config.KNOWN_KEYS.items():
-        print(f"  {colors.bold(key)} = {_format_value(data.get(key))}")
+        print(f"  {colors.bold(key)} = "
+              f"{_format_value(config.mask(key, data.get(key)))}")
         print(colors.dim(f"      {description}"))
     unknown = sorted(set(data) - set(config.KNOWN_KEYS))
     if unknown:
@@ -90,6 +91,9 @@ def get(args) -> int:
         print(f"Unknown key '{key}'. Known keys: {', '.join(config.KNOWN_KEYS)}")
         return 1
     value = config.get(key)
+    # Masked here too: `seed config get` is the form most likely to end up in
+    # a script whose output is captured, pasted, or logged.
+    value = config.mask(key, value)
     if isinstance(value, list):
         print(",".join(str(v) for v in value))
     elif value is not None:

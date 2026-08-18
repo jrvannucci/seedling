@@ -4,13 +4,13 @@
 # The normal way to uninstall is `seed purge` (more thorough, and it knows
 # its own install location). This script is the FALLBACK for when seed-cli
 # itself is broken and can't run. It resolves the install location the same
-# way the installer did -- SEEDLING_HOME env override, else seedling.conf's
+# way the installer did -- SEEDLING_HOME env override, else global.conf's
 # SEEDLING_HOME_DIR with "~" and "{user}" expansion -- so relocated and
 # shared multi-user installs are targeted correctly, not a hardcoded
 # ~\seedling.
 $ErrorActionPreference = "Stop"
 
-# This script lives in installers\; seedling.conf is at the repo root above.
+# This script lives in installers\; global.conf is at the repo root above.
 # $MyInvocation.MyCommand.Path is $null when this is run via `irm ... | iex`
 # (no backing file), so guard against that before Split-Path -- and fall
 # back to SEEDLING_HOME / the default location when there's no local conf.
@@ -19,7 +19,10 @@ $ScriptDir = if ($ScriptPath) { Split-Path -Parent $ScriptPath } else { $null }
 $RepoRoot = if ($ScriptDir) { Split-Path -Parent $ScriptDir } else { $null }
 $Conf = @{}
 if ($RepoRoot) {
-    $confPath = Join-Path $RepoRoot "seedling.conf"
+    $confPath = Join-Path $RepoRoot "global.conf"
+    if (-not (Test-Path $confPath)) {
+        $confPath = Join-Path $RepoRoot "seedling.conf"   # pre-rename name
+    }
     if (Test-Path $confPath) {
         foreach ($line in Get-Content $confPath) {
             if ($line -match '^\s*([A-Z_]+)\s*=\s*"([^"]*)"\s*$') { $Conf[$Matches[1]] = $Matches[2] }

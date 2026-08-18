@@ -11,10 +11,10 @@
 
 $ErrorActionPreference = "Stop"
 
-# Built-in defaults. seedling.conf ships with these same values written
+# Built-in defaults. global.conf ships with these same values written
 # out, so a conf that still matches them changes nothing -- only edited
 # values have any effect. The baked-in copies exist for the piped
-# one-liner install, where no local seedling.conf exists yet to consult.
+# one-liner install, where no local global.conf exists yet to consult.
 $DefaultSeedlingRepo = "https://github.com/jrvannucci/seedling.git"
 $DefaultVenvPackages = "ipython,ruff,ipykernel"
 
@@ -32,11 +32,27 @@ function Die($msg)   {
     exit 1
 }
 
-# seedling.conf is the deployment config: organizations distributing
+# global.conf is the deployment config: organizations distributing
 # seedling from their own git host or a network drive set the source (and
 # any install-time settings) there ONCE, and their users install with no
 # flags or env vars. Standard internet installs ship a conf whose values
 # match the baked-in defaults, so nothing changes for them.
+function Resolve-SeedlingConfPath($root) {
+    # global.conf is the name; seedling.conf was the name before the rename and
+    # is still honored, because an organization's customized copy being ignored
+    # would silently install their fleet from the public internet with default
+    # settings -- a far worse outcome than reading the old file.
+    if (-not $root) { return $null }
+    $current = Join-Path $root "global.conf"
+    if (Test-Path $current) { return $current }
+    $legacy = Join-Path $root "seedling.conf"
+    if (Test-Path $legacy) {
+        Write-Host "  ! seedling.conf is now global.conf -- rename it; this fallback goes away."
+        return $legacy
+    }
+    return $current
+}
+
 function Read-SeedlingConf($path) {
     $conf = @{}
     if ($path -and (Test-Path $path)) {
@@ -122,7 +138,7 @@ function Resolve-SeedlingGit {
 # against that instead of calling Split-Path on a null value.
 $ScriptPath = $MyInvocation.MyCommand.Path
 $ScriptDir = if ($ScriptPath) { Split-Path -Parent $ScriptPath } else { $null }
-# This script lives in installers\; the repo root (seedling.conf, src\) is
+# This script lives in installers\; the repo root (global.conf, src\) is
 # one level up.
 $RepoRoot = if ($ScriptDir) { Split-Path -Parent $ScriptDir } else { $null }
 
@@ -133,10 +149,10 @@ if ($RepoRoot) {
     }
 }
 
-$Conf = if ($RepoRoot) { Read-SeedlingConf (Join-Path $RepoRoot "seedling.conf") } else { @{} }
+$Conf = if ($RepoRoot) { Read-SeedlingConf (Resolve-SeedlingConfPath $RepoRoot) } else { @{} }
 
 # Source resolution: SEEDLING_REPO env var (one-run override) beats
-# seedling.conf, which beats the baked-in default.
+# global.conf, which beats the baked-in default.
 $SeedlingRepo = if ($env:SEEDLING_REPO) {
     $env:SEEDLING_REPO
 } elseif ($Conf["SEEDLING_REPO_URL"]) {
@@ -411,13 +427,13 @@ if ($CleanupOriginalSrc) {
 }
 
 # ---------------------------------------------------------------------------
-# 2c. Seed seedling's settings from seedling.conf (first install only --
+# 2c. Seed seedling's settings from global.conf (first install only --
 #     an existing settings.json is never touched, so reinstalls don't
 #     clobber choices made later with `seed config set`).
 # ---------------------------------------------------------------------------
 # Piped installs have no local conf, but the clone we just copied does.
 if ($Conf.Count -eq 0) {
-    $Conf = Read-SeedlingConf (Join-Path $SrcDir "seedling.conf")
+    $Conf = Read-SeedlingConf (Resolve-SeedlingConfPath $SrcDir)
 }
 
 # Record where this install came from, so `seed update-commands` knows
@@ -467,6 +483,11 @@ if (-not (Test-Path $SettingsFile)) {
     # environment variables themselves.
     if ($Conf["SEEDLING_PYTHON_MIRROR"]) { $seed["python_mirror"] = $Conf["SEEDLING_PYTHON_MIRROR"] }
     if ($Conf["SEEDLING_PACKAGE_INDEX"]) { $seed["package_index"] = $Conf["SEEDLING_PACKAGE_INDEX"] }
+    if ($Conf["SEEDLING_PACKAGE_UPLOAD_URL"]) { $seed["package_upload_url"] = $Conf["SEEDLING_PACKAGE_UPLOAD_URL"] }
+    # A WRITE credential -- normally empty in a distributed conf, set only on
+    # the machine that publishes. Seeding it here gives every user of this
+    # share publish rights to the index.
+    if ($Conf["SEEDLING_PACKAGE_UPLOAD_TOKEN"]) { $seed["package_upload_token"] = $Conf["SEEDLING_PACKAGE_UPLOAD_TOKEN"] }
     # conda-forge channel for `seed forge-install`. Only seeded when overridden
     # (an internal mirror / offline path); the built-in default is conda-forge.
     if ($Conf["SEEDLING_CONDA_CHANNEL"]) {
@@ -507,7 +528,7 @@ if (-not (Test-Path $SettingsFile)) {
     }
     if ($seed.Count -gt 0) {
         $seed | ConvertTo-Json | Set-Content -Path $SettingsFile -Encoding UTF8
-        Info "Seeded seedling settings from seedling.conf"
+        Info "Seeded seedling settings from global.conf"
     }
 }
 
@@ -634,7 +655,7 @@ if (-not (Test-Path $SeedCli)) { Die "seed-cli was not installed correctly." }
 # 4b. Default environment: the newest stable Python plus a 'dev' venv (with
 #     the default packages) that every new shell auto-activates -- so a
 #     fresh install is immediately usable with plain `python`/`ipython`.
-#     Skip with SEEDLING_AUTO_SETUP="false" (env var or seedling.conf). Never
+#     Skip with SEEDLING_AUTO_SETUP="false" (env var or global.conf). Never
 #     fatal: a network hiccup here still leaves a working seedling.
 # ---------------------------------------------------------------------------
 $AutoSetup = if ($env:SEEDLING_AUTO_SETUP) {

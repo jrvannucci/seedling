@@ -22,7 +22,7 @@ uses whichever they open.
 ![Two origins: pypi.org for the shared venv and Spyder, the VS Code Marketplace for the editor -- no bundle in between.](../diagrams/profile-pull-both-editors.svg)
 
 ```toml
-# seedling-profile.toml -- research engineering.
+# profile.toml -- research engineering.
 
 python = ["3.12"]
 

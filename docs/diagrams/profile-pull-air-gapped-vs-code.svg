@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 960" font-family="Arial, Helvetica, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1107" font-family="Arial, Helvetica, sans-serif">
 <defs>
   <defs>
     <style>
@@ -40,9 +40,14 @@
       <line x1="8" y1="15.5" x2="16" y2="15.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
       <line x1="8" y1="19" x2="12.5" y2="19" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
     </symbol>
+    <symbol id="ic-terminal" viewBox="0 0 24 24">
+      <rect x="2.5" y="4" width="19" height="16" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M6.5 9 L10.5 12 L6.5 15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="12" y1="15" x2="17" y2="15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </symbol>
   </defs>
 </defs>
-<rect x="0" y="0" width="1000" height="960" fill="#FFFFFF"/>
+<rect x="0" y="0" width="1000" height="1107" fill="#FFFFFF"/>
 
   <g transform="translate(40,20)">
     <path d="M12 42 V16" stroke="#1B4332" stroke-width="2.6" stroke-linecap="round" fill="none"/>
@@ -52,75 +57,84 @@
   <text x="94" y="54" class="head fg" font-size="25" font-weight="700">Air-gapped (VS Code)</text>
   <text x="40" y="79" class="body fmute" font-size="13.5" font-style="italic">Keeps Pylance -- built once, carried in</text>
 
-<rect x="40" y="110" width="509" height="422" rx="10" fill="none" stroke="#1B4332" stroke-width="1.3" stroke-dasharray="5 4"/>
-<text x="50" y="126" class="body fg" font-size="11" font-weight="700" letter-spacing="0.6">BUILT ONCE, ON A CONNECTED MACHINE</text>
-<g transform="translate(50.0,142.0) scale(0.5200)"><rect x="544" y="0" width="372" height="190" rx="12" fill="#1B4332"/><use href="#ic-doc" x="560" y="12" width="20" height="20" color="#FFFFFF"/><text x="588" y="27" class="body fw" font-size="14" font-weight="700">seedling.conf</text><text x="560" y="41" class="body" fill="#CFE3D6" font-size="10" font-style="italic">read on this machine, before build-offline</text><text x="560" y="53" class="body" fill="#CFE3D6" font-size="10" font-style="italic">stages anything</text><line x1="560" y1="63" x2="900" y2="63" stroke="#FFFFFF" stroke-width="1" opacity="0.2"/><rect x="560" y="71" width="340" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="569" y="86" class="body fg" font-size="11.5" font-weight="600">vscode_flavor  →  vendor/vscode/</text><rect x="560" y="99" width="340" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="569" y="114" class="body fg" font-size="11.5" font-weight="600">vscode_extensions  →  vendor/vscode/</text><rect x="560" y="127" width="340" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="569" y="142" class="body fg" font-size="11.5" font-weight="600">extension_gallery  →  vendor/vscode/</text><rect x="560" y="155" width="340" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="569" y="170" class="body fg" font-size="11.5" font-weight="600">conda_channel  →  conda-channel/</text><line x1="730" y1="190" x2="730" y2="216" stroke="#1B4332" stroke-width="1.6" marker-end="url(#arrow)"/><text x="740" y="209" class="body fmute" font-size="10.5" font-style="italic">sets these before staging</text><text x="200" y="262" class="body fg" font-size="12.5" font-weight="700" letter-spacing="0.8">PULLED FROM</text><rect x="544" y="220" width="372" height="510" rx="14" fill="#EAF3EE" stroke="#1B4332" stroke-width="1.4"/><use href="#ic-box" x="560" y="232" width="20" height="20" color="#1B4332"/><text x="590" y="247" class="body fg" font-size="15" font-weight="700">offline-bundle/</text><text x="590" y="261" class="body fmute" font-size="11" font-style="italic">everything below is staged into this one folder tree</text><text x="40" y="307" class="body fg" font-size="12.5" font-weight="700">seedling itself</text><rect x="200" y="276" width="320" height="54" rx="9" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.8"/><text x="212" y="299" class="body fg" font-size="13.0" font-weight="700">this git checkout</text><text x="212" y="316" class="body" fill="#52796F" font-size="10.8">install.cmd, src/, installers/</text><rect x="560" y="276" width="340" height="54" rx="9" fill="#1B4332" /><text x="572" y="299" class="body fw" font-size="13.0" font-weight="700">seedling/</text><text x="572" y="316" class="body" fill="#CFE3D6" font-size="10.8">copied in, refreshed every re-run</text><line x1="520" y1="303" x2="556" y2="303" stroke="#1B4332" stroke-width="1.4" marker-end="url(#arrow)"/><text x="40" y="371" class="body fg" font-size="12.5" font-weight="700">Packages</text><rect x="200" y="340" width="320" height="54" rx="9" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.8"/><text x="212" y="363" class="body fg" font-size="13.0" font-weight="700">pypi.org</text><text x="212" y="380" class="body" fill="#52796F" font-size="10.8">every venv package</text><rect x="560" y="340" width="340" height="54" rx="9" fill="#1B4332" /><text x="572" y="363" class="body fw" font-size="13.0" font-weight="700">wheels/</text><text x="572" y="380" class="body" fill="#CFE3D6" font-size="10.8">staged into the bundle</text><line x1="520" y1="367" x2="556" y2="367" stroke="#1B4332" stroke-width="1.4" marker-end="url(#arrow)"/><text x="40" y="435" class="body fg" font-size="12.5" font-weight="700">uv</text><rect x="200" y="404" width="320" height="54" rx="9" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.8"/><text x="212" y="427" class="body fg" font-size="13.0" font-weight="700">astral.sh</text><text x="212" y="444" class="body" fill="#52796F" font-size="10.8">the binary itself</text><rect x="560" y="404" width="340" height="54" rx="9" fill="#1B4332" /><text x="572" y="427" class="body fw" font-size="13.0" font-weight="700">vendor/uv/</text><text x="572" y="444" class="body" fill="#CFE3D6" font-size="10.8">staged into the bundle</text><line x1="520" y1="431" x2="556" y2="431" stroke="#1B4332" stroke-width="1.4" marker-end="url(#arrow)"/><text x="40" y="499" class="body fg" font-size="12.5" font-weight="700">Interpreters</text><rect x="200" y="468" width="320" height="54" rx="9" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.8"/><text x="212" y="491" class="body fg" font-size="13.0" font-weight="700">python-build-standalone</text><text x="212" y="508" class="body" fill="#52796F" font-size="10.8">the interpreter archive(s)</text><rect x="560" y="468" width="340" height="54" rx="9" fill="#1B4332" /><text x="572" y="491" class="body fw" font-size="13.0" font-weight="700">python-builds/</text><text x="572" y="508" class="body" fill="#CFE3D6" font-size="10.8">staged into the bundle</text><line x1="520" y1="495" x2="556" y2="495" stroke="#1B4332" stroke-width="1.4" marker-end="url(#arrow)"/><text x="40" y="563" class="body fg" font-size="12.5" font-weight="700">conda-forge tools</text><rect x="200" y="532" width="320" height="54" rx="9" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.8"/><text x="212" y="555" class="body fg" font-size="13.0" font-weight="700">conda-forge</text><text x="212" y="572" class="body" fill="#52796F" font-size="10.8">ripgrep, pandoc</text><rect x="560" y="532" width="340" height="54" rx="9" fill="#1B4332" /><text x="572" y="555" class="body fw" font-size="13.0" font-weight="700">conda-channel/</text><text x="572" y="572" class="body" fill="#CFE3D6" font-size="10.8">+ vendored micromamba</text><line x1="520" y1="559" x2="556" y2="559" stroke="#1B4332" stroke-width="1.4" marker-end="url(#arrow)"/><text x="40" y="627" class="body fg" font-size="12.5" font-weight="700">Editor</text><rect x="200" y="596" width="320" height="54" rx="9" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.8"/><text x="212" y="619" class="body fg" font-size="13.0" font-weight="700">VS Code Marketplace</text><text x="212" y="636" class="body" fill="#52796F" font-size="10.8">official build -- rights held</text><rect x="560" y="596" width="340" height="54" rx="9" fill="#1B4332" /><text x="572" y="619" class="body fw" font-size="13.0" font-weight="700">vendor/vscode/</text><text x="572" y="636" class="body" fill="#CFE3D6" font-size="10.8">staged, marked RESTRICTED</text><line x1="520" y1="623" x2="556" y2="623" stroke="#1B4332" stroke-width="1.4" marker-end="url(#arrow)"/><text x="40" y="691" class="body fg" font-size="12.5" font-weight="700">Git</text><rect x="200" y="660" width="320" height="54" rx="9" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.8"/><text x="212" y="683" class="body fg" font-size="13.0" font-weight="700">git-for-windows</text><text x="212" y="700" class="body" fill="#52796F" font-size="10.8">optional, --mingit</text><rect x="560" y="660" width="340" height="54" rx="9" fill="#1B4332" /><text x="572" y="683" class="body fw" font-size="13.0" font-weight="700">vendor/git/</text><text x="572" y="700" class="body" fill="#CFE3D6" font-size="10.8">staged if requested</text><line x1="520" y1="687" x2="556" y2="687" stroke="#1B4332" stroke-width="1.4" marker-end="url(#arrow)"/></g>
-<line x1="549" y1="321" x2="636" y2="321" stroke="#1B4332" stroke-width="1.4" marker-end="url(#arrow)"/>
-<text x="594" y="313" text-anchor="middle" class="body fmute" font-size="9.5" font-style="italic">moved to the share</text>
-<rect x="640" y="110" width="320" height="190" rx="12" fill="#1B4332"/>
-<use href="#ic-doc" x="658" y="123" width="22" height="22" color="#FFFFFF"/>
-<text x="692" y="138" class="body fw" font-size="14.0" font-weight="700">seedling-profile.toml</text>
-<text x="658" y="154" class="body" fill="#CFE3D6" font-size="10" font-style="italic">one file, read at install and every</text>
-<text x="658" y="166" class="body" fill="#CFE3D6" font-size="10" font-style="italic">later `seed apply`</text>
-<line x1="658" y1="176" x2="942" y2="176" stroke="#FFFFFF" stroke-width="1" opacity="0.2"/>
-<rect x="658" y="184" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="199" class="body fg" font-size="11.5" font-weight="600">python = [...]  →  python/base/</text>
-<rect x="658" y="212" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="227" class="body fg" font-size="11.5" font-weight="600">[[venv]]  →  python/venvs/</text>
-<rect x="658" y="240" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="255" class="body fg" font-size="11.5" font-weight="600">editor = ...  →  extensions/</text>
-<rect x="658" y="268" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="283" class="body fg" font-size="11.5" font-weight="600">tools = [...]  →  system/conda/</text>
-<line x1="800" y1="300" x2="800" y2="330" stroke="#1B4332" stroke-width="1.6" marker-end="url(#arrow)"/>
-<text x="810" y="321" class="body fmute" font-size="10.5" font-style="italic">install + seed apply</text>
-<rect x="640" y="334" width="320" height="550" rx="12" fill="#EAF3EE" stroke="#1B4332" stroke-width="1.2"/>
-<use href="#ic-monitor" x="662" y="338" width="24" height="24" color="#1B4332"/>
-<text x="696" y="355" class="body fg" font-size="15" font-weight="700">YOUR MACHINE</text>
-<text x="662" y="372" class="body fmute" font-size="11.3" font-style="italic">zero internet, every machine on</text>
-<text x="662" y="387" class="body fmute" font-size="11.3" font-style="italic">the target network</text>
-<line x1="662" y1="392" x2="938" y2="392" stroke="#1B4332" stroke-width="1" opacity="0.25"/>
-<text x="662" y="403" class="body fg" font-size="10.5" font-weight="700" letter-spacing="0.6">WHAT THE USER HAS</text>
-<rect x="654" y="417" width="292" height="63" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
-<use href="#ic-folder" x="662" y="423" width="15" height="15" color="#1B4332"/>
-<text x="681" y="434" class="body fg" font-size="12.0" font-weight="700">python/base/</text>
-<text x="681" y="445" class="body fmute" font-size="9.5" font-style="italic">interpreters</text>
-<rect x="664" y="449" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="464" class="body fg" font-size="11.5" font-weight="600">3.12</text>
-<rect x="654" y="492" width="292" height="63" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
-<use href="#ic-folder" x="662" y="498" width="15" height="15" color="#1B4332"/>
-<text x="681" y="509" class="body fg" font-size="12.0" font-weight="700">python/venvs/</text>
-<text x="681" y="520" class="body fmute" font-size="9.5" font-style="italic">one folder per venv</text>
-<rect x="664" y="524" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="538" class="body fg" font-size="11.5" font-weight="600">work</text>
-<rect x="654" y="567" width="292" height="63" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
-<use href="#ic-folder" x="662" y="573" width="15" height="15" color="#1B4332"/>
-<text x="681" y="584" class="body fg" font-size="12.0" font-weight="700">extensions/vscode/</text>
-<text x="681" y="595" class="body fmute" font-size="9.5" font-style="italic">portable VS Code -- keeps Pylance</text>
-<rect x="664" y="599" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="614" class="body fg" font-size="11.5" font-weight="600">VS Code</text>
-<rect x="654" y="642" width="292" height="90" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
-<use href="#ic-folder" x="662" y="648" width="15" height="15" color="#1B4332"/>
-<text x="681" y="659" class="body fg" font-size="12.0" font-weight="700">system/conda/</text>
-<text x="681" y="670" class="body fmute" font-size="9.5" font-style="italic">conda-forge tool envs</text>
-<rect x="664" y="674" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="688" class="body fg" font-size="11.5" font-weight="600">ripgrep</text>
-<rect x="664" y="701" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="716" class="body fg" font-size="11.5" font-weight="600">pandoc</text>
-<rect x="40" y="552" width="470" height="332" rx="12" fill="#EAF3EE" stroke="#1B4332" stroke-width="1.3"/>
-<use href="#ic-box" x="56" y="564" width="20" height="20" color="#1B4332"/>
-<text x="84" y="579" class="body fg" font-size="15.0" font-weight="700">the share (the bundle)</text>
-<text x="84" y="593" class="body fmute" font-size="11.0" font-style="italic">offline-bundle/, copied once</text>
-<rect x="54" y="598" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="619" class="body fw" font-size="13.0" font-weight="700">seedling itself</text>
-<line x1="510" y1="614" x2="636" y2="614" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
-<text x="575" y="608" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">system/src/</text>
-<rect x="54" y="638" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="659" class="body fw" font-size="13.0" font-weight="700">Packages</text>
-<line x1="510" y1="654" x2="636" y2="654" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
-<text x="575" y="648" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">seed install</text>
-<rect x="54" y="678" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="699" class="body fw" font-size="13.0" font-weight="700">uv</text>
-<line x1="510" y1="694" x2="636" y2="694" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
-<text x="575" y="688" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">system/bin/</text>
-<rect x="54" y="718" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="739" class="body fw" font-size="13.0" font-weight="700">Interpreters</text>
-<line x1="510" y1="734" x2="636" y2="734" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
-<text x="575" y="728" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">seed python</text>
-<rect x="54" y="758" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="779" class="body fw" font-size="13.0" font-weight="700">conda-forge tools</text>
-<line x1="510" y1="774" x2="636" y2="774" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
-<text x="575" y="768" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">seed forge-install</text>
-<rect x="54" y="798" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="819" class="body fw" font-size="13.0" font-weight="700">Editor (VS Code)</text>
-<line x1="510" y1="814" x2="636" y2="814" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
-<text x="575" y="808" text-anchor="middle" class="body fmute" font-size="9.5" font-style="italic">extensions/vscode/ -- keeps Pylance</text>
-<rect x="54" y="838" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="859" class="body fw" font-size="13.0" font-weight="700">Git (optional)</text>
-<line x1="510" y1="854" x2="636" y2="854" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
-<text x="575" y="848" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">extensions/git/</text>
-<text x="40" y="918" class="body fmute" font-size="12" font-style="italic">An optional CA cert follows the same path as Git above -- staged if a TLS-inspecting proxy needs one.</text>
+<rect x="640" y="110" width="320" height="64" rx="12" fill="#52796F"/><use href="#ic-terminal" x="656" y="122" width="20" height="20" color="#FFFFFF"/><text x="684" y="137" class="body fw" font-size="14.0" font-weight="700">install.cmd  /  the one-liner</text><text x="656" y="151" class="body" fill="#CFE3D6" font-size="10" font-style="italic">you (or a script) run this -- on each machine, once</text>
+<line x1="800" y1="174" x2="800" y2="320" stroke="#1B4332" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="40" y="202" width="320" height="94" rx="12" fill="#1B4332"/>
+<use href="#ic-doc" x="58" y="215" width="22" height="22" color="#FFFFFF"/>
+<text x="92" y="230" class="body fw" font-size="14" font-weight="700">global.conf</text>
+<text x="58" y="246" class="body" fill="#CFE3D6" font-size="10" font-style="italic">read at install, on every machine</text>
+<line x1="58" y1="256" x2="342" y2="256" stroke="#FFFFFF" stroke-width="1" opacity="0.2"/>
+<rect x="58" y="264" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="67" y="279" class="body fg" font-size="11.5" font-weight="600">SEEDLING_PROFILE  →  profile.toml</text>
+<line x1="360" y1="249" x2="796" y2="249" stroke="#1B4332" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="580" y="241" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">sets SEEDLING_PROFILE</text>
+<rect x="640" y="324" width="320" height="190" rx="12" fill="#1B4332"/>
+<use href="#ic-doc" x="658" y="337" width="22" height="22" color="#FFFFFF"/>
+<text x="692" y="352" class="body fw" font-size="14.0" font-weight="700">profile.toml</text>
+<text x="658" y="368" class="body" fill="#CFE3D6" font-size="10" font-style="italic">one file, read at install and every</text>
+<text x="658" y="380" class="body" fill="#CFE3D6" font-size="10" font-style="italic">later `seed apply`</text>
+<line x1="658" y1="390" x2="942" y2="390" stroke="#FFFFFF" stroke-width="1" opacity="0.2"/>
+<rect x="658" y="398" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="413" class="body fg" font-size="11.5" font-weight="600">python = [...]  →  python/base/</text>
+<rect x="658" y="426" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="441" class="body fg" font-size="11.5" font-weight="600">[[venv]]  →  python/venvs/</text>
+<rect x="658" y="454" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="469" class="body fg" font-size="11.5" font-weight="600">editor = ...  →  extensions/</text>
+<rect x="658" y="482" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="667" y="497" class="body fg" font-size="11.5" font-weight="600">tools = [...]  →  system/conda/</text>
+<line x1="800" y1="514" x2="800" y2="544" stroke="#1B4332" stroke-width="1.6" marker-end="url(#arrow)"/>
+<text x="810" y="535" class="body fmute" font-size="10.5" font-style="italic">install + seed apply</text>
+<rect x="640" y="548" width="320" height="483" rx="12" fill="#EAF3EE" stroke="#1B4332" stroke-width="1.2"/>
+<use href="#ic-monitor" x="662" y="552" width="24" height="24" color="#1B4332"/>
+<text x="696" y="569" class="body fg" font-size="15" font-weight="700">YOUR MACHINE</text>
+<text x="662" y="586" class="body fmute" font-size="11.3" font-style="italic">zero internet, every machine on</text>
+<text x="662" y="601" class="body fmute" font-size="11.3" font-style="italic">the target network</text>
+<line x1="662" y1="606" x2="938" y2="606" stroke="#1B4332" stroke-width="1" opacity="0.25"/>
+<text x="662" y="617" class="body fg" font-size="10.5" font-weight="700" letter-spacing="0.6">WHAT THE USER HAS</text>
+<rect x="654" y="631" width="292" height="42" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="637" width="15" height="15" color="#1B4332"/>
+<text x="681" y="648" class="body fg" font-size="12.0" font-weight="700">system/src/</text>
+<text x="681" y="659" class="body fmute" font-size="9.5" font-style="italic">seedling's own source</text>
+<rect x="654" y="685" width="292" height="63" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="691" width="15" height="15" color="#1B4332"/>
+<text x="681" y="702" class="body fg" font-size="12.0" font-weight="700">python/base/</text>
+<text x="681" y="713" class="body fmute" font-size="9.5" font-style="italic">interpreters</text>
+<rect x="664" y="717" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="732" class="body fg" font-size="11.5" font-weight="600">3.12</text>
+<rect x="654" y="760" width="292" height="63" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="766" width="15" height="15" color="#1B4332"/>
+<text x="681" y="777" class="body fg" font-size="12.0" font-weight="700">python/venvs/</text>
+<text x="681" y="788" class="body fmute" font-size="9.5" font-style="italic">one folder per venv</text>
+<rect x="664" y="792" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="806" class="body fg" font-size="11.5" font-weight="600">work</text>
+<rect x="654" y="835" width="292" height="63" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="841" width="15" height="15" color="#1B4332"/>
+<text x="681" y="852" class="body fg" font-size="12.0" font-weight="700">extensions/vscode/</text>
+<text x="681" y="863" class="body fmute" font-size="9.5" font-style="italic">portable VS Code -- keeps Pylance</text>
+<rect x="664" y="867" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="882" class="body fg" font-size="11.5" font-weight="600">VS Code</text>
+<rect x="654" y="910" width="292" height="90" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1"/>
+<use href="#ic-folder" x="662" y="916" width="15" height="15" color="#1B4332"/>
+<text x="681" y="927" class="body fg" font-size="12.0" font-weight="700">system/conda/</text>
+<text x="681" y="938" class="body fmute" font-size="9.5" font-style="italic">conda-forge tool envs</text>
+<rect x="664" y="942" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="956" class="body fg" font-size="11.5" font-weight="600">ripgrep</text>
+<rect x="664" y="969" width="272" height="21" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="673" y="984" class="body fg" font-size="11.5" font-weight="600">pandoc</text>
+<rect x="40" y="548" width="470" height="332" rx="12" fill="#EAF3EE" stroke="#1B4332" stroke-width="1.3"/>
+<use href="#ic-box" x="56" y="560" width="20" height="20" color="#1B4332"/>
+<text x="84" y="575" class="body fg" font-size="15.0" font-weight="700">the share (the offline build)</text>
+<text x="84" y="589" class="body fmute" font-size="11.0" font-style="italic">offline-bundle/, copied once</text>
+<rect x="54" y="594" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="615" class="body fw" font-size="13.0" font-weight="700">seedling itself</text>
+<line x1="510" y1="610" x2="636" y2="610" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="604" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">system/src/</text>
+<rect x="54" y="634" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="655" class="body fw" font-size="13.0" font-weight="700">Packages</text>
+<line x1="510" y1="650" x2="636" y2="650" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="644" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">seed install</text>
+<rect x="54" y="674" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="695" class="body fw" font-size="13.0" font-weight="700">uv</text>
+<line x1="510" y1="690" x2="636" y2="690" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="684" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">system/bin/</text>
+<rect x="54" y="714" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="735" class="body fw" font-size="13.0" font-weight="700">Interpreters</text>
+<line x1="510" y1="730" x2="636" y2="730" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="724" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">seed python</text>
+<rect x="54" y="754" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="775" class="body fw" font-size="13.0" font-weight="700">conda-forge tools</text>
+<line x1="510" y1="770" x2="636" y2="770" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="764" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">seed forge-install</text>
+<rect x="54" y="794" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="815" class="body fw" font-size="13.0" font-weight="700">Editor (VS Code)</text>
+<line x1="510" y1="810" x2="636" y2="810" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="804" text-anchor="middle" class="body fmute" font-size="9.5" font-style="italic">extensions/vscode/ -- keeps Pylance</text>
+<rect x="54" y="834" width="442" height="32" rx="9" fill="#1B4332" /><text x="66" y="855" class="body fw" font-size="13.0" font-weight="700">Git (optional)</text>
+<line x1="510" y1="850" x2="636" y2="850" stroke="#1B4332" stroke-width="1.3" marker-end="url(#arrow)"/>
+<text x="575" y="844" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">extensions/git/</text>
+<text x="40" y="1065" class="body fmute" font-size="12" font-style="italic">An optional CA cert follows the same path as Git above -- staged if a TLS-inspecting proxy needs one.</text>
 </svg>

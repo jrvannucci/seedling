@@ -29,7 +29,7 @@ build step you don't need.
 ![Two origins, both internal: artifactory.corp.example alone serves packages, Spyder, conda-forge tools AND interpreters, while gitlab.corp.example serves seedling itself plus repos -- no offline-bundle/ anywhere.](../diagrams/profile-pull-internal-mirrors.svg)
 
 ```toml
-# seedling-profile.toml -- the standard environment.
+# profile.toml -- the standard environment.
 
 python = ["3.12"]
 
@@ -52,11 +52,11 @@ install = "work"
 default_venv = "work"
 ```
 
-The mirrors and the CA go in `seedling.conf`, because they must be right
+The mirrors and the CA go in `global.conf`, because they must be right
 before seed-cli exists:
 
 ```sh
-# seedling.conf -- in the copy you distribute.
+# global.conf -- in the copy you distribute.
 
 # A URL, not a directory: these are reachable services, not a share.
 SEEDLING_PACKAGE_INDEX="https://artifactory.corp.example/api/pypi/pypi/simple"
@@ -75,7 +75,7 @@ SEEDLING_NATIVE_TLS="true"
 # install would fail rather than fall back.
 SEEDLING_AUTO_VSCODE="false"
 
-SEEDLING_PROFILE="seedling-profile.toml"
+SEEDLING_PROFILE="profile.toml"
 ```
 
 **Why it's shaped this way**
@@ -113,7 +113,7 @@ with no obvious cause. A [startup command](../CUSTOM-COMMANDS.md) turns
 notice something's wrong":
 
 ```toml
-# custom-commands.toml -- next to seedling-profile.toml
+# custom-commands.toml -- next to profile.toml
 [[command]]
 name = "check-mirror"
 run = ["seed", "health-check"]
@@ -121,7 +121,7 @@ description = "Verify the internal mirrors and CA bundle are reachable"
 ```
 
 ```sh
-# seedling.conf
+# global.conf
 SEEDLING_CUSTOM_COMMANDS="custom-commands.toml"
 SEEDLING_STARTUP_COMMANDS="check-mirror"
 ```

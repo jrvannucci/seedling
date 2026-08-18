@@ -7,7 +7,7 @@
 Opens VS Code at `path` (defaults to the current directory), installing a
 fully portable copy into `~/seedling/extensions/vscode/app` first if none
 exists — though a default install already did that up front (see
-`SEEDLING_AUTO_VSCODE` in `seedling.conf`), so normally this just opens.
+`SEEDLING_AUTO_VSCODE` in `global.conf`), so normally this just opens.
 `--no-open` installs/verifies without opening a window (what the
 installer's default setup uses).
 

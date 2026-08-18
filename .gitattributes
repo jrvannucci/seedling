@@ -5,7 +5,7 @@
 
 # Default: treat everything as text, store it as LF in the repo, and check it
 # out as LF on every platform. POSIX shell scripts, the seed.sh shell
-# integration, seedling.conf (parsed line-by-line by bash), Python, and docs
+# integration, global.conf (parsed line-by-line by bash), Python, and docs
 # all require LF.
 * text=auto eol=lf
 
