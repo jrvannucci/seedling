@@ -20,9 +20,6 @@ $RepoRoot = if ($ScriptDir) { Split-Path -Parent $ScriptDir } else { $null }
 $Conf = @{}
 if ($RepoRoot) {
     $confPath = Join-Path $RepoRoot "global.conf"
-    if (-not (Test-Path $confPath)) {
-        $confPath = Join-Path $RepoRoot "seedling.conf"   # pre-rename name
-    }
     if (Test-Path $confPath) {
         foreach ($line in Get-Content $confPath) {
             if ($line -match '^\s*([A-Z_]+)\s*=\s*"([^"]*)"\s*$') { $Conf[$Matches[1]] = $Matches[2] }

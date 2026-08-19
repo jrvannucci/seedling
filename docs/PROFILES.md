@@ -127,6 +127,51 @@ equivalents for one run.
 
 ---
 
+## Who gets which profile
+
+A fleet rarely wants one environment for everyone. Each profile says who it
+reaches, in its own `[distribution]` table, and the folder holds the lot:
+
+```toml
+# installation-profile/profile.toml -- the baseline
+[distribution]
+default = true          # everyone gets this
+```
+
+```toml
+# installation-profile/analysis.toml -- opt-in
+[distribution]
+users = ["alice", "priya", "sam"]
+```
+
+Point `SEEDLING_PROFILE` at the **folder** rather than a file:
+
+```
+SEEDLING_PROFILE="installation-profile"
+```
+
+`seed apply` then resolves the set for whoever is running it: the default
+first, then each opt-in profile they're listed in, applied in that order —
+the default establishes the baseline, an opt-in profile layers on top of it.
+
+- **Exactly one** profile should set `default = true`; it is what every
+  machine gets.
+- `default` and `users` together are rejected: a profile is either everyone's
+  or opt-in, not both.
+- A profile with **no** `[distribution]` reaches nobody automatically. It
+  exists to be applied by path (`seed apply ./scratch.toml`), which is what
+  you want for one-off or experimental environments.
+- Matching is **case-insensitive**, against the same login name the `{user}`
+  token in `SEEDLING_HOME_DIR` expands to — so a shared-root deployment and a
+  user list can't disagree about who someone is.
+- A single file still works if you only ever ship one profile.
+
+Each profile in the folder is validated against the
+[offline bundle](OFFLINE.md) when the bundle is built, so an opt-in profile
+for three people is checked as thoroughly as the default.
+
+---
+
 ## Distributing it
 
 Put the file in the copy of seedling you distribute and name it in
@@ -157,7 +202,7 @@ is unmounted, and `seed update-commands` refreshes it.
 ## Applying it later
 
 ```sh
-seed apply                  # the profile recorded at install time
+seed apply                  # everything this user is distributed
 seed apply ./team.toml      # a specific file
 seed apply --preview        # show what would change, do nothing
 seed apply --force          # also add missing packages to existing venvs
@@ -250,6 +295,8 @@ profile itself is invalid.
 | `editor` | string or list | The bundled editor(s) this deployment standardizes on: `"vscode"` and/or `"spyder"`. A bare string is treated as a one-element list. Installed by `seed apply` last, in the order given, since they're the largest downloads. Any value that isn't a bundled editor stops the whole profile rather than deploying part of it. Omit for no editor. Top-level key. |
 | `[[repo]] url` | string | **Required.** Git URL to clone. |
 | `[[repo]] install` | string or list | The venv(s) to install the repo into after cloning (`uv pip install -e`, or its `requirements.txt`), in the order given. Every name must be a venv this profile declares. A name may carry extras — `"dev[gui,test]"` — which apply only to that venv, so one clone can land with different optional dependencies in each. Leave the key out to clone without installing — `true` and `false` are **not** accepted: a profile either says where the repo goes or doesn't ask for it. |
+| `[distribution] default` | bool | `true` distributes this profile to **everyone**. At most one profile in a folder. |
+| `[distribution] users` | list | Login names this profile is distributed to, matched case-insensitively. Mutually exclusive with `default`. A profile with neither reaches nobody automatically. |
 | `[config]` | table | Settings to write. See below. |
 
 `[config]` accepts only settings that make sense per-user and after install:
@@ -271,24 +318,23 @@ whole fleet: a typo should fail once for you, not quietly for each user.
 
 ## Offline bundles
 
-How a profile and an offline bundle relate depends on whether the share has
-an [`offline-bundle.toml`](OFFLINE.md#offline-bundletoml--what-the-share-contains):
+![The offline bundle as a superset with profiles nested inside it as subsets, and global.conf outside pointing in.](diagrams/bundle-superset.svg)
 
-**With one** (the current model), it declares the superset on its own and a
-profile is *validated* against it, never folded into it — `build-offline
---check-profile PATH` before and after building, and
+
+[`offline-bundle.toml`](OFFLINE.md#offline-bundletoml--what-the-share-contains)
+declares the superset on its own, and a profile is *validated* against it,
+never folded into it. Every profile in `installation-profile/` is checked when
+the bundle is built — before anything downloads, and again against what
+actually landed — and
 [`seed profile-check`](commands/status.md#seed-profile-check-profile---bundle-path)
 from inside the air gap afterwards. A profile naming a package the share
 doesn't carry is an error you see on the connected machine, not a failed
 install in a locked room.
 
-**Without one**, `build-offline.cmd` reads the profile automatically (or takes
-`--profile PATH`) and adds every package the profile's venvs need to the wheel
-set — and every tool in its `tools` list to a bundled conda channel (vendoring
-micromamba alongside it). That still beats hand-maintaining the bundler's
-`--packages`/`--tools` lists as copies of the profile, where any drift
-surfaces as a failed install on the air-gapped side. Pass `--profile=` (empty)
-to build a bundle that deliberately doesn't match the repo's profile.
+A profile never adds to the bundle. The spec lists what the share holds —
+including everything the profiles need — and the build refuses a profile that
+asks for more. That direction is the whole point: a superset that grew to fit
+whatever a profile asked could never answer "will this work here?"
 
 Either way, on the target `seed apply` installs the profile's tools from the
 bundle, with no internet and no separate folder to carry, and the preflight

@@ -17,11 +17,7 @@ SEEDLING_HOME_FROM_ENV="${SEEDLING_HOME:-}"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 SEEDLING_HOME_DIR=""
-if [ -f "$REPO_ROOT/global.conf" ]; then
-    . "$REPO_ROOT/global.conf"
-elif [ -f "$REPO_ROOT/seedling.conf" ]; then
-    . "$REPO_ROOT/seedling.conf"            # pre-rename name
-fi
+[ -f "$REPO_ROOT/global.conf" ] && . "$REPO_ROOT/global.conf"
 
 # Home resolution: env override, else conf's SEEDLING_HOME_DIR (leading "~"
 # means $HOME), else the default -- identical to the installer.

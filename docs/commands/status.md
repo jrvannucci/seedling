@@ -191,8 +191,14 @@ organization has standardized on.
 > venvs, packages, repos); it never changes `seed`'s own code, and
 > `update-commands` never touches any of what this one manages.
 
-- With no path, uses the profile recorded at install time (the `profile`
-  setting), else `profile.toml` in the current directory.
+- With no path, uses whatever the `profile` setting records — a single file,
+  or the **folder** a fleet distributes, in which case every profile in it
+  that this user is given is applied: the `default = true` one first, then
+  each profile listing them. Falls back to `profile.toml` in the current
+  directory.
+- Applying several is as safe as applying one twice — every step is
+  create-if-missing — and stops at the first failure, since a later profile
+  may layer on what an earlier one was meant to create.
 - **Idempotent.** Applying twice changes nothing the second time, which is
   what makes it usable both as the install-time provisioning step and as the
   way a fleet picks up later changes to the standard.
@@ -248,7 +254,7 @@ applying it and watching it fail.
 seed profile-check ./new-team.toml
 ```
 
-The connected-machine half of the same check runs inside `build-offline`,
+The connected-machine half of the same check runs inside `offline-bundler`,
 against [`offline-bundle.toml`](../OFFLINE.md#offline-bundletoml--what-the-share-contains).
 
 ---

@@ -109,6 +109,20 @@ class Profile:
     # on VS Code, analysts on Spyder -- is the case this exists for.
     editors: list[str] = field(default_factory=list)
     settings: dict = field(default_factory=dict)
+    # [distribution] -- who gets this profile when a whole FOLDER is applied.
+    # Nothing is distributed unless it says so: `default = true` reaches
+    # everyone, `users = [...]` reaches exactly those people, and a profile
+    # with neither is applied only when someone names its path.
+    default: bool = False
+    users: list[str] = field(default_factory=list)
+
+    def applies_to(self, user: str) -> bool:
+        """Whether this profile is distributed to `user`. Case-insensitive:
+        Windows login names vary in case between the registry, the
+        environment and what an admin types into a list."""
+        if self.default:
+            return True
+        return user.strip().lower() in {u.lower() for u in self.users}
 
     def tool_set(self) -> list[str]:
         """The conda-forge tools this profile declares, de-duplicated. Used by
@@ -240,7 +254,8 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
         raise ProfileError(f"not valid TOML: {e}") from e
 
     _reject_unknown_keys(
-        raw, {"schema", "python", "venv", "repo", "tools", "editor", "config"},
+        raw, {"schema", "python", "venv", "repo", "tools", "editor", "config",
+              "distribution"},
         "profile")
 
     schema = raw.get("schema", SCHEMA)
@@ -308,6 +323,19 @@ def parse(text: str, *, path: Path | None = None) -> Profile:
                      f"repo {url!r}: install names venv {target.venv!r}, which "
                      f"this profile doesn't declare")
         profile.repos.append(Repo(url=url, targets=targets))
+
+    distribution = raw.get("distribution", {})
+    _require(isinstance(distribution, dict), "[distribution] must be a table")
+    _reject_unknown_keys(distribution, {"default", "users"}, "[distribution]")
+    is_default = distribution.get("default", False)
+    _require(isinstance(is_default, bool),
+             "[distribution] default must be true or false")
+    profile.default = is_default
+    profile.users = _str_list(distribution.get("users", []),
+                              "[distribution] users")
+    _require(not (profile.default and profile.users),
+             "[distribution]: a profile is either the default (everyone) or "
+             "opt-in for the users it lists -- not both")
 
     profile.tools = _str_list(raw.get("tools", []), "tools")
 
@@ -379,9 +407,8 @@ def load(path: Path) -> Profile:
     return parse(text, path=Path(path))
 
 
-# The conventional filename, and the pre-rename one still answered to. A draft
-# named the old way keeps being found rather than silently going unapplied.
-LOCAL_NAMES = ("profile.toml", "seedling-profile.toml")
+# The conventional filename in the current directory.
+LOCAL_NAME = "profile.toml"
 
 
 def find(explicit: str | None = None) -> Path | None:
@@ -393,10 +420,67 @@ def find(explicit: str | None = None) -> Path | None:
     recorded = config.get("profile")
     if recorded:
         candidate = Path(str(recorded)).expanduser()
-        if candidate.is_file():
+        # Either shape: a single file, or the folder a fleet distributes
+        # (resolved per user by distributed_to).
+        if candidate.is_file() or candidate.is_dir():
             return candidate
-    for name in LOCAL_NAMES:
-        local = Path.cwd() / name
-        if local.is_file():
-            return local
-    return None
+    local = Path.cwd() / LOCAL_NAME
+    return local if local.is_file() else None
+
+
+def current_user() -> str:
+    """The login name profile targeting is matched against -- the same one
+    the {user} token in SEEDLING_HOME_DIR expands to, so a shared-root
+    deployment and a user list can't disagree about who someone is."""
+    from . import paths
+    return paths._current_username()
+
+
+def distributed_to(folder: Path, user: str | None = None) -> list[Path]:
+    """Every profile in `folder` that `user` should get, default first.
+
+    The rule the folder encodes: one profile marked `default = true` reaches
+    everyone, and any other profile reaches exactly the users it lists. A
+    profile that declares neither is deliberately inert here -- it exists for
+    someone to apply by path, not to arrive on machines unasked.
+
+    Ordering is default-first, then alphabetical: the default establishes the
+    baseline environment (interpreters, the venv everyone has), and an opt-in
+    profile layers on top of it. Reversed, a team profile's additions could be
+    written over by the baseline it was meant to extend.
+    """
+    folder = Path(folder)
+    if not folder.is_dir():
+        return []
+    user = user if user is not None else current_user()
+
+    default: list[Path] = []
+    opted_in: list[Path] = []
+    for path in sorted(folder.glob("*.toml")):
+        try:
+            prof = load(path)
+        except ProfileError:
+            # A broken profile is reported by whoever applies it (and by the
+            # bundler, before the share is ever built). Skipping it here keeps
+            # one bad file from making every OTHER user's profile unreachable.
+            continue
+        if prof.default:
+            default.append(path)
+        elif prof.applies_to(user):
+            opted_in.append(path)
+    return default + opted_in
+
+
+def find_all(explicit: str | None = None) -> list[Path]:
+    """The profiles to apply, resolving a folder into the set this user gets.
+
+    `seed apply` accepts either: a single file (applied as named) or a
+    directory (every profile in it that this user is distributed). The
+    installers record the FOLDER, so a fleet's per-team profiles arrive
+    without anyone naming them."""
+    target = find(explicit)
+    if target is None:
+        return []
+    if target.is_dir():
+        return distributed_to(target)
+    return [target]

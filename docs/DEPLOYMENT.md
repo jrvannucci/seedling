@@ -99,6 +99,16 @@ or environment variables:
   (the internet index is then disabled entirely). Seeds the
   `package_index` setting. See [OFFLINE.md](OFFLINE.md) for the full
   offline deployment guide.
+- `SEEDLING_PACKAGE_UPLOAD_URL` (default: empty) — the **upload** endpoint
+  `seed upload-whls` publishes to, which on servers that do both is a
+  different path from `SEEDLING_PACKAGE_INDEX` (`.../api/pypi/<repo>/` vs
+  `.../simple`). Seeds the `package_upload_url` setting.
+- `SEEDLING_PACKAGE_UPLOAD_TOKEN` (default: empty) — the API token for it.
+  **A write credential**: every value in this file is seeded into every
+  user's settings at install time, so leave it empty in the copy you
+  distribute and set it only on the machine that publishes (`seed config set
+  package_upload_token`). seedling masks it wherever it prints settings and
+  passes it to twine through the environment, never on a command line.
 - `SEEDLING_CONDA_CHANNEL` (default: `conda-forge`) — where `seed
   forge-install` fetches conda-forge command-line tools from: a URL or a
   local directory for an internal mirror or an offline network. Seeds the
@@ -317,7 +327,7 @@ A workable order for a first deployment:
 3. **Point package and interpreter downloads at your mirrors** if the
    internet is blocked — `SEEDLING_PACKAGE_INDEX` and
    `SEEDLING_PYTHON_MIRROR`. On a fully disconnected network, run
-   `build-offline.cmd` to assemble the whole bundle in one step; see
+   `offline-bundler.cmd` to assemble the whole bundle in one step; see
    [OFFLINE.md](OFFLINE.md).
 4. **Define the environment.** For a single venv, `SEEDLING_VENV_DEFAULT_PACKAGES`
    decides what every new venv starts with, and `SEEDLING_AUTO_VSCODE` whether

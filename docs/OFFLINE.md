@@ -21,7 +21,7 @@ any of this — they run `install.cmd` from the share and everything works.
 ## The short version
 
 > **In a hurry?** For the common share-only case, skip the manual steps: run
-> **`build-offline.cmd`** (`sh ./build-offline.cmd` on macOS/Linux) on a
+> **`offline-bundler.cmd`** (`sh ./offline-bundler/offline-bundler.cmd` on macOS/Linux) on a
 > connected machine. It downloads uv, the Python interpreter archives, all the
 > wheels, and (optionally) VS Code + its extensions, then writes a matching
 > `global.conf` — see
@@ -192,7 +192,7 @@ automatically.
 > venvs. Older versions are perfectly fine for the second job — mirror as many
 > as you like — but if *none* of them is new enough for the first, the bundle
 > builds cleanly on your connected machine and then fails on the air-gapped
-> one, which is the worst place to find out. `build-offline.cmd` checks this
+> one, which is the worst place to find out. `offline-bundler.cmd` checks this
 > before it downloads anything and refuses to build.
 >
 > When you mirror several interpreters, the wheel step (#4) resolves the
@@ -301,7 +301,7 @@ git is needed for exactly two things, both avoidable:
   `vendor/git/` in your repo copy — the installer places it at
   `~\seedling\extensions\git\`, which seedling checks right after PATH
   and never re-downloads from — or deploy git through your normal
-  software channel. [`build-offline.cmd`](#the-easy-way-build-offlinecmd) can
+  software channel. [`offline-bundler.cmd`](#the-easy-way-offline-bundlercmd) can
   fetch it for you: it asks during the walkthrough, and `--mingit` turns it on
   (which is also what includes it under `--yes`).
 - **URL-based `seed update-commands`** — only if your `update_source` is a
@@ -320,7 +320,7 @@ from the marketplace — neither has a supported mirror.
 > **Check the licensing before you stage this one.** Bundling the editor
 > onto a share is redistribution, and the official VS Code binaries and
 > Marketplace extensions both carry terms that restrict it —
-> `build-offline.cmd` will ask you to acknowledge this before staging them
+> `offline-bundler.cmd` will ask you to acknowledge this before staging them
 > (see [LICENSING.md](LICENSING.md)). Setting
 > `SEEDLING_VSCODE_FLAVOR="vscodium"` switches to the MIT-licensed build and
 > the openly-licensed Open VSX registry, which carry no such restriction —
@@ -328,19 +328,17 @@ from the marketplace — neither has a supported mirror.
 > [Choosing a VS Code build](DEPLOYMENT.md#which-vs-code-build).
 > Everything below applies to whichever flavor you pick.
 >
-> **Where the builder reads that setting from is not `global.conf`.** It
-> stages whatever the *build machine's own* seedling settings say
-> (`vscode_flavor`, `vscode_extensions`, `extension_gallery` — what
-> `seed config get` reports), because the staging step drives seedling's own
-> VS Code installer. Editing `SEEDLING_VSCODE_FLAVOR` in a conf file the
-> builder never installed from has no effect on the bundle. Either install
-> seedling on the build machine from your edited copy (the installer seeds
-> those settings from the conf), or set them directly with
-> `seed config set vscode_extensions "..."` before building.
+> **The editor is decided by `offline-bundler/offline-bundle.toml`.** Its
+> `[editor]` table sets the flavor, the extension set and the gallery, and
+> those are what get staged. The builder also **checks them against
+> `global.conf`** before downloading anything: the spec says what is staged,
+> the conf says what each user's machine expects, and a disagreement stops
+> the build rather than surfacing when someone opens the editor on the far
+> side of the air gap.
 
 Three options:
 
-- **Let the builder do it** (easiest): [`build-offline.cmd`](#putting-it-together-preparing-the-share)
+- **Let the builder do it** (easiest): [`offline-bundler.cmd`](#putting-it-together-preparing-the-share)
   downloads VS Code + the default extensions and drops them into `vendor/vscode/`
   for you. Skip that step with `--no-vscode` if you don't want it.
 - **Pre-seed it by hand**: run `seed vscode` once on a connected machine, then
@@ -378,10 +376,37 @@ installs; users just see a warning with those same commands.
 
 ## Putting it together: preparing the share
 
+![The offline bundle drawn as a superset: everything that crosses the air gap sits inside one box, deployment profiles are nested inside it as subsets, a profile naming a package the bundle lacks is drawn outside with the crossing struck through, and global.conf sits outside pointing in.](diagrams/bundle-superset.svg)
+
+### The two folders
+
+```
+offline-bundler/
+  offline-bundle.toml     what the share holds, and every build setting
+  offline-bundler.cmd     run this -- no arguments
+installation-profile/
+  profile.toml            what users end up with
+  analysis.toml           ...and any others; every one is validated
+global.conf               where each user's machine looks for all of it
+```
+
+The build takes **no arguments**: everything that used to be a flag lives in
+`[build]` in the spec, so the person who rebuilds the share in six months runs
+the same one command the admin who wrote it did.
+
+```
+offline-bundler.cmd
+```
+
+Every `*.toml` in `installation-profile/` is checked against the bundle
+automatically — the folder is the list, so there is nothing to keep in sync.
+Flags still exist as one-off overrides (`--dry-run`, `--verify-only`,
+`--bundle=` to ignore the spec entirely).
+
 ### `offline-bundle.toml` — what the share contains
 
 The bundle's own config file: a standalone declaration of everything the
-share will hold. Put it next to `global.conf`; `build-offline` reads it by
+share will hold. Put it next to `global.conf`; `offline-bundler` reads it by
 default.
 
 **It knows nothing about profiles, on purpose.** The dependency runs one way
@@ -394,6 +419,11 @@ before anyone carries it inside.
 ```toml
 # offline-bundle.toml -- everything that will exist on the share.
 schema = 1
+
+# The platforms this bundle serves. The wheelhouse covers all of them, so one
+# share can serve a mixed fleet. Building on a platform this doesn't list is
+# an error.
+platforms = ["Windows/x86_64", "Linux/x86_64"]
 
 pythons = ["3.12", "3.11"]
 
@@ -413,21 +443,41 @@ extensions = ["ms-python.python", "charliermarsh.ruff"]
 [git]
 mingit = true
 
-# Repos whose dependencies belong in the wheelhouse, and every extra a
-# profile may select from them.
-[[repo]]
-url = "https://git.corp/team/plotpress.git"
-extras = ["gui", "test"]
 ```
+
+**Repos are not declared here.** A profile's `[[repo]]` entries are cloned
+from a git host on the closed network, which the connected build machine
+can't reach — so it can neither vendor them nor resolve their dependencies.
+Whatever a repo needs from the wheelhouse (including its extras' dependencies)
+goes in `packages` above, named by the person who knows the repo. Nothing can
+derive it, so nothing pretends to check it.
 
 `hatchling`, `ipython`, `ruff`, `ipykernel` and `pip` are always downloaded
 and never need declaring — seedling itself is built with the first, and the
 rest go into every venv `seed venv` creates.
 
+**A mixed fleet needs one wheelhouse, not two bundles.** `pip download` can
+resolve for a platform it isn't running on, so the builder makes an extra pass
+per declared platform, and a single flat `wheels/` ends up holding `win_amd64`
+and `manylinux` wheels side by side. Each machine installs the tags it can.
+
+What does **not** cross over is the native binaries — uv, the interpreter
+archives and the editor can only be staged by a machine of that platform. So a
+mixed-fleet build is one run per platform into the same output folder:
+
+```
+(on Windows)  offline-bundler.cmd
+(on Linux)    sh ./offline-bundler.cmd
+```
+
+The build prints a **coverage report** naming which platforms are complete and
+which have wheels only, so a half-finished bundle says so here rather than
+being discovered on the far side of the gap.
+
 Profiles are validated against it, never folded into it:
 
 ```
-build-offline.cmd --check-profile profiles/research.toml \
+offline-bundler.cmd --check-profile profiles/research.toml \
                   --check-profile profiles/software-team.toml
 ```
 
@@ -445,11 +495,11 @@ fail differently:
 `--packages`/`--tools`/`--python` still override the file for a one-off
 build, and `--bundle=` (empty) ignores it entirely.
 
-> **`--profile` means something different from `--check-profile`.** It's the
-> pre-bundle way to stock a wheel set: with no `offline-bundle.toml`, a
-> profile is still the best statement of what a fleet needs, and its packages
-> are folded in. With one, the superset is already declared, so a `--profile`
-> is validated against it instead of widening it.
+> **There is no way for a profile to grow the bundle.** A superset assembled
+> from the profile it judges could never refuse one, so profiles are only ever
+> checked. `--check-profile` validates one that lives outside
+> `installation-profile/`; everything inside that folder is checked without
+> being named.
 
 ### Checking a profile from inside the air gap
 
@@ -466,14 +516,14 @@ On a machine installed from a bundle it finds the share by itself
 Exit `0` means it applies cleanly, `1` lists exactly what's missing, `2` means
 the profile itself is invalid. No network, and nothing is changed.
 
-### The easy way: `build-offline.cmd`
+### The easy way: `offline-bundler.cmd`
 
 The repo ships a builder that assembles the entire bundle for you. On a
 **connected** machine, from a checkout of this repo:
 
 ```
-build-offline.cmd                 (Windows)
-sh ./build-offline.cmd            (macOS/Linux)
+offline-bundler.cmd                 (Windows)
+sh ./offline-bundler/offline-bundler.cmd            (macOS/Linux)
 ```
 
 It walks you through every component below, asking before it downloads each
@@ -521,10 +571,9 @@ the three paths. Useful flags:
 | `--packages pandas,polars` | Extra wheels to stock beyond the defaults |
 | `--tools ripgrep,pandoc` | conda-forge command-line tools to bundle (see [#5](#5-conda-forge-command-line-tools-optional)) — a profile's `[tools]` are included automatically, this is for anything beyond that |
 | `--no-vscode` | Skip the VS Code + extensions download (the ~300MB step) |
-| `--mingit` | Also bundle portable MinGit (Windows; off by default) |
+| `--mingit` | Also bundle portable MinGit (Windows). Normally set as `[git] mingit = true` in the spec |
 | `--bundle PATH` | The `offline-bundle.toml` declaring what the share contains. Defaults to the one next to `global.conf`; `--bundle=` (empty) ignores it |
 | `--check-profile PATH` | Validate a profile against the bundle, before and after building, without adding anything to it. Repeatable — one bundle commonly serves several teams |
-| `--profile PATH` | Stock the wheel set from a profile. Only applies when there's no `offline-bundle.toml`; with one, this profile is validated instead. Defaults to `profile.toml` next to `global.conf`; `--profile=` (empty) ignores it |
 | `--verify-only` | Don't build — just run the preflight check against the bundle at `-o` and exit (0 = it installs). Use it on the copy that reached your share |
 | `--no-verify` | Skip the preflight check at the end of a build |
 | `--deploy-root S:\tools` | Bake the final share path into `global.conf` (defaults to the spec's `deploy_root`) |
@@ -534,14 +583,16 @@ the three paths. Useful flags:
 
 It is **not** a `seed` command — it prepares the distribution, so it runs from
 the checkout before seedling is installed anywhere. It needs Python 3.12+ and
-internet on the build machine, and targets the platform you run it on (build on
-the same OS/arch as your offline machines).
+internet on the build machine. The **wheels** cover every platform in
+`platforms`; **uv, the interpreters and the editor** come from the machine you
+run it on, so a mixed fleet means one run per platform into the same output
+folder.
 
 uv, the interpreters, the wheels, and VS Code + extensions are all automatic.
-Two things are opt-in: **MinGit** is off unless you pass `--mingit` (most fleets
+Two things are opt-in: **MinGit** is off unless `[git] mingit = true` (most fleets
 already have git — see [#6](#6-git-optional)), and **corporate CA
 certs** are yours to supply (see the CA section). Note that under `--yes` every
-step takes its default, so MinGit is skipped unless you pass `--mingit` too.
+step takes its default, so MinGit is skipped unless the spec asks for it.
 
 ### Proving the bundle works, before it leaves
 
@@ -572,7 +623,7 @@ Run it any time against an existing bundle — **including the copy on your
 share**, which is the only way to prove the transfer was complete:
 
 ```
-build-offline.cmd --verify-only -o S:\tools\offline-bundle
+offline-bundler.cmd --verify-only -o S:\tools\offline-bundle
 ```
 
 It exits 0 when the bundle installs, non-zero otherwise, so it drops into a

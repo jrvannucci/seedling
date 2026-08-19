@@ -11,6 +11,8 @@ what a release involves.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-18
+
 ### Changed (breaking)
 
 - **`seed download-whl` is now `seed download-whls`.** It has always taken
@@ -19,6 +21,77 @@ what a release involves.
   nor its output. Plural also lines it up with the new `upload-whls` below.
 
   **To migrate:** `seed download-whl ...` -> `seed download-whls ...`.
+
+- **One bundle can serve a mixed fleet.** `platforms = ["Windows/x86_64",
+  "Linux/x86_64"]` makes the builder resolve the wheel set once per platform
+  as well as once per interpreter, using each target's own wheel tags and
+  environment markers -- so a single flat `wheels/` holds `win_amd64` and
+  `manylinux` wheels side by side and every machine installs what it can.
+
+  The native binaries genuinely can't cross: uv, the interpreter archives and
+  the editor are staged by the machine running the build. So the guard now
+  checks that this machine is one of the platforms *served* (replacing the
+  single `platform` key), and the build prints a coverage report naming which
+  platforms are complete and which have wheels only. Running the same spec on
+  each platform into the same output folder finishes the rest -- the
+  wheelhouse is already shared.
+
+- **Profiles say who gets them.** Each file in `installation-profile/`
+  carries its own `[distribution]` table, so the folder is self-describing
+  and a fleet no longer needs one environment for everyone:
+
+  ```toml
+  [distribution]
+  default = true                          # everyone
+  # users = ["alice", "priya", "sam"]     # ...or exactly these people
+  ```
+
+  Point `SEEDLING_PROFILE` at the folder and `seed apply` resolves the set
+  for whoever runs it: the default first, then each opt-in profile they are
+  listed in. The order is the point -- the default establishes the baseline
+  an opt-in profile layers onto.
+
+  A profile declaring **neither** reaches nobody automatically; it exists to
+  be applied by path. `default` and `users` together are rejected, since a
+  profile is either everyone's or opt-in. Matching is case-insensitive
+  against the same login name `SEEDLING_HOME_DIR`'s `{user}` token expands
+  to, so a shared-root deployment and a user list can't disagree about who
+  someone is. A single file still works where only one profile is shipped.
+
+- **The offline build is now two folders and one no-argument command.**
+  `offline-bundler/` holds `offline-bundle.toml` and `offline-bundler.cmd`;
+  `installation-profile/` holds every profile the admin ships. Building is:
+
+  ```
+  offline-bundler.cmd
+  ```
+
+  Every flag moved into the spec's `[build]` table -- output, archive,
+  verify, unattended, the licence acknowledgement, and which folder the
+  profiles live in -- so the person who rebuilds the share months later runs
+  exactly what the admin who wrote it ran. Every `*.toml` in the profiles
+  folder is validated automatically: the folder is the list. Flags survive as
+  one-off overrides.
+
+  **`[editor]` in the spec is now authoritative** and is cross-checked
+  against `global.conf`. It used to be read from the *build machine's own*
+  seedling settings, so an admin who set the flavor in the conf they
+  distribute -- the obvious place -- silently staged the default build
+  instead. Now the spec decides what is staged, and a flavor, gallery or
+  extension the conf asks for but the bundle wouldn't carry stops the build
+  before anything downloads. Offline, an extension that wasn't staged can't
+  be fetched, so this is worth failing over.
+
+  **To migrate:** move `offline-bundle.toml` into `offline-bundler/`, move
+  your profiles into `installation-profile/`, point `SEEDLING_PROFILE` at
+  `installation-profile/<name>.toml`, and translate any flags you were
+  passing into `[build]`. `build-offline.cmd` is gone; `--profile` is gone
+  with it (a profile is validated, never folded into the bundle).
+
+- **Every fallback for a pre-rename filename is removed.** `seedling.conf`
+  and `seedling-profile.toml` are no longer read by the installers, the
+  uninstallers, the drift report, `seed apply`'s lookup, or the bundler. The
+  rename is a rename; a copy still carrying the old names must be updated.
 
 - **The three config files are renamed for what they are, not what ships
   them:** `seedling.conf` → **`global.conf`**, `seedling-profile.toml` →
@@ -31,13 +104,10 @@ what a release involves.
   in the conf takes any filename, so a profile named something else needs no
   change beyond the conf's own rename.
 
-  **The old names still work**, deliberately: the installers, the uninstallers,
-  `seed update-commands`' drift report, `seed apply`'s local lookup, and
-  `build-offline`'s default `--profile` all fall back to them, and the
-  installers warn when they do. An organization's customized `seedling.conf`
-  being silently ignored would install their fleet from the public internet
-  with default settings — a much worse failure than a rename that lags. The
-  fallback goes away in a later release.
+  **The old names are not read at all** -- see the separate entry below. A
+  copy still carrying `seedling.conf` installs with seedling's built-in
+  defaults rather than that organization's settings, so rename it before
+  distributing an updated copy.
 
 - **The PyPI-application family (`app-install`/`app-list`/`app-remove`) is
   now `tool-install`/`tool-list`/`tool-remove`, and the conda-forge family
@@ -193,9 +263,6 @@ what a release involves.
   flavor = "microsoft"
   extensions = ["ms-python.python", "charliermarsh.ruff"]
 
-  [[repo]]
-  url = "https://git.corp/team/plotpress.git"
-  extras = ["gui", "test"]
   ```
 
   **It knows nothing about profiles, deliberately.** The dependency runs one
@@ -206,6 +273,13 @@ what a release involves.
   `ruff`, `ipykernel` and `pip` are always downloaded and never need
   declaring; the validator and the builder share one list, so neither can
   credit the bundle with a package nothing fetched.)
+
+  It declares **no repos**. A profile's `[[repo]]` entries are cloned from a
+  git host on the closed network, which the connected build machine can't
+  reach -- so it can neither vendor them nor resolve their dependencies, and
+  a `[[repo]]` key here would promise a check nothing could honor. Whatever a
+  repo needs from the wheelhouse goes in `packages`, named by the admin who
+  knows it.
 
   `build-offline` reads it by default (`--bundle PATH`, `--bundle=` to
   ignore) and builds from it alone. **`--check-profile PATH`** (repeatable —

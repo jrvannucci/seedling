@@ -181,7 +181,7 @@ where the usual Python setup path doesn't work:
 
 - **No internet required.** Point installs, interpreters, and packages at a
   self-hosted git server, an internal index, or a plain file share. Run
-  `build-offline.cmd` on a connected machine and it assembles the entire
+  `offline-bundler.cmd` on a connected machine and it assembles the entire
   bundle — uv, interpreters, wheels, VS Code — for an air-gapped network.
 - **No admin rights required.** Everything lands in one folder the user
   already owns. Nothing is written to the registry, `%APPDATA%`, or any

@@ -115,7 +115,7 @@ def test_write_conf_handles_windows_backslash_value(tmp_path):
 
 
 def test_dry_run_returns_zero(tmp_path):
-    code = build_offline.main(["--dry-run", "--output", str(tmp_path / "b")])
+    code = build_offline.main(["--bundle=", "--dry-run", "--output", str(tmp_path / "b")])
     assert code == 0
 
 
@@ -181,19 +181,6 @@ def test_a_package_only_the_profile_names_is_not_silently_added(
                                "--output", str(tmp_path / "out")])
     out = capsys.readouterr().out
     assert code == 2 and "polars" in out
-
-
-def test_a_profile_still_stocks_the_bundle_when_there_is_no_spec(
-        tmp_path, capsys):
-    """The pre-bundle path is untouched: with no offline-bundle.toml, a
-    profile remains the best statement of what a fleet needs."""
-    _spec_and_profile(tmp_path, "", '[[venv]]\nname = "dev"\n'
-                                    'packages = ["polars"]\n')
-    code = build_offline.main(["--dry-run", "--bundle=", "--profile",
-                               str(tmp_path / "profiles" / "team.toml"),
-                               "--output", str(tmp_path / "out")])
-    out = capsys.readouterr().out
-    assert code == 0 and "polars" in out
 
 
 def test_an_invalid_bundle_spec_exits_two(tmp_path, capsys):
@@ -381,7 +368,7 @@ def test_verify_bundle_reports_a_missing_uv(tmp_path, capsys):
 
 
 def test_verify_only_rejects_a_missing_bundle(tmp_path, capsys):
-    code = build_offline.main(["--verify-only", "-o", str(tmp_path / "nope")])
+    code = build_offline.main(["--bundle=", "--verify-only", "-o", str(tmp_path / "nope")])
     assert code == 2
     assert "No bundle found" in capsys.readouterr().out
 
@@ -392,16 +379,16 @@ def test_verify_only_runs_the_check_and_returns_its_verdict(tmp_path, monkeypatc
     (out / "seedling" / "vendor" / "uv").mkdir(parents=True)
     monkeypatch.setattr(build_offline, "verify_bundle",
                         lambda *a, **kw: False)
-    assert build_offline.main(["--verify-only", "-o", str(out)]) == 1
+    assert build_offline.main(["--bundle=", "--verify-only", "-o", str(out)]) == 1
     monkeypatch.setattr(build_offline, "verify_bundle", lambda *a, **kw: True)
-    assert build_offline.main(["--verify-only", "-o", str(out)]) == 0
+    assert build_offline.main(["--bundle=", "--verify-only", "-o", str(out)]) == 0
 
 
 def test_build_skips_preflight_with_no_verify(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
     monkeypatch.setattr(build_offline, "verify_bundle",
                         lambda *a, **kw: pytest.fail("must not verify"))
-    build_offline.main(["--yes", "--no-vscode", "--no-verify",
+    build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify",
                         "-o", str(tmp_path / "b")])
     assert "Skipped (--no-verify)" in capsys.readouterr().out
 
@@ -410,7 +397,7 @@ def test_summary_warns_when_the_bundle_was_never_verified(tmp_path, monkeypatch,
                                                           capsys):
     """An unverified bundle must not read as a confirmed one."""
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
-    build_offline.main(["--yes", "--no-vscode", "--no-verify",
+    build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify",
                         "-o", str(tmp_path / "b")])
     out = capsys.readouterr().out
     assert "nothing has confirmed this bundle installs" in out
@@ -494,7 +481,7 @@ def test_archive_bundle_returns_none_and_warns_on_failure(tmp_path, monkeypatch,
 def test_build_without_archive_flag_creates_no_archive_file(tmp_path, monkeypatch):
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
     out = tmp_path / "b"
-    build_offline.main(["--yes", "--no-vscode", "--no-verify", "-o", str(out)])
+    build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify", "-o", str(out)])
     assert not out.with_suffix(".zip").exists()
     assert not Path(str(out) + ".tar.gz").exists()
 
@@ -504,7 +491,7 @@ def test_build_with_bare_archive_flag_writes_and_reports_it(tmp_path, monkeypatc
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
     monkeypatch.setattr(build_offline.platform, "system", lambda: "Linux")
     out = tmp_path / "b"
-    code = build_offline.main(["--yes", "--no-vscode", "--no-verify",
+    code = build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify",
                               "--archive", "-o", str(out)])
     assert code == 0
     archive = Path(str(out) + ".tar.gz")  # "auto" on non-Windows -> tar.gz
@@ -517,7 +504,7 @@ def test_build_with_bare_archive_flag_writes_and_reports_it(tmp_path, monkeypatc
 def test_build_with_explicit_archive_format(tmp_path, monkeypatch):
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
     out = tmp_path / "b"
-    build_offline.main(["--yes", "--no-vscode", "--no-verify",
+    build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify",
                         "--archive", "zip", "-o", str(out)])
     assert out.with_suffix(".zip").exists()
 
@@ -728,13 +715,13 @@ def test_build_aborts_before_downloading_when_no_version_is_supported(tmp_path,
     monkeypatch.setattr(build_offline, "stage_repo", explode)
     monkeypatch.setattr(build_offline, "build_uv", explode)
     out_dir = tmp_path / "b"
-    assert build_offline.main(["--yes", "--python", "3.9", "-o", str(out_dir)]) == 2
+    assert build_offline.main(["--bundle=", "--yes", "--python", "3.9", "-o", str(out_dir)]) == 2
     assert "air-gapped" in capsys.readouterr().out
     assert not out_dir.exists()
 
 
 def test_dry_run_plan_shows_the_floor(tmp_path, capsys):
-    build_offline.main(["--dry-run", "-o", str(tmp_path / "a")])
+    build_offline.main(["--bundle=", "--dry-run", "-o", str(tmp_path / "a")])
     assert "seedling itself needs >=3.12" in capsys.readouterr().out
 
 
@@ -890,7 +877,7 @@ def test_build_vscode_drops_staging_even_when_interrupted(tmp_path, monkeypatch)
         app.mkdir(parents=True)
         return _completed(0)
 
-    def interrupted(app_dir):
+    def interrupted(app_dir, extensions=None):
         raise KeyboardInterrupt
 
     monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
@@ -902,9 +889,9 @@ def test_build_vscode_drops_staging_even_when_interrupted(tmp_path, monkeypatch)
 
 
 def test_dry_run_plan_states_the_vscode_choice(tmp_path, capsys):
-    build_offline.main(["--dry-run", "-o", str(tmp_path / "a")])
+    build_offline.main(["--bundle=", "--dry-run", "-o", str(tmp_path / "a")])
     assert "yes (~300MB" in capsys.readouterr().out
-    build_offline.main(["--dry-run", "--no-vscode", "-o", str(tmp_path / "b")])
+    build_offline.main(["--bundle=", "--dry-run", "--no-vscode", "-o", str(tmp_path / "b")])
     assert "skipped (--no-vscode)" in capsys.readouterr().out
 
 
@@ -913,18 +900,18 @@ def test_mingit_is_opt_in_under_yes(tmp_path, monkeypatch, capsys):
     """--yes takes every default, and MinGit's default is off -- so an
     unattended build skips it unless --mingit flips that default."""
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
-    monkeypatch.setattr(build_offline, "build_vscode", lambda vendor, staging: False)
+    monkeypatch.setattr(build_offline, "build_vscode", lambda vendor, staging, editor=None: False)
     fetched = []
     monkeypatch.setattr(build_offline, "build_mingit",
                         lambda d: fetched.append(d) or True)
 
     # A bundle including VS Code now also needs the third-party
     # acknowledgement -- --yes alone deliberately does not cover it.
-    build_offline.main(["--yes", "--accept-third-party-terms",
+    build_offline.main(["--bundle=", "--yes", "--accept-third-party-terms",
                         "-o", str(tmp_path / "a")])
     assert fetched == []
 
-    build_offline.main(["--yes", "--accept-third-party-terms", "--mingit",
+    build_offline.main(["--bundle=", "--yes", "--accept-third-party-terms", "--mingit",
                         "-o", str(tmp_path / "b")])
     assert len(fetched) == 1
     assert fetched[0].name == "git"
@@ -933,8 +920,8 @@ def test_mingit_is_opt_in_under_yes(tmp_path, monkeypatch, capsys):
 def test_summary_flags_a_failed_vscode_step(tmp_path, monkeypatch, capsys):
     """A failed 300MB step must not read as a clean build in the summary."""
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
-    monkeypatch.setattr(build_offline, "build_vscode", lambda vendor, staging: False)
-    assert build_offline.main(["--yes", "--accept-third-party-terms",
+    monkeypatch.setattr(build_offline, "build_vscode", lambda vendor, staging, editor=None: False)
+    assert build_offline.main(["--bundle=", "--yes", "--accept-third-party-terms",
                                "-o", str(tmp_path / "b")]) == 0
     out = capsys.readouterr().out
     assert "redo step 6" in out
@@ -942,7 +929,7 @@ def test_summary_flags_a_failed_vscode_step(tmp_path, monkeypatch, capsys):
 
 def test_summary_omits_the_vscode_row_when_not_requested(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
-    assert build_offline.main(["--yes", "--no-vscode", "-o", str(tmp_path / "b")]) == 0
+    assert build_offline.main(["--bundle=", "--yes", "--no-vscode", "-o", str(tmp_path / "b")]) == 0
     out = capsys.readouterr().out
     assert "redo step 6" not in out
     assert "pre-seeded VS Code" not in out
@@ -1059,50 +1046,6 @@ def test_manifest_records_components_and_staging(tmp_path):
     assert "seedling ships no third-party software" in doc["notice"]
 
 
-def test_profile_packages_are_added_to_the_wheel_set(tmp_path, capsys):
-    """The wheel set must be DERIVED from the profile, not maintained
-    alongside it -- drift between the two only surfaces as a failed install
-    in the air-gapped room, after the bundle has been carried there."""
-    prof = tmp_path / "p.toml"
-    prof.write_text('[[venv]]\nname = "a"\npackages = ["pandas", "numpy"]\n',
-                    encoding="utf-8")
-    build_offline.main(["--dry-run", "--no-vscode", "--profile", str(prof),
-                        "-o", str(tmp_path / "b")])
-    out = capsys.readouterr().out
-    wheels = [ln for ln in out.splitlines() if "Wheels" in ln][0]
-    assert "pandas" in wheels and "numpy" in wheels
-    for required in build_offline.REQUIRED_PACKAGES:
-        assert required in wheels, "the required set must survive"
-
-
-def test_profile_and_packages_flag_are_deduplicated(tmp_path, capsys):
-    prof = tmp_path / "p.toml"
-    prof.write_text('[[venv]]\nname = "a"\npackages = ["pandas"]\n',
-                    encoding="utf-8")
-    build_offline.main(["--dry-run", "--no-vscode", "--profile", str(prof),
-                        "--packages", "pandas", "-o", str(tmp_path / "b")])
-    wheels = [ln for ln in capsys.readouterr().out.splitlines()
-              if "Wheels" in ln][0]
-    assert wheels.count("pandas") == 1
-
-
-def test_an_invalid_profile_stops_the_build(tmp_path, capsys):
-    prof = tmp_path / "p.toml"
-    prof.write_text('[[venv]]\nname = ""\n', encoding="utf-8")
-    rc = build_offline.main(["--dry-run", "--no-vscode", "--profile", str(prof),
-                            "-o", str(tmp_path / "b")])
-    assert rc == 2
-    assert "non-empty name" in capsys.readouterr().out
-
-
-def test_empty_profile_flag_ignores_a_present_profile(tmp_path, capsys):
-    """--profile= is the escape hatch for building a bundle that
-    deliberately doesn't match the repo's profile."""
-    build_offline.main(["--dry-run", "--no-vscode", "--profile", "",
-                        "-o", str(tmp_path / "b")])
-    assert "Profile     :" not in capsys.readouterr().out
-
-
 def test_every_component_declares_a_redistribution_category():
     valid = {"permissive", "copyleft", "restricted"}
     for name, meta in build_offline.COMPONENTS.items():
@@ -1119,7 +1062,7 @@ def test_yes_alone_will_not_stage_restricted_components(tmp_path, monkeypatch, c
         raise AssertionError("built despite no acknowledgement")
     monkeypatch.setattr(build_offline, "build_vscode", boom)
     monkeypatch.setattr("builtins.input", lambda *a: "")
-    rc = build_offline.main(["--yes", "-o", str(tmp_path / "b")])
+    rc = build_offline.main(["--bundle=", "--yes", "-o", str(tmp_path / "b")])
     assert rc == 2
     assert "NOT staged" in capsys.readouterr().out
 
@@ -1127,7 +1070,7 @@ def test_yes_alone_will_not_stage_restricted_components(tmp_path, monkeypatch, c
 def test_no_vscode_still_builds_unattended_with_just_yes(tmp_path, monkeypatch):
     """The permissive-only path must not have gained any new friction."""
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
-    assert build_offline.main(["--yes", "--no-vscode", "--no-verify",
+    assert build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify",
                                "-o", str(tmp_path / "b")]) == 0
 
 
@@ -1152,21 +1095,50 @@ def test_the_flag_still_beats_the_spec_deploy_root(tmp_path, capsys):
     assert "Deploy path : T:\other" in capsys.readouterr().out
 
 
-def test_a_spec_for_another_platform_stops_the_build(tmp_path, capsys):
-    """Builds cleanly, installs nowhere: wheels, uv, the interpreters and the
-    editor are all platform-specific, so this has to fail here."""
-    spec = _spec_and_profile(tmp_path, 'platform = "Plan9/sparc"\n')
+def test_wheels_are_downloaded_for_each_declared_platform(tmp_path, monkeypatch):
+    """One flat wheelhouse, one pass per (interpreter, platform) -- which is
+    what lets a single share serve a mixed Windows/Linux fleet."""
+    seen = []
+
+    def fake_run(cmd, env=None, **kw):
+        seen.append(cmd)
+        return types.SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(build_offline.subprocess, "run", fake_run)
+    ok = build_offline.build_wheels(
+        Path("uv"), ["pandas"], tmp_path / "wheels", ["3.12"],
+        tmp_path / "cache",
+        foreign=[("Linux/x86_64", ["manylinux2014_x86_64"])])
+    assert ok
+    assert len(seen) == 2, "one native pass, one foreign"
+    native, foreign = seen
+    assert "--platform" not in native
+    assert foreign[foreign.index("--platform") + 1] == "manylinux2014_x86_64"
+    assert "--only-binary=:all:" in foreign
+
+
+def test_building_on_a_platform_the_spec_doesnt_serve_stops(tmp_path, capsys,
+                                                            monkeypatch):
+    """The binaries can only come from a machine of that platform, so this
+    would produce a bundle that installs nowhere it was meant to."""
+    spec = _spec_and_profile(tmp_path, 'platforms = ["Linux/aarch64"]\n')
+    monkeypatch.setattr(build_offline.platform, "system", lambda: "Windows")
     code = build_offline.main(["--dry-run", "--bundle", str(spec),
                                "--output", str(tmp_path / "out")])
     out = capsys.readouterr().out
     assert code == 2
-    assert "Plan9/sparc" in out and "this machine is" in out
+    assert "Linux/aarch64" in out and "this machine is" in out
 
 
-def test_a_matching_platform_passes(tmp_path, capsys):
+def test_the_building_platform_only_needs_to_be_listed(tmp_path, capsys,
+                                                       monkeypatch):
     import platform as _p
     here = f"{_p.system()}/{build_offline.normalized_arch(_p.machine())}"
-    spec = _spec_and_profile(tmp_path, f'platform = "{here}"\n')
+    spec = _spec_and_profile(
+        tmp_path, f'platforms = ["{here}", "Linux/aarch64"]\n')
     code = build_offline.main(["--dry-run", "--bundle", str(spec),
                                "--output", str(tmp_path / "out")])
+    out = capsys.readouterr().out
     assert code == 0
+    assert "Serving" in out and "Linux/aarch64" in out
+    assert "come from THIS one" in out, "the limit has to be stated"

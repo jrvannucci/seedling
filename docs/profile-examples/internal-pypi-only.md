@@ -109,15 +109,13 @@ mingit = true
 **Building it:**
 
 ```
-build-offline.cmd --check-profile profile.toml ^
-                  --deploy-root "S:\seedling" ^
-                  --accept-third-party-terms
+offline-bundler.cmd
 ```
 
 **Two ways to feed the index.** The wheel step is the one that's optional
 here, and which way you go decides what `package_index` points at:
 
-1. **Let the proxy serve them.** `build-offline` is a walkthrough, so run it
+1. **Let the proxy serve them.** `offline-bundler` is a walkthrough, so run it
    *without* `--yes` and answer **no** at "Download the wheels now?", then
    yes to the rest. `package_index` stays the Artifactory URL. Simplest, and
    right when the proxy really does reach everything your profiles name.

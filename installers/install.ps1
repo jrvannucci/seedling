@@ -37,22 +37,6 @@ function Die($msg)   {
 # any install-time settings) there ONCE, and their users install with no
 # flags or env vars. Standard internet installs ship a conf whose values
 # match the baked-in defaults, so nothing changes for them.
-function Resolve-SeedlingConfPath($root) {
-    # global.conf is the name; seedling.conf was the name before the rename and
-    # is still honored, because an organization's customized copy being ignored
-    # would silently install their fleet from the public internet with default
-    # settings -- a far worse outcome than reading the old file.
-    if (-not $root) { return $null }
-    $current = Join-Path $root "global.conf"
-    if (Test-Path $current) { return $current }
-    $legacy = Join-Path $root "seedling.conf"
-    if (Test-Path $legacy) {
-        Write-Host "  ! seedling.conf is now global.conf -- rename it; this fallback goes away."
-        return $legacy
-    }
-    return $current
-}
-
 function Read-SeedlingConf($path) {
     $conf = @{}
     if ($path -and (Test-Path $path)) {
@@ -149,7 +133,7 @@ if ($RepoRoot) {
     }
 }
 
-$Conf = if ($RepoRoot) { Read-SeedlingConf (Resolve-SeedlingConfPath $RepoRoot) } else { @{} }
+$Conf = if ($RepoRoot) { Read-SeedlingConf (Join-Path $RepoRoot "global.conf") } else { @{} }
 
 # Source resolution: SEEDLING_REPO env var (one-run override) beats
 # global.conf, which beats the baked-in default.
@@ -433,7 +417,7 @@ if ($CleanupOriginalSrc) {
 # ---------------------------------------------------------------------------
 # Piped installs have no local conf, but the clone we just copied does.
 if ($Conf.Count -eq 0) {
-    $Conf = Read-SeedlingConf (Resolve-SeedlingConfPath $SrcDir)
+    $Conf = Read-SeedlingConf (Join-Path $SrcDir "global.conf")
 }
 
 # Record where this install came from, so `seed update-commands` knows

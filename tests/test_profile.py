@@ -182,23 +182,6 @@ def test_find_returns_none_when_there_is_nothing(home, tmp_path, monkeypatch):
     assert profile_mod.find(None) is None
 
 
-def test_find_still_answers_to_the_pre_rename_filename(home, tmp_path, monkeypatch):
-    """seedling-profile.toml was the name before the rename. A draft still
-    carrying it must be found, not silently left unapplied."""
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "profile.toml").unlink(missing_ok=True)
-    legacy = tmp_path / "seedling-profile.toml"
-    legacy.write_text("", encoding="utf-8")
-    assert profile_mod.find(None) == legacy
-
-
-def test_the_current_filename_wins_over_the_old_one(home, tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    current = _write(tmp_path, "")
-    (tmp_path / "seedling-profile.toml").write_text("", encoding="utf-8")
-    assert profile_mod.find(None) == current
-
-
 def test_a_recorded_profile_that_no_longer_exists_is_ignored(home, tmp_path, monkeypatch):
     """A share that moved shouldn't make every `seed apply` fail with a
     traceback -- it falls through to the local lookup."""
@@ -834,3 +817,137 @@ def test_every_documented_example_profile_is_valid():
         profile_mod.parse(block)      # raises ProfileError if invalid
     for block in command_blocks:
         cc_mod.parse(block)           # raises CustomCommandsError if invalid
+
+
+# --- [distribution]: who gets which profile ---------------------------------
+
+def _folder(tmp_path, **files):
+    d = tmp_path / "installation-profile"
+    d.mkdir(exist_ok=True)
+    for name, text in files.items():
+        (d / f"{name}.toml").write_text(text, encoding="utf-8")
+    return d
+
+
+DEFAULT_P = '[distribution]\ndefault = true\n[[venv]]\nname = "dev"\n'
+OPT_IN_P = ('[distribution]\nusers = ["alice", "Bob"]\n'
+            '[[venv]]\nname = "analysis"\n')
+
+
+def test_a_default_profile_reaches_everyone():
+    prof = profile_mod.parse(DEFAULT_P)
+    assert prof.default is True
+    assert prof.applies_to("anyone-at-all")
+
+
+def test_an_opt_in_profile_reaches_only_its_list():
+    prof = profile_mod.parse(OPT_IN_P)
+    assert prof.applies_to("alice") and not prof.applies_to("carol")
+
+
+def test_matching_is_case_insensitive():
+    """Windows login names differ in case between the registry, the
+    environment, and what an admin types into a list."""
+    prof = profile_mod.parse(OPT_IN_P)
+    assert prof.applies_to("BOB") and prof.applies_to("bob")
+
+
+def test_a_profile_with_no_distribution_reaches_nobody():
+    """Opt-in means opt-in: it exists to be applied by path, not to arrive
+    on machines unasked."""
+    prof = profile_mod.parse('[[venv]]\nname = "dev"\n')
+    assert not prof.applies_to("alice") and prof.default is False
+
+
+def test_default_and_users_together_are_rejected():
+    with pytest.raises(profile_mod.ProfileError) as e:
+        profile_mod.parse('[distribution]\ndefault = true\nusers = ["a"]')
+    assert "not both" in str(e.value)
+
+
+@pytest.mark.parametrize("text,fragment", [
+    ('[distribution]\ndefault = "yes"', "must be true or false"),
+    ('[distribution]\nusers = "alice"', "must be a list"),
+    ('[distribution]\nnope = 1', "unknown key"),
+])
+def test_invalid_distribution_tables_are_rejected(text, fragment):
+    with pytest.raises(profile_mod.ProfileError) as e:
+        profile_mod.parse(text)
+    assert fragment in str(e.value)
+
+
+def test_the_folder_resolves_default_first_then_opt_ins(home, tmp_path):
+    """Order matters: the default establishes the baseline an opt-in profile
+    layers onto."""
+    d = _folder(tmp_path, zzz_default=DEFAULT_P, analysis=OPT_IN_P)
+    got = [p.name for p in profile_mod.distributed_to(d, "alice")]
+    assert got == ["zzz_default.toml", "analysis.toml"]
+
+
+def test_a_user_not_on_any_list_still_gets_the_default(home, tmp_path):
+    d = _folder(tmp_path, profile=DEFAULT_P, analysis=OPT_IN_P)
+    got = [p.name for p in profile_mod.distributed_to(d, "carol")]
+    assert got == ["profile.toml"]
+
+
+def test_an_undistributed_profile_is_never_picked_up(home, tmp_path):
+    d = _folder(tmp_path, profile=DEFAULT_P,
+                scratch='[[venv]]\nname = "scratch"\n')
+    got = [p.name for p in profile_mod.distributed_to(d, "alice")]
+    assert got == ["profile.toml"]
+
+
+def test_one_broken_profile_doesnt_hide_everyone_elses(home, tmp_path):
+    """The bundler and `seed apply` both report a broken file; skipping it
+    here keeps it from making every other user's profile unreachable."""
+    d = _folder(tmp_path, profile=DEFAULT_P, broken="this is not toml {{{")
+    got = [p.name for p in profile_mod.distributed_to(d, "alice")]
+    assert got == ["profile.toml"]
+
+
+def test_find_all_resolves_a_folder_and_passes_a_file_through(home, tmp_path):
+    d = _folder(tmp_path, profile=DEFAULT_P, analysis=OPT_IN_P)
+    config.set_value("profile", str(d))
+    names = [p.name for p in profile_mod.find_all(None)]
+    assert "profile.toml" in names
+    single = d / "analysis.toml"
+    assert profile_mod.find_all(str(single)) == [single]
+
+
+def test_apply_over_a_folder_applies_every_distributed_profile(
+        run_cli, home, tmp_path, monkeypatch):
+    """The fleet case: one command, the default plus whatever this user
+    opted into, in that order."""
+    d = _folder(tmp_path,
+                profile='[distribution]\ndefault = true\n'
+                        '[[venv]]\nname = "dev"\n',
+                analysis='[distribution]\nusers = ["alice"]\n'
+                         '[[venv]]\nname = "analysis"\n')
+    monkeypatch.setattr(profile_mod, "current_user", lambda: "alice")
+    code, out = run_cli("apply", str(d), "--preview")
+    assert code == 0
+    assert "2 profiles are distributed to 'alice'" in out
+    assert "profile.toml" in out and "analysis.toml" in out
+
+
+def test_apply_over_a_folder_skips_what_this_user_isnt_given(
+        run_cli, home, tmp_path, monkeypatch):
+    d = _folder(tmp_path,
+                profile='[distribution]\ndefault = true\n'
+                        '[[venv]]\nname = "dev"\n',
+                analysis='[distribution]\nusers = ["alice"]\n'
+                         '[[venv]]\nname = "analysis"\n')
+    monkeypatch.setattr(profile_mod, "current_user", lambda: "carol")
+    code, out = run_cli("apply", str(d), "--preview")
+    assert code == 0
+    assert "create venv 'dev'" in out
+    assert "analysis" not in out, "carol is not on that list"
+
+
+def test_a_folder_distributing_nothing_says_so(run_cli, home, tmp_path,
+                                               monkeypatch):
+    d = _folder(tmp_path, scratch='[[venv]]\nname = "scratch"\n')
+    monkeypatch.setattr(profile_mod, "current_user", lambda: "carol")
+    code, out = run_cli("apply", str(d))
+    assert code == 0
+    assert "No profile in" in out and "distributed to 'carol'" in out

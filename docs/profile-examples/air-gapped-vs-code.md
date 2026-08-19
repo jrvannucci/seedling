@@ -75,7 +75,7 @@ Build it with the acknowledgement, which is deliberately **not** covered by
 `--yes`:
 
 ```
-build-offline.cmd --check-profile profile.toml --accept-third-party-terms
+offline-bundler.cmd
 ```
 
 **Why it's shaped this way**
@@ -89,13 +89,11 @@ build-offline.cmd --check-profile profile.toml --accept-third-party-terms
   redistribution *you* are performing. seedling grants no rights; the flag is
   you asserting you hold them. It resists `--yes` on purpose, so an
   unattended build can't acknowledge licence terms on your behalf.
-- **The extension list above reaches your users, not the bundler.** It seeds
-  each machine's `vscode_extensions` at install time; what gets *staged* into
-  `vendor/vscode/` is whatever the build machine's own settings say. The
-  default set already includes Pylance, so this example builds correctly
-  either way — but if you trim or extend the list here, set the same list on
-  the builder (`seed config set vscode_extensions "..."`) or the bundle won't
-  match. See [the note in OFFLINE.md](../OFFLINE.md#7-vs-code-optional).
+- **The two extension lists must agree.** The one in `global.conf` seeds each
+  machine's `vscode_extensions` at install time; the one in
+  `offline-bundle.toml` is what gets staged into `vendor/vscode/`. Offline, an
+  extension that wasn't staged can't be fetched — so the builder compares them
+  and stops if the conf asks for one the bundle won't carry.
 - The bundle's `MANIFEST.json` lists every component with its licence and
   whether it was staged. That file is what to hand a security review rather
   than re-deriving the answer.

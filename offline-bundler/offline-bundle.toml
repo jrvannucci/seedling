@@ -1,0 +1,123 @@
+# =============================================================================
+# offline-bundle.toml -- everything the air-gapped share will contain, and
+# every setting the build itself needs.
+#
+# Run the build with NO arguments:
+#
+#     Windows:      .\offline-bundler.cmd          (double-clicking works)
+#     macOS/Linux:  sh ./offline-bundler.cmd
+#
+# Two rules make this file work:
+#
+#   1. It knows nothing about profiles. The share declares what it holds, and
+#      every profile in ../installation-profile/ is validated against it --
+#      before anything downloads, and again against what actually landed. A
+#      superset assembled FROM the profiles it ships could never refuse one.
+#
+#   2. It agrees with ../global.conf about the editor. The spec says what gets
+#      STAGED; the conf says what each user's machine expects. A disagreement
+#      stops the build, because it isn't visible until someone opens the
+#      editor on the far side of the air gap.
+#
+# Every value below is optional. An empty file builds the default bundle.
+# =============================================================================
+
+schema = 1
+
+# The platforms this bundle serves. The WHEELHOUSE covers every one of them
+# (pip resolves each with the target's own wheel tags and markers), so one
+# share can serve a mixed Windows/Linux fleet.
+#
+# uv, the Python interpreters and the editor are native binaries that only a
+# machine of that platform can stage, so run this same spec once per platform
+# into the same output folder -- the wheelhouse is shared, the binaries
+# accumulate. Building on a platform this doesn't list is an error.
+#
+# Valid: Windows/x86_64, Windows/aarch64, Linux/x86_64, Linux/aarch64,
+#        Darwin/x86_64, Darwin/aarch64
+platforms = ["Windows/x86_64"]
+
+# Where the bundle will live on the TARGET machines. Baked into the
+# global.conf the builder writes, so users' package_index and friends point
+# at the share rather than at the folder you happened to build in.
+deploy_root = 'S:\tools'   # literal string (single quotes): a Windows path keeps its backslashes
+
+# Interpreters to mirror. Every venv any profile builds comes from one of
+# these, so a profile pinning python = "311" needs 3.11 here.
+pythons = ["3.12"]
+
+# THE package set: every distribution any profile may name, plus whatever
+# users should be able to `seed install` later -- on an isolated network
+# nobody can add one afterwards.
+#
+# hatchling, ipython, ruff, ipykernel and pip are always bundled and never
+# need listing. `spyder` and other editors-that-are-PyPI-apps DO belong here.
+packages = [
+    "pandas",
+    "numpy",
+    "requests",
+    "pytest",
+]
+
+# conda-forge command-line tools. Vendors micromamba and builds a channel into
+# the bundle, so `seed forge-install` works with no network.
+tools = []
+
+# NOTE: repos are not declared here. A profile's [[repo]] entries are cloned
+# from a git host on the CLOSED network, which this build machine can't reach,
+# so nothing here can vendor them or resolve their dependencies. List whatever
+# they need -- including their extras' dependencies -- in `packages` above.
+
+[editor]
+# "microsoft" (official VS Code + Marketplace) or "vscodium" (MIT + Open VSX).
+# This is a LICENSING choice: staging the official build on a share is
+# redistribution. Must match SEEDLING_VSCODE_FLAVOR in global.conf.
+flavor = "microsoft"
+
+# The extensions staged into the bundle. Offline, an extension that wasn't
+# staged can't be fetched -- so every extension global.conf tells users to
+# install has to appear here too, or the build stops.
+extensions = [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-toolsai.jupyter",
+    "charliermarsh.ruff",
+]
+
+# An internal Open VSX mirror, if you run one. Must match
+# SEEDLING_EXTENSION_GALLERY in global.conf.
+# gallery = "https://openvsx.corp.example/vscode"
+
+# stage = false          # build a bundle with no editor at all
+
+[git]
+# Bundle portable MinGit (Windows only) for machines with no system git.
+mingit = false
+
+[build]
+# Where to assemble the bundle on THIS machine.
+output = "offline-bundle"
+
+# The folder of profiles to validate against this bundle. Every *.toml in it
+# is checked -- the folder is the list, so there is nothing to keep in sync.
+profiles = "installation-profile"
+
+# Pack the finished bundle into one file to carry across the gap.
+# true picks zip on Windows and tar.gz elsewhere; or name a format.
+archive = false
+
+# Run the preflight install at the end, proving the bundle works before it
+# leaves this machine. Leave this on.
+verify = true
+
+# Answer every prompt with its default -- a fully unattended build.
+unattended = false
+
+# Acknowledge that you hold the rights to redistribute the restricted
+# components this bundle will contain (official VS Code, Marketplace
+# extensions). seedling grants you no such rights; see docs/LICENSING.md.
+#
+# Setting this to true here is the same acknowledgement the
+# --accept-third-party-terms flag makes -- deliberately a separate, explicit
+# key rather than something `unattended` covers.
+accept_third_party_terms = false

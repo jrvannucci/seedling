@@ -1,0 +1,33 @@
+# =============================================================================
+# profile.toml -- the environment users end up with.
+#
+# Every *.toml in this folder is validated against ../offline-bundler/
+# offline-bundle.toml when the bundle is built, so a profile asking for
+# something the share won't hold fails on the connected machine.
+#
+# Point global.conf at this FOLDER, not at one file:
+#     SEEDLING_PROFILE="installation-profile"
+#
+# Each profile says who gets it, in its own [distribution] table:
+#   default = true      -> everyone
+#   users = ["alice"]   -> only those people, on top of the default
+#   (neither)           -> nobody automatically; apply it by path
+# =============================================================================
+
+schema = 1
+
+# Top-level keys must come BEFORE the first [table] -- a TOML key written
+# after one belongs to that table, not to the profile.
+python = ["3.12"]
+
+editor = "vscode"
+
+# Distributed to EVERYONE. Exactly one profile in this folder should say this;
+# it is the baseline every machine gets, and opt-in profiles layer on top.
+[distribution]
+default = true
+
+[[venv]]
+name = "dev"
+packages = ["pandas", "numpy", "requests", "pytest"]
+default = true

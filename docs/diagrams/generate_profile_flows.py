@@ -180,25 +180,30 @@ B_HEAD_H = 40   # height of the "offline-bundle/" header drawn inside the box
 B_BOX_PAD = 16  # gap between the box's outer edge and the header/chips it contains
 
 
-B_CONF_LABEL = "global.conf"
-B_CONF_NOTE = "read on this machine, before build-offline stages anything"
-B_CONF_VIA = "sets these before staging"
+B_CONF_LABEL = "offline-bundler/offline-bundle.toml"
+B_CONF_NOTE = "the spec this build is driven by -- global.conf is checked against it, not read for it"
+B_CONF_VIA = "declares what to stage"
 B_CONF_GAP = 30  # room for the connector arrow + its label
 
-B_TRIGGER_LABEL = "build-offline.cmd"
-B_TRIGGER_NOTE = "you run this yourself, on a connected machine -- nothing runs on its own"
+B_TRIGGER_LABEL = "offline-bundler.cmd"
+B_TRIGGER_NOTE = "you run this yourself, on a connected machine -- no arguments, nothing runs on its own"
 B_TRIGGER_GAP = 26
 
-# which build_offline.py call reads which global.conf key, and what it lands as --
-# every one of these is `config.get(...)` on the BUILD MACHINE's own local
-# settings, called from build_offline.py/vscode_cmd.py/conda_tool.py before
-# any staging happens. Keyed by the capability row that key affects, so a
-# profile without conda-forge tools doesn't get a conda_channel line it
-# doesn't use -- same "derive from what's actually there" rule
-# _config_key_lines() follows for the profile.toml box.
+# which offline-bundle.toml key decides which staged folder. Keyed by the
+# capability row it affects, so a spec without conda-forge tools doesn't get a
+# `tools` line it doesn't use -- the same "derive from what's actually there"
+# rule _config_key_lines() follows for the profile box.
+#
+# These are SPEC keys, not global.conf keys. The editor in particular used to
+# be read from the build machine's own seedling settings; it is now declared
+# here and cross-checked against global.conf, so the diagram would be
+# describing a mechanism that no longer exists.
 _BUILD_CONF_KEY_FOR = [
-    ("Editor", ["vscode_flavor", "vscode_extensions", "extension_gallery"], "vendor/vscode/"),
-    ("conda-forge tools", ["conda_channel"], "conda-channel/"),
+    ("Packages", ["packages"], "wheels/"),
+    ("Interpreters", ["pythons"], "python-builds/"),
+    ("Editor", ["[editor] flavor / extensions / gallery"], "vendor/vscode/"),
+    ("conda-forge tools", ["tools"], "conda-channel/"),
+    ("Git", ["[git] mingit"], "vendor/git/"),
 ]
 
 
@@ -399,7 +404,7 @@ CONFIG_NOTE = "one file, read at install and every later `seed apply`"
 # same way.
 CONF2_LABEL = "global.conf"
 CONF2_NOTE = "read at install, on every machine"
-CONF2_VIA = "sets SEEDLING_PROFILE"
+CONF2_VIA = "SEEDLING_PROFILE -> the profile folder"
 CONF2_GAP = 30
 
 # install.cmd -- the actual trigger. Nothing reads global.conf on its
@@ -439,7 +444,8 @@ CFG_ITEM_GAP = 6
 
 def build_part2(slug: str, title: str, subtitle: str, groups: list[dict],
                 machine_note: str, storage: list[dict] | None = None,
-                footnote: str | None = None, config_label: str = "profile.toml",
+                footnote: str | None = None,
+                config_label: str = "installation-profile/",
                 config_via: str = "install + seed apply") -> None:
     storage = storage or []
     machine_x = P_GROUP_X + P_GROUP_W + P_ARROW_GAP

@@ -33,7 +33,7 @@ example
 | **Spyder** | Does this install Spyder, from PyPI? | `editor` |
 | **conda-forge** | Does this install conda-forge command-line tools? | `tools` |
 | **CA certs** | Does this need a corporate CA certificate? | `vendor/certs/`, `SEEDLING_NATIVE_TLS` |
-| **Bundle** | Must you build an offline bundle first? | `build-offline` |
+| **Bundle** | Must you build an offline bundle first? | `offline-bundler` |
 | **x86_64 only** | Does this rule out arm64 machines? | implied by Spyder |
 
 **Index** is the one to read carefully: ✅ means `package_index` is *set*, not

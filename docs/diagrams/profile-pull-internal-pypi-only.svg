@@ -64,12 +64,12 @@
 <text x="92" y="230" class="body fw" font-size="14" font-weight="700">global.conf</text>
 <text x="58" y="246" class="body" fill="#CFE3D6" font-size="10" font-style="italic">read at install, on every machine</text>
 <line x1="58" y1="256" x2="342" y2="256" stroke="#FFFFFF" stroke-width="1" opacity="0.2"/>
-<rect x="58" y="264" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="67" y="279" class="body fg" font-size="11.5" font-weight="600">SEEDLING_PROFILE  →  profile.toml</text>
+<rect x="58" y="264" width="284" height="22" rx="6" fill="#FFFFFF" stroke="#1B4332" stroke-width="0.9"/><text x="67" y="279" class="body fg" font-size="11.5" font-weight="600">SEEDLING_PROFILE  →  installation-profile/</text>
 <line x1="360" y1="249" x2="796" y2="249" stroke="#1B4332" stroke-width="1.6" marker-end="url(#arrow)"/>
-<text x="580" y="241" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">sets SEEDLING_PROFILE</text>
+<text x="580" y="241" text-anchor="middle" class="body fmute" font-size="10.5" font-style="italic">SEEDLING_PROFILE -&gt; the profile folder</text>
 <rect x="640" y="324" width="320" height="190" rx="12" fill="#1B4332"/>
 <use href="#ic-doc" x="658" y="337" width="22" height="22" color="#FFFFFF"/>
-<text x="692" y="352" class="body fw" font-size="14.0" font-weight="700">profile.toml</text>
+<text x="692" y="352" class="body fw" font-size="14.0" font-weight="700">installation-profile/</text>
 <text x="658" y="368" class="body" fill="#CFE3D6" font-size="10" font-style="italic">one file, read at install and every</text>
 <text x="658" y="380" class="body" fill="#CFE3D6" font-size="10" font-style="italic">later `seed apply`</text>
 <line x1="658" y1="390" x2="942" y2="390" stroke="#FFFFFF" stroke-width="1" opacity="0.2"/>

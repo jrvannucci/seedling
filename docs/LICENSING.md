@@ -102,7 +102,7 @@ same situation as PyPI — so check the specific tools you standardize on.
 Day-to-day use raises few questions: each machine downloads from the vendor
 for itself, which is what the vendor's terms anticipate.
 
-`build-offline.cmd` is different. It assembles those downloads into a folder
+`offline-bundler.cmd` is different. It assembles those downloads into a folder
 you carry to a share, from which many machines install. **That is
 redistribution**, and it is the point at which the restricted rows above
 start to matter.
@@ -111,8 +111,8 @@ Because of that, the builder asks you to acknowledge the restricted
 components before staging any of them:
 
 ```
-build-offline.cmd                            # prompts before staging them
-build-offline.cmd --accept-third-party-terms # for unattended/CI builds
+offline-bundler.cmd                            # prompts before staging them
+offline-bundler.cmd --accept-third-party-terms # for unattended/CI builds
 ```
 
 `--yes` deliberately does **not** answer this prompt. It exists to skip
@@ -148,7 +148,7 @@ for the full tradeoff.
 
 ## The bundle manifest
 
-Every bundle `build-offline.cmd` produces carries a `MANIFEST.json` at its
+Every bundle `offline-bundler.cmd` produces carries a `MANIFEST.json` at its
 root, recording what was staged: each component's version, the URL it came
 from, its licence, and its redistribution category.
 

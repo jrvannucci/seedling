@@ -142,6 +142,12 @@ def _generate_diagrams(*_args) -> None:
     generate_family_commands.build()
     generate_marketing_flows.build()
 
+    # The interactive command explorer is generated from the same FAMILIES
+    # data as the diagrams plus the per-command pages, so it belongs on the
+    # same "regenerated every build, never a stale artifact" footing.
+    import generate_command_explorer
+    generate_command_explorer.main()
+
 
 def setup(app):
     # config-inited fires before sources are read, so the generated index.md

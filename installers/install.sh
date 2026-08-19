@@ -81,14 +81,6 @@ CONF_FILE=""
 if [ -f "$REPO_ROOT/global.conf" ]; then
     CONF_FILE="$REPO_ROOT/global.conf"
     . "$CONF_FILE"
-elif [ -f "$REPO_ROOT/seedling.conf" ]; then
-    # The pre-rename name. Honored so an organization's customized copy keeps
-    # working through the upgrade: ignoring it would silently install their
-    # fleet from the public internet with default settings, which is a far
-    # worse failure than a warning.
-    CONF_FILE="$REPO_ROOT/seedling.conf"
-    . "$CONF_FILE"
-    printf '%s\n' "  ! seedling.conf is now global.conf -- rename it; this fallback goes away."
 fi
 
 # Source resolution: SEEDLING_REPO env var (one-run override) beats
@@ -226,7 +218,9 @@ elif [ -n "$SEEDLING_PROFILE" ]; then
         /*|?:[\\/]*) PROFILE_PATH="$SEEDLING_PROFILE" ;;
         *)           PROFILE_PATH="$SRC_DIR/$SEEDLING_PROFILE" ;;
     esac
-    if [ ! -f "$PROFILE_PATH" ]; then
+    # Either a single file or the FOLDER of profiles, in which case
+    # `seed apply` resolves which of them this user is distributed.
+    if [ ! -f "$PROFILE_PATH" ] && [ ! -d "$PROFILE_PATH" ]; then
         # Non-fatal, unlike the env case: a conf naming a profile that wasn't
         # distributed shouldn't brick installs across a whole fleet.
         warn "SEEDLING_PROFILE=$SEEDLING_PROFILE was set, but no profile "
@@ -376,12 +370,8 @@ fi
 #     clobber choices made later with `seed config set`).
 # ---------------------------------------------------------------------------
 # Piped installs have no local conf, but the clone we just copied does.
-if [ -z "$CONF_FILE" ]; then
-    if [ -f "$SRC_DIR/global.conf" ]; then
-        . "$SRC_DIR/global.conf"
-    elif [ -f "$SRC_DIR/seedling.conf" ]; then
-        . "$SRC_DIR/seedling.conf"          # pre-rename name
-    fi
+if [ -z "$CONF_FILE" ] && [ -f "$SRC_DIR/global.conf" ]; then
+    . "$SRC_DIR/global.conf"
 fi
 
 # Record where this install came from, so `seed update-commands` knows

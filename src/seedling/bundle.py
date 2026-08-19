@@ -24,6 +24,12 @@ The same validator runs over an `Inventory`, built two ways: from this file
 (what the bundle WILL contain) or discovered from a bundle directory (what it
 DOES contain). Intent and reality are then never checked by two different
 code paths that can disagree.
+
+Repos are deliberately absent. A profile's `[[repo]]` entries are cloned from
+a git host on the CLOSED network, which the connected build machine cannot
+reach -- so it can neither vendor them nor resolve their dependencies, and a
+`[[repo]]` key here would promise a check nothing can honor. What a repo needs
+from the wheelhouse goes in `packages`, named by the admin who knows it.
 """
 
 from __future__ import annotations
@@ -47,6 +53,31 @@ LOCAL_NAME = "offline-bundle.toml"
 # download agree by construction -- a profile using the default packages must
 # not be reported as unsatisfiable against a bundle that always carries them.
 ALWAYS_PRESENT = ["hatchling", "ipython", "ruff", "ipykernel", "pip"]
+
+
+# The wheel tags each supported platform installs. `pip download --platform`
+# takes these, so ONE flat wheelhouse can serve a mixed fleet: the tags are
+# what a target machine matches a wheel filename against.
+#
+# Linux lists several because a manylinux wheel is built to an older glibc and
+# tagged accordingly -- a machine that accepts manylinux_2_17 also accepts
+# manylinux2014 (the same ABI under its old name), and some projects publish
+# only one of them.
+PLATFORM_TAGS = {
+    "windows/x86_64": ["win_amd64"],
+    "windows/aarch64": ["win_arm64"],
+    "linux/x86_64": ["manylinux2014_x86_64", "manylinux_2_17_x86_64",
+                     "manylinux_2_28_x86_64"],
+    "linux/aarch64": ["manylinux2014_aarch64", "manylinux_2_17_aarch64",
+                      "manylinux_2_28_aarch64"],
+    "darwin/x86_64": ["macosx_10_12_x86_64", "macosx_11_0_x86_64"],
+    "darwin/aarch64": ["macosx_11_0_arm64", "macosx_12_0_arm64"],
+}
+
+
+def platform_tags(name: str) -> list[str]:
+    """The `pip download --platform` values for a declared platform."""
+    return PLATFORM_TAGS[name.strip().lower()]
 
 
 class BundleError(ValueError):
@@ -82,37 +113,34 @@ def pinned_version(spec: str) -> str | None:
 
 
 @dataclass
-class BundleRepo:
-    """A repo the bundle carries, and every extra any profile may select from
-    it. Declared here (not derived) because resolving a repo's optional
-    dependencies means cloning it, which only the connected machine can do."""
-    url: str
-    extras: list[str] = field(default_factory=list)
-
-    @property
-    def name(self) -> str:
-        # Deliberately the same derivation `seed repo-clone` uses, so the name
-        # a profile refers to and the name this declares can't diverge.
-        from .commands import repo_cmd
-        return repo_cmd._derive_name(self.url)
-
-
-@dataclass
 class Bundle:
     path: Path | None = None
-    platform: str | None = None
+    # The fleet's platforms. The wheelhouse covers every one of them; the
+    # platform-specific BINARIES (uv, interpreters, the editor) still come
+    # from the machine that runs the build, so this is a statement about who
+    # the bundle serves, checked against where it is being built.
+    platforms: list[str] = field(default_factory=list)
     deploy_root: str | None = None
     pythons: list[str] = field(default_factory=list)
     # THE package set, not an addition to one: every distribution any profile
     # may name, plus whatever users should be able to `seed install` later.
     packages: list[str] = field(default_factory=list)
     tools: list[str] = field(default_factory=list)
-    repos: list[BundleRepo] = field(default_factory=list)
     editor_flavor: str = "microsoft"
     editor_extensions: list[str] = field(default_factory=list)
     extension_gallery: str | None = None
     vscode: bool = True
     mingit: bool = False
+    # [build] -- what used to be command-line flags. They live here so the
+    # whole build is one file plus one double-click, with nothing to remember
+    # and nothing that differs between the admin who wrote it and the person
+    # who re-runs it six months later.
+    output: str | None = None
+    profiles_dir: str = "installation-profile"
+    archive: str | None = None
+    verify: bool = True
+    unattended: bool = False
+    accept_third_party_terms: bool = False
 
 
 def parse(text: str, path: Path | None = None) -> Bundle:
@@ -126,15 +154,19 @@ def parse(text: str, path: Path | None = None) -> Bundle:
              f"schema {schema!r} is newer than this seedling understands "
              f"(supported: {SCHEMA}). Update seedling first.")
 
-    known = {"schema", "platform", "deploy_root", "pythons", "packages",
-             "tools", "editor", "git", "repo"}
+    known = {"schema", "platforms", "deploy_root", "pythons", "packages",
+             "tools", "editor", "git", "build"}
     unknown = sorted(set(raw) - known)
     _require(not unknown,
              f"unknown key(s): {', '.join(unknown)}. Known keys: "
              f"{', '.join(sorted(known))}")
 
     b = Bundle(path=path)
-    b.platform = _opt_str(raw.get("platform"), "platform")
+    b.platforms = _str_list(raw.get("platforms", []), "platforms")
+    for name in b.platforms:
+        _require(name.strip().lower() in PLATFORM_TAGS,
+                 f"platforms: {name!r} isn't one seedling knows. Valid: "
+                 + ", ".join(sorted(PLATFORM_TAGS)))
     b.deploy_root = _opt_str(raw.get("deploy_root"), "deploy_root")
     b.pythons = _str_list(raw.get("pythons", []), "pythons")
     b.tools = _str_list(raw.get("tools", []), "tools")
@@ -157,6 +189,32 @@ def parse(text: str, path: Path | None = None) -> Bundle:
     _require(isinstance(stage, bool), "[editor] stage must be true or false")
     b.vscode = stage
 
+    build = raw.get("build", {})
+    _require(isinstance(build, dict), "[build] must be a table")
+    unknown = sorted(set(build) - {"output", "profiles", "archive", "verify",
+                                   "unattended", "accept_third_party_terms"})
+    _require(not unknown, f"[build]: unknown key(s): {', '.join(unknown)}")
+    b.output = _opt_str(build.get("output"), "[build] output")
+    b.profiles_dir = _opt_str(build.get("profiles"),
+                              "[build] profiles") or b.profiles_dir
+    archive = build.get("archive")
+    if archive is not None and archive is not False:
+        # true means "pick the format for my platform"; false is the same as
+        # leaving the key out, which is what a commented-out default reads as.
+        if archive is True:
+            archive = "auto"
+        _require(isinstance(archive, str) and archive in
+                 ("auto", "zip", "tar", "tar.gz"),
+                 f"[build] archive must be true or one of auto/zip/tar/"
+                 f"tar.gz, not {archive!r}")
+        b.archive = archive
+    for key, attr in (("verify", "verify"), ("unattended", "unattended"),
+                      ("accept_third_party_terms", "accept_third_party_terms")):
+        if key in build:
+            _require(isinstance(build[key], bool),
+                     f"[build] {key} must be true or false")
+            setattr(b, attr, build[key])
+
     git = raw.get("git", {})
     _require(isinstance(git, dict), "[git] must be a table")
     unknown = sorted(set(git) - {"mingit"})
@@ -165,19 +223,6 @@ def parse(text: str, path: Path | None = None) -> Bundle:
     _require(isinstance(mingit, bool), "[git] mingit must be true or false")
     b.mingit = mingit
 
-    repos = raw.get("repo", [])
-    _require(isinstance(repos, list), "[[repo]] must be a list of tables")
-    for entry in repos:
-        _require(isinstance(entry, dict), "each [[repo]] must be a table")
-        unknown = sorted(set(entry) - {"url", "extras"})
-        _require(not unknown, f"[[repo]]: unknown key(s): {', '.join(unknown)}")
-        url = entry.get("url")
-        _require(isinstance(url, str) and url.strip(),
-                 "every [[repo]] needs a non-empty url")
-        b.repos.append(BundleRepo(
-            url=url.strip(),
-            extras=_str_list(entry.get("extras", []),
-                             f"repo {url!r}: extras")))
     return b
 
 
@@ -229,7 +274,6 @@ class Inventory:
     packages: dict[str, set[str]] = field(default_factory=dict)
     pythons: set[str] = field(default_factory=set)
     tools: set[str] = field(default_factory=set)
-    repos: dict[str, set[str]] = field(default_factory=dict)   # name -> extras
     vscode: bool = False
     mingit: bool = False
     source: str = "declaration"
@@ -259,8 +303,6 @@ class Inventory:
                 inv.packages[name].add(pin)
         inv.pythons = {v.strip() for v in bundle.pythons}
         inv.tools = {requirement_name(t.split("=")[0]) for t in bundle.tools}
-        for repo in bundle.repos:
-            inv.repos[repo.name] = set(repo.extras)
         inv.vscode = bundle.vscode
         inv.mingit = bundle.mingit
         return inv
@@ -301,16 +343,6 @@ class Inventory:
         inv.vscode = (vendor / "vscode").is_dir()
         inv.mingit = (vendor / "git").is_dir()
 
-        # A bundle carries its own declaration, which is where repo extras
-        # live: nothing on disk records which extras a wheelhouse was
-        # resolved for.
-        declared = find(root / "seedling")
-        if declared:
-            try:
-                for repo in load(declared).repos:
-                    inv.repos[repo.name] = set(repo.extras)
-            except BundleError:
-                pass
         return inv
 
 
@@ -343,7 +375,12 @@ def check_profile(prof: profile_mod.Profile, inv: Inventory) -> list[str]:
     Empty means the profile applies cleanly against this bundle. Reported all
     at once rather than failing on the first: an admin fixing a profile wants
     the whole list, especially when the round trip is a walk to an air-gapped
-    room."""
+    room.
+
+    One thing this cannot see: a profile's `[[repo]]` entries. They are cloned
+    from the closed network's own git host, so their dependencies are only in
+    the wheelhouse if someone listed them in `packages` -- nothing here can
+    derive them."""
     problems: list[str] = []
 
     for version in prof.pythons:
@@ -380,20 +417,60 @@ def check_profile(prof: profile_mod.Profile, inv: Inventory) -> list[str]:
                 "editor \"spyder\": no spyder distribution in the bundle "
                 "(add it to [packages] extra)")
 
-    for repo in prof.repos:
-        from .commands import repo_cmd
-        name = repo_cmd._derive_name(repo.url)
-        if name not in inv.repos:
-            problems.append(
-                f"repo {name!r}: not declared in the bundle, so its "
-                f"dependencies aren't in the wheelhouse")
-            continue
-        wanted = {e for t in repo.targets for e in t.extras}
-        missing = sorted(wanted - inv.repos[name])
+    return problems
+
+
+# ---------------------------------------------------------------------------
+# Cross-checking the spec against global.conf
+# ---------------------------------------------------------------------------
+
+_CONF_LINE = re.compile(r'^\s*([A-Z_]+)\s*=\s*"([^"]*)"\s*$', re.M)
+
+
+def read_conf(path: Path) -> dict[str, str]:
+    """The KEY="value" pairs from a global.conf. Same shape the installers
+    parse, deliberately: anything this reads differently from install.sh is a
+    difference the admin would only discover on a user's machine."""
+    try:
+        return dict(_CONF_LINE.findall(Path(path).read_text(encoding="utf-8-sig")))
+    except OSError:
+        return {}
+
+
+def check_conf(bundle: Bundle, conf: dict[str, str]) -> list[str]:
+    """Where the spec and global.conf disagree about the editor.
+
+    They describe the same deployment from two sides -- the spec says what
+    gets STAGED into the bundle, the conf says what each user's machine is
+    configured to USE -- so a disagreement always means one of them is wrong.
+    Staging VSCodium while telling every user's settings to expect the
+    Microsoft build is the expensive version of this mistake: it isn't
+    visible until someone opens the editor on the far side of the air gap.
+    """
+    problems: list[str] = []
+
+    flavor = (conf.get("SEEDLING_VSCODE_FLAVOR") or "").strip().lower()
+    if flavor and flavor != bundle.editor_flavor:
+        problems.append(
+            f"editor flavor: the bundle stages {bundle.editor_flavor!r} but "
+            f"global.conf sets SEEDLING_VSCODE_FLAVOR={flavor!r}")
+
+    gallery = (conf.get("SEEDLING_EXTENSION_GALLERY") or "").strip()
+    if gallery and (bundle.extension_gallery or "").strip() != gallery:
+        problems.append(
+            f"extension gallery: global.conf points users at {gallery}, which "
+            f"the bundle's [editor] gallery doesn't match "
+            f"({bundle.extension_gallery or 'unset'})")
+
+    declared = (conf.get("SEEDLING_VSCODE_EXTENSIONS") or "").strip()
+    if declared and declared.lower() != "none" and bundle.editor_extensions:
+        wanted = {e.strip() for e in declared.split(",") if e.strip()}
+        staged = set(bundle.editor_extensions)
+        missing = sorted(wanted - staged)
         if missing:
             problems.append(
-                f"repo {name!r}: extras {', '.join(missing)} aren't declared "
-                f"in the bundle, so their dependencies aren't in the "
-                f"wheelhouse")
-
+                "extensions: global.conf asks every machine to install "
+                + ", ".join(missing)
+                + ", which the bundle doesn't stage (offline, an extension "
+                  "that wasn't staged can't be fetched)")
     return problems

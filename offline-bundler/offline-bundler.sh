@@ -1,6 +1,7 @@
 #!/bin/sh
-# POSIX launcher for the offline bundle builder (invoked by build-offline.cmd's
-# line 1 on macOS/Linux). Finds a Python 3 and hands off to build_offline.py.
+# POSIX launcher for the offline bundle builder (invoked by
+# offline-bundler.cmd's line 1 on macOS/Linux). Finds a Python 3 and hands off
+# to installers/build_offline.py, the engine one directory up.
 # This is NOT a `seed` command -- it prepares the distribution before seedling
 # is installed anywhere.
 set -e
@@ -25,4 +26,4 @@ if [ -z "$PY" ]; then
     exit 1
 fi
 
-exec "$PY" "$DIR/build_offline.py" "$@"
+exec "$PY" "$DIR/../installers/build_offline.py" "$@"

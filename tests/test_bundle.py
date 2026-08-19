@@ -28,7 +28,7 @@ def test_a_minimal_bundle_parses():
 def test_every_section_is_read():
     b = bundle_mod.parse('''
         schema = 1
-        platform = "Windows/x86_64"
+        platforms = ["Windows/x86_64", "Linux/x86_64"]
         deploy_root = "S:\\\\tools"
         pythons = ["3.12", "3.11"]
         packages = ["scipy", "polars"]
@@ -41,16 +41,13 @@ def test_every_section_is_read():
         [git]
         mingit = true
 
-        [[repo]]
-        url = "https://git.corp/team/plotpress.git"
-        extras = ["gui"]
     ''')
+    assert b.platforms == ["Windows/x86_64", "Linux/x86_64"]
     assert b.pythons == ["3.12", "3.11"]
     assert b.packages == ["scipy", "polars"]
     assert b.tools == ["ripgrep"]
     assert b.editor_flavor == "vscodium"
     assert b.mingit is True
-    assert b.repos[0].name == "plotpress" and b.repos[0].extras == ["gui"]
 
 
 def test_a_bare_string_is_a_one_element_list():
@@ -70,8 +67,7 @@ def test_it_knows_nothing_about_profiles():
     ('[editor]\nflavor = "emacs"', "flavor must be"),
     ('[editor]\nstage = "yes"', "stage must be true or false"),
     ('[git]\nmingit = "yes"', "mingit must be true or false"),
-    ('[[repo]]\nurl = ""', "non-empty url"),
-    ('[[repo]]\nurl = "x"\nnope = 1', "unknown key"),
+    (r"[[repo]]" + chr(10) + 'url = "x"', "unknown key"),
     ('schema = 99', "newer than this seedling understands"),
     ('pythons = [""]', "non-empty strings"),
 ])
@@ -157,31 +153,6 @@ def test_discover_on_an_empty_directory_is_empty_not_an_error(tmp_path):
     assert inv.packages == {} and not inv.vscode
 
 
-def test_repo_extras_come_from_the_bundles_own_declaration(tmp_path):
-    """Nothing on disk records which extras a wheelhouse was resolved for, so
-    the bundle carries its declaration and discover() reads it back."""
-    root = _fake_bundle_dir(tmp_path / "bundle")
-    (root / "seedling").mkdir(exist_ok=True)
-    (root / "seedling" / "offline-bundle.toml").write_text(
-        '[[repo]]\nurl = "https://git.corp/team/plotpress.git"\n'
-        'extras = ["gui"]\n', encoding="utf-8")
-    inv = bundle_mod.Inventory.discover(root)
-    assert inv.repos == {"plotpress": {"gui"}}
-
-
-# --- the check ------------------------------------------------------------
-
-class TestCheckProfile:
-    def _inv(self, **kw):
-        inv = bundle_mod.Inventory()
-        inv.packages = {"pandas": {"2.1.4"}, "ipython": {"8.0"},
-                        "ruff": {"0.5"}, "ipykernel": {"6.0"}}
-        inv.pythons = {"3.12"}
-        inv.tools = {"ripgrep"}
-        for k, v in kw.items():
-            setattr(inv, k, v)
-        return inv
-
     def test_a_satisfied_profile_reports_nothing(self, home):
         prof = profile_mod.parse(
             'python = ["3.12"]\ntools = ["ripgrep"]\n'
@@ -230,25 +201,6 @@ class TestCheckProfile:
         prof = profile_mod.parse('editor = "spyder"\n')
         problems = bundle_mod.check_profile(prof, self._inv())
         assert "spyder" in problems[0]
-
-    def test_an_undeclared_repo_is_caught(self, home):
-        prof = profile_mod.parse(
-            '[[venv]]\nname = "dev"\ndefault_packages = false\n'
-            '[[repo]]\nurl = "https://git.corp/team/plotpress.git"\n'
-            'install = ["dev"]\n')
-        problems = bundle_mod.check_profile(prof, self._inv())
-        assert "plotpress" in problems[0] and "dependencies" in problems[0]
-
-    def test_an_extra_the_bundle_didnt_resolve_is_caught(self, home):
-        """The per-venv extras case: the bundle resolved [gui], the profile
-        asks for [gui,test], and the test extra's dependencies aren't there."""
-        prof = profile_mod.parse(
-            '[[venv]]\nname = "dev"\ndefault_packages = false\n'
-            '[[repo]]\nurl = "https://git.corp/team/plotpress.git"\n'
-            'install = ["dev[gui,test]"]\n')
-        inv = self._inv(repos={"plotpress": {"gui"}})
-        problems = bundle_mod.check_profile(prof, inv)
-        assert len(problems) == 1 and "test" in problems[0]
 
     def test_every_problem_is_reported_not_just_the_first(self, home):
         prof = profile_mod.parse(
@@ -369,3 +321,130 @@ class TestProfileCheckCommand:
         prof.write_text('[[venv]]\nname = ""\n', encoding="utf-8")
         code, out = run_cli("profile-check", str(prof), "--bundle", str(root))
         assert code == 2
+
+
+# --- [build]: the flags that moved into the file ---------------------------
+
+def test_build_section_carries_every_remaining_flag():
+    b = bundle_mod.parse('''
+        [build]
+        output = "S:/out"
+        profiles = "profiles"
+        archive = true
+        verify = false
+        unattended = true
+        accept_third_party_terms = true
+    ''')
+    assert b.output == "S:/out" and b.profiles_dir == "profiles"
+    assert b.archive == "auto" and b.verify is False
+    assert b.unattended is True and b.accept_third_party_terms is True
+
+
+def test_archive_false_means_no_archive():
+    """Same as leaving the key out -- which is what a commented default reads
+    as, and what an admin writes when turning it off."""
+    assert bundle_mod.parse("[build]\narchive = false").archive is None
+
+
+@pytest.mark.parametrize("text,fragment", [
+    ('[build]\narchive = "rar"', "archive must be"),
+    ('[build]\nverify = "yes"', "verify must be true or false"),
+    ('[build]\nnope = 1', "unknown key"),
+])
+def test_invalid_build_sections_are_rejected(text, fragment):
+    with pytest.raises(bundle_mod.BundleError) as e:
+        bundle_mod.parse(text)
+    assert fragment in str(e.value)
+
+
+def test_the_defaults_need_no_build_section():
+    b = bundle_mod.parse("")
+    assert b.profiles_dir == "installation-profile"
+    assert b.verify is True and b.unattended is False
+    assert b.accept_third_party_terms is False, \
+        "a licence acknowledgement is never the default"
+
+
+# --- the spec and global.conf must agree about the editor ------------------
+
+class TestCheckConf:
+    def _bundle(self, **kw):
+        lines = ["[editor]"]
+        lines.append(f'flavor = "{kw.get("flavor", "microsoft")}"')
+        if "extensions" in kw:
+            lines.append(f'extensions = {kw["extensions"]!r}'.replace("'", '"'))
+        if "gallery" in kw:
+            lines.append(f'gallery = "{kw["gallery"]}"')
+        return bundle_mod.parse("\n".join(lines))
+
+    def test_agreement_reports_nothing(self):
+        b = self._bundle(flavor="vscodium", extensions=["a", "b"])
+        assert bundle_mod.check_conf(b, {
+            "SEEDLING_VSCODE_FLAVOR": "vscodium",
+            "SEEDLING_VSCODE_EXTENSIONS": "a,b"}) == []
+
+    def test_a_flavor_mismatch_is_caught(self):
+        """Staging VSCodium while every user's settings expect the Microsoft
+        build isn't visible until someone opens the editor, air-gapped."""
+        b = self._bundle(flavor="vscodium")
+        problems = bundle_mod.check_conf(b, {"SEEDLING_VSCODE_FLAVOR": "microsoft"})
+        assert len(problems) == 1 and "flavor" in problems[0]
+
+    def test_an_extension_the_bundle_doesnt_stage_is_caught(self):
+        b = self._bundle(extensions=["ms-python.python"])
+        problems = bundle_mod.check_conf(b, {
+            "SEEDLING_VSCODE_EXTENSIONS": "ms-python.python,ms-azuretools.docker"})
+        assert len(problems) == 1 and "ms-azuretools.docker" in problems[0]
+
+    def test_a_gallery_mismatch_is_caught(self):
+        b = self._bundle(gallery="https://a/vscode")
+        problems = bundle_mod.check_conf(
+            b, {"SEEDLING_EXTENSION_GALLERY": "https://b/vscode"})
+        assert len(problems) == 1 and "gallery" in problems[0]
+
+    def test_an_unset_conf_key_constrains_nothing(self):
+        """A conf that doesn't mention the editor leaves the spec free."""
+        b = self._bundle(flavor="vscodium", extensions=["a"])
+        assert bundle_mod.check_conf(b, {}) == []
+
+    def test_extensions_none_is_not_a_conflict(self):
+        b = self._bundle(extensions=["a"])
+        assert bundle_mod.check_conf(b, {"SEEDLING_VSCODE_EXTENSIONS": "none"}) == []
+
+
+def test_read_conf_matches_the_installers_parser(tmp_path):
+    conf = tmp_path / "global.conf"
+    conf.write_text('# comment\nSEEDLING_VSCODE_FLAVOR="vscodium"\n'
+                    'NOT_QUOTED=bare\nSEEDLING_PACKAGE_INDEX="S:/wheels"\n',
+                    encoding="utf-8")
+    values = bundle_mod.read_conf(conf)
+    assert values == {"SEEDLING_VSCODE_FLAVOR": "vscodium",
+                      "SEEDLING_PACKAGE_INDEX": "S:/wheels"}, \
+        "one KEY=\"value\" per line, exactly as install.ps1 reads it"
+
+
+# --- platforms: one wheelhouse, a mixed fleet ------------------------------
+
+def test_platforms_map_to_wheel_tags():
+    b = bundle_mod.parse('platforms = ["Windows/x86_64", "Linux/x86_64"]')
+    assert b.platforms == ["Windows/x86_64", "Linux/x86_64"]
+    assert bundle_mod.platform_tags("Windows/x86_64") == ["win_amd64"]
+    assert "manylinux2014_x86_64" in bundle_mod.platform_tags("linux/x86_64")
+
+
+def test_platform_names_are_case_insensitive():
+    assert bundle_mod.platform_tags("WINDOWS/X86_64") == ["win_amd64"]
+
+
+def test_an_unknown_platform_is_rejected_with_the_valid_list():
+    with pytest.raises(bundle_mod.BundleError) as e:
+        bundle_mod.parse('platforms = ["Plan9/sparc"]')
+    msg = str(e.value)
+    assert "isn't one seedling knows" in msg and "linux/x86_64" in msg
+
+
+def test_linux_lists_several_manylinux_tags():
+    """A manylinux wheel is built to an older glibc and tagged for it; some
+    projects publish only one of the spellings."""
+    tags = bundle_mod.platform_tags("linux/x86_64")
+    assert len(tags) >= 2 and all("x86_64" in t for t in tags)

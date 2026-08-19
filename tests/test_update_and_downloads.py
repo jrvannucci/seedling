@@ -141,18 +141,13 @@ def test_no_drift_report_when_conf_already_matches(run_cli, home, src_installed,
     assert "differently than" not in out
 
 
-@pytest.mark.parametrize("conf_name", ["global.conf", "seedling.conf"])
-def test_drift_is_reported_under_either_conf_name(
-        home, tmp_path, capsys, conf_name):
-    """seedling.conf is the pre-rename name, and a share still carrying it is
-    exactly where the rename hasn't happened yet -- it must keep reporting.
-
-    Calls report_conf_drift directly rather than through `update-commands`:
+def test_drift_is_reported_from_the_conf(home, tmp_path, capsys):
+    """Calls report_conf_drift directly rather than through `update-commands`:
     that command rewrites the real Windows PATH, and one more round trip of
     it just to check a filename knocked `sh` off PATH for later tests."""
     upstream = tmp_path / "share"
     upstream.mkdir()
-    (upstream / conf_name).write_text(
+    (upstream / "global.conf").write_text(
         'SEEDLING_VENV_DEFAULT_PACKAGES="ipython,ruff,pandas"\n')
     config.set_value("venv_default_packages", ["ipython", "ruff"])
     update_cmd.report_conf_drift(upstream)

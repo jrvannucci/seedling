@@ -1,5 +1,10 @@
 # Command reference
 
+> **[Open the interactive command explorer](_static/command-explorer.html)** —
+> all 59 commands in one filterable list; click any one to open its full
+> documentation. Easier to navigate than the diagram below when you know
+> roughly what you're after.
+
 Every `seed` command and flag, as currently implemented. For the guided
 tour, start with **[Using seedling](GUIDE.md)**.
 

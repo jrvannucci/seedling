@@ -42,8 +42,8 @@ The share declares its own contents, and the profile above is checked against
 them:
 
 ```toml
-# offline-bundle.toml -- what the share will hold. Sits next to global.conf;
-# build-offline reads it by default.
+# offline-bundle.toml -- what the share will hold. Lives in
+# offline-bundler/, and the builder reads it with no arguments.
 
 pythons = ["3.12"]
 
@@ -65,13 +65,12 @@ Build it, checking the profile against the declaration before anything
 downloads — and again against what actually landed:
 
 ```sh
-build-offline.cmd --check-profile profile.toml --deploy-root "S:\seedling"
+offline-bundler.cmd
 ```
 
-**Which editor build gets staged is decided on the build machine.** The
-bundler stages the editor *before* any profile is applied, and reads the
-build machine's own seedling settings to do it — so the conf you distribute
-sets it for your users, and `[editor] flavor` above records the intent:
+The `[editor] flavor` above is what gets staged. `global.conf` sets the same
+choice for each installed machine, and the builder refuses to build if the two
+disagree:
 
 ```sh
 # global.conf, in the copy you distribute
@@ -89,15 +88,10 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ru
   design — so the Python extension falls back to its bundled Jedi server.
   If your organization *does* hold Marketplace rights, see
   [the next example](air-gapped-vs-code.md).
-- **Set the flavor on the build machine too, not only in this conf.** The
-  bundler stages whichever editor the *build machine's own* seedling settings
-  name (`seed config get vscode_flavor`), because it drives seedling's own
-  installer — a conf it never installed from doesn't reach it. Build with the
-  flavor unset and you stage the **official** build and Marketplace
-  extensions: the restricted components this whole example exists to avoid.
-  Either install seedling on the builder from this copy (the installer seeds
-  the setting from the conf) or run `seed config set vscode_flavor vscodium`
-  first. See [the note in OFFLINE.md](../OFFLINE.md#7-vs-code-optional).
+- **The spec decides which editor is staged**, and the build stops if
+  `global.conf` disagrees with it. Staging the official build here would mean
+  redistributing the restricted components this example exists to avoid, so
+  the mismatch is worth failing over rather than warning about.
 - **`offline-bundle.toml` declares the share; the profile conforms to it.**
   It lists more than this profile needs (`httpx`, `openpyxl`) because a user
   on an isolated network can't add one later. `--check-profile` proves the
@@ -105,8 +99,6 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ru
   the build on the connected machine, and
   [`seed profile-check`](../commands/status.md#seed-profile-check-profile---bundle-path)
   answers the same question for a profile written later, from inside.
-  Only `[editor] flavor`/`extensions` are declarative for now — see the
-  previous bullet.
 - Nothing here mentions the share's paths: those live in `global.conf`
   (`SEEDLING_PACKAGE_INDEX` and friends), which is install-time configuration
   a profile deliberately can't override.

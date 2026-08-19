@@ -273,14 +273,49 @@ def _plan(prof: profile_mod.Profile, *, force: bool,
 
 
 def run(args) -> int:
+    """Apply one profile, or every profile a FOLDER distributes to this user.
+
+    The folder form is what a fleet installs from: the default profile
+    reaches everyone, an opt-in profile reaches the users it lists, and each
+    is applied in turn. Applying several is safe for the same reason applying
+    one twice is -- every step is create-if-missing."""
     explicit = getattr(args, "path", None)
-    path = profile_mod.find(explicit)
-    if path is None:
+    targets = profile_mod.find_all(explicit)
+    if not targets:
+        target = profile_mod.find(explicit)
+        if target is not None and target.is_dir():
+            print(f"No profile in {target} is distributed to "
+                  f"{profile_mod.current_user()!r}.")
+            print("A profile reaches someone by setting `[distribution] "
+                  "default = true` (everyone) or listing them in "
+                  "`[distribution] users`.")
+            return 0
         print("No profile to apply.")
         print("Pass one explicitly (`seed apply <file>`), or put a "
               "profile.toml in this directory.")
         return 1
 
+    if len(targets) == 1:
+        return _apply_one(args, targets[0])
+
+    # Several: the default plus whatever this user opted into. Reported up
+    # front so the run reads as one deliberate sequence rather than a
+    # surprise, and stopped at the first failure -- a later profile may
+    # layer on what an earlier one was supposed to create.
+    print(f"{len(targets)} profiles are distributed to "
+          f"{profile_mod.current_user()!r}:")
+    for path in targets:
+        print(f"  - {path.name}")
+    print()
+    for path in targets:
+        code = _apply_one(args, path)
+        if code != 0:
+            print(colors.warn(f"Stopped at {path.name} (exit {code})."))
+            return code
+    return 0
+
+
+def _apply_one(args, path) -> int:
     try:
         prof = profile_mod.load(path)
     except profile_mod.ProfileError as e:

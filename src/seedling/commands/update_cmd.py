@@ -122,13 +122,8 @@ def report_conf_drift(refreshed_src: Path) -> None:
     breaking. This closes the DISCOVERY gap without touching the
     auto-apply-vs-respect-local-customization tradeoff: it tells you
     exactly what changed and the command to apply it, and stops there."""
-    # seedling.conf is the pre-rename name: an org whose share still carries it
-    # must keep getting drift reports, since that share is exactly where the
-    # rename hasn't happened yet.
-    conf_path = next((refreshed_src / name
-                      for name in ("global.conf", "seedling.conf")
-                      if (refreshed_src / name).is_file()), None)
-    if conf_path is None:
+    conf_path = refreshed_src / "global.conf"
+    if not conf_path.is_file():
         return
     try:
         conf = _parse_conf(conf_path.read_text(encoding="utf-8-sig"))

@@ -118,10 +118,9 @@ SEEDLING_PACKAGE_INDEX="S:\seedling\wheels"
 SEEDLING_CONDA_CHANNEL="S:\seedling\conda-channel"
 
 # The editor build and extension set every INSTALLED machine gets -- decided
-# here, not in the profile. Note these seed each user's settings at install
-# time; what the builder STAGES into vendor/vscode/ comes from the build
-# machine's own seedling settings, so set the same values there before
-# building (see docs/OFFLINE.md #7).
+# here, not in the profile. These must match [editor] in offline-bundle.toml,
+# which is what actually gets staged; the builder compares them and stops if
+# they disagree.
 SEEDLING_VSCODE_FLAVOR="microsoft"
 SEEDLING_EXTENSION_GALLERY="https://openvsx.corp.example/vscode"
 SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-python.vscode-pylance,ms-python.debugpy,ms-toolsai.jupyter,charliermarsh.ruff"
@@ -132,7 +131,7 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-python.vscode-pylance,ms-python.
 SEEDLING_NATIVE_TLS="false"
 
 # Apply the profile automatically at install.
-SEEDLING_PROFILE="profile.toml"
+SEEDLING_PROFILE="installation-profile/profile.toml"
 ```
 
 **What the share holds**, declared once and independently of any profile.
@@ -169,16 +168,9 @@ extensions = [
 [git]
 mingit = true
 
-# The internal repos, and every extra a profile may select from them --
-# resolving a repo's optional dependencies needs a clone, which only the
-# connected machine can do.
-[[repo]]
-url = "https://git.corp.example/platform/toolkit.git"
-extras = []
-
-[[repo]]
-url = "https://git.corp.example/platform/analysis-lib.git"
-extras = []
+# No [[repo]] here: the profile's repos are cloned from git.corp.example,
+# which lives on the closed network and is unreachable from this build
+# machine. Anything they need at install time is listed in `packages` above.
 ```
 
 **Building it**, once, on a connected machine. The spec supplies the
@@ -186,9 +178,7 @@ interpreters, packages, tools and MinGit, so the only flags left are where it
 lands and the licence acknowledgement:
 
 ```
-build-offline.cmd --check-profile profile.toml ^
-                  --deploy-root "S:\seedling" ^
-                  --accept-third-party-terms
+offline-bundler.cmd
 ```
 
 **What each piece buys**
@@ -221,7 +211,7 @@ build-offline.cmd --check-profile profile.toml ^
   against the copy on the share to prove the transfer was complete too:
 
   ```
-  build-offline.cmd --verify-only -o S:\seedling
+  offline-bundler.cmd --verify-only -o S:\seedling
   ```
 
 - **`MANIFEST.json`** records every component, its source, its licence, and

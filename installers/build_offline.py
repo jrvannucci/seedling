@@ -632,10 +632,24 @@ def _minor_version(pbs_filename: str) -> str | None:
 
 
 def _download_wheels_for(uv_exe: Path, packages: list[str], wheels_dir: Path,
-                         py_version: str | None, cache: Path) -> bool:
-    """One `pip download` pass into the flat wheelhouse, for one interpreter."""
+                         py_version: str | None, cache: Path,
+                         tags: list[str] | None = None) -> bool:
+    """One `pip download` pass into the flat wheelhouse, for one interpreter
+    and (optionally) one FOREIGN platform.
+
+    `tags` are wheel platform tags. Given them, pip resolves as the target
+    machine would rather than as this one does -- which is what lets a single
+    flat wheelhouse serve a mixed Windows/Linux fleet. Markers are evaluated
+    for the target too, so a dependency that only exists on one platform
+    lands only in that pass."""
     cmd = [str(uv_exe), "tool", "run", "--from", "pip", "pip", "download",
            "--dest", str(wheels_dir), *packages]
+    for tag in tags or []:
+        cmd += ["--platform", tag]
+    if tags and not py_version:
+        # pip refuses --platform without a version to resolve against, since
+        # it can't run the target's interpreter to ask.
+        cmd += ["--only-binary=:all:"]
     if py_version:
         # Match the interpreter you're shipping so platform/abi wheels line up.
         # pip requires --only-binary=:all: alongside --python-version (it can't
@@ -653,7 +667,8 @@ def _download_wheels_for(uv_exe: Path, packages: list[str], wheels_dir: Path,
 
 
 def build_wheels(uv_exe: Path, packages: list[str], wheels_dir: Path,
-                 py_versions: list[str], cache: Path) -> bool:
+                 py_versions: list[str], cache: Path,
+                 foreign: list[tuple[str, list[str]]] | None = None) -> bool:
     """Download every wheel (and its dependencies) the offline index needs, via
     `uvx pip download` -- the same mechanism as `seed download-whls`.
 
@@ -667,10 +682,15 @@ def build_wheels(uv_exe: Path, packages: list[str], wheels_dir: Path,
     failed offline even though 3.9 had been mirrored. A flat wheelhouse holds
     every tag happily, so the fix is just to loop.
 
+    `foreign` extends the same loop across PLATFORMS: (name, tags) for each
+    declared platform that isn't the one building. A flat wheelhouse is
+    equally happy holding win_amd64 and manylinux wheels side by side, and
+    each machine picks the tags it can install -- so one wheelhouse serves a
+    mixed fleet even though the binaries around it cannot.
+
     An empty `py_versions` means "don't pin" -- one pass with whatever the
     shipped uv resolves."""
     wheels_dir.mkdir(parents=True, exist_ok=True)
-    # Dedupe, preserving order: two requested versions can map to one X.Y.
     targets: list[str] = list(dict.fromkeys(v for v in py_versions if v))
     info("Resolving and downloading wheels (hatchling + default packages"
          + (" + extras" if len(packages) > len(REQUIRED_PACKAGES) else "") + ") ...")
@@ -687,14 +707,20 @@ def build_wheels(uv_exe: Path, packages: list[str], wheels_dir: Path,
         if not _download_wheels_for(uv_exe, packages, wheels_dir, version, cache):
             failed.append(version or "default")
 
-    count = len(list(wheels_dir.glob("*.whl")))
+    for name, tags in foreign or []:
+        info(f"  -> {name} (cross-platform wheels) ...")
+        for version in targets or [None]:
+            if not _download_wheels_for(uv_exe, packages, wheels_dir, version,
+                                        cache, tags=tags):
+                failed.append(f"{name} / Python {version or 'default'}")
+
     if failed:
-        warn(f"{count} wheel(s) downloaded, but resolution FAILED for: "
-             + ", ".join(failed)
-             + ". Venvs on those interpreters won't work offline.")
+        warn("Wheel download failed for: " + ", ".join(failed))
+        info("A package with no wheel for that interpreter or platform is the "
+             "usual cause -- pip can't build one for a machine it isn't "
+             "running on.")
         return False
-    ok(f"{count} wheel(s) (plus any source archives) in {wheels_dir}"
-       + (f", covering Python {', '.join(targets)}." if targets else "."))
+    ok(f"Wheels are in {wheels_dir}")
     return True
 
 
@@ -741,7 +767,7 @@ def _extensions_present(app_dir: Path) -> bool:
     return ext_dir.is_dir() and any(p.is_dir() for p in ext_dir.iterdir())
 
 
-def _install_extensions(app_dir: Path) -> bool:
+def _install_extensions(app_dir: Path, extensions=None) -> bool:
     """Install the default extensions into the freshly-extracted VS Code,
     retrying over a generous window. Two things bite an unattended build here:
       1. A dot-prefixed path component makes the CLI fail signature
@@ -762,7 +788,8 @@ def _install_extensions(app_dir: Path) -> bool:
     # The configured set, not the built-in one: a bundle built for a
     # vscodium/Open VSX deployment must stage the extensions that deployment
     # will actually install, or the offline machines get nothing.
-    wanted = vscode_cmd.extensions_for(vscode_cmd.flavor())
+    wanted = (list(extensions) if extensions is not None
+              else vscode_cmd.extensions_for(vscode_cmd.flavor()))
     if not wanted:
         info("No extensions configured; skipping.")
         return True
@@ -793,12 +820,18 @@ def _install_extensions(app_dir: Path) -> bool:
     return False
 
 
-def build_vscode(vendor_vscode: Path, staging: Path) -> bool:
+def build_vscode(vendor_vscode: Path, staging: Path, editor=None) -> bool:
     """Pre-seed portable VS Code AND the default extensions into vendor/vscode/.
     Rather than reimplement the VS Code update-API download + marketplace
     extension install, drive seedling's OWN vscode installer against a throwaway
     home (SEEDLING_HOME=staging), then move the finished tree into place. Heavy:
-    ~300MB for VS Code plus the extensions."""
+    ~300MB for VS Code plus the extensions.
+
+    `editor` is the spec's [editor] table. Seeding it into the throwaway home's
+    settings.json is what makes offline-bundle.toml AUTHORITATIVE here: this
+    step used to read whatever the BUILD MACHINE's own seedling settings said,
+    so an admin who set the flavor in the conf they distribute -- the obvious
+    place -- silently got the default build staged instead."""
     if (vendor_vscode / "app").exists():
         ok(f"VS Code already staged in {vendor_vscode} -- skipping.")
         return True
@@ -808,6 +841,19 @@ def build_vscode(vendor_vscode: Path, staging: Path) -> bool:
     env = os.environ.copy()
     env["SEEDLING_HOME"] = str(staging)
     env["SEEDLING_NO_LOG"] = "1"
+    if editor:
+        # The subprocess reads settings.json out of SEEDLING_HOME, so writing
+        # the spec's values there is how they reach vscode_cmd.flavor() and
+        # gallery_for() without touching this machine's real settings.
+        seeded = {"vscode_flavor": editor.get("flavor", "microsoft")}
+        if editor.get("gallery"):
+            seeded["extension_gallery"] = editor["gallery"]
+        if editor.get("extensions"):
+            seeded["vscode_extensions"] = editor["extensions"]
+        config_dir = staging / "system" / "config"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "settings.json").write_text(
+            json.dumps(seeded, indent=2), encoding="utf-8")
     env["PYTHONPATH"] = (str(REPO_ROOT / "src") + os.pathsep
                          + env.get("PYTHONPATH", ""))
     # Let install() download + extract, but NOT install extensions -- a
@@ -834,7 +880,8 @@ def build_vscode(vendor_vscode: Path, staging: Path) -> bool:
             return False
 
         if not _extensions_present(app_dir):
-            _install_extensions(app_dir)
+            _install_extensions(
+                app_dir, (editor or {}).get("extensions"))
 
         vendor_vscode.parent.mkdir(parents=True, exist_ok=True)
         # Move (fast -- same drive: staging lives under the output folder) the
@@ -1176,13 +1223,6 @@ def main(argv=None) -> int:
              "building) without adding anything to it. Repeatable -- one "
              "bundle commonly serves several teams.")
     parser.add_argument(
-        "--profile", metavar="PATH",
-        help="Deployment profile whose venv packages must be in the bundle. "
-             "Only stocks the bundle when there is no offline-bundle.toml; "
-             "with one, the superset is already declared and this profile is "
-             "validated against it instead. Defaults to profile.toml next to "
-             "global.conf. Pass --profile= (empty) to ignore it.")
-    parser.add_argument(
         "--accept-third-party-terms", action="store_true",
         help="Acknowledge that you hold the rights to redistribute the "
              "restricted components this bundle will contain (VS Code and "
@@ -1205,7 +1245,10 @@ def main(argv=None) -> int:
     declared: bundle_mod.Bundle | None = None
     bundle_path = None
     if args.bundle is None:
-        bundle_path = bundle_mod.find(REPO_ROOT)
+        # offline-bundler/ is where the spec and its launcher live; the repo
+        # root is still searched so a pre-folder layout keeps building.
+        bundle_path = (bundle_mod.find(REPO_ROOT / "offline-bundler")
+                       or bundle_mod.find(REPO_ROOT))
     elif args.bundle:
         bundle_path = Path(args.bundle).expanduser()
     if bundle_path is not None:
@@ -1216,41 +1259,24 @@ def main(argv=None) -> int:
             info("Fix it, or pass --bundle= to build without it.")
             return 2
 
-    # --profile is the pre-bundle way to stock the wheel set: with no
-    # offline-bundle.toml, a profile is still the best statement of what a
-    # fleet needs. With one, the superset is already declared, so a profile
-    # is something to CHECK against it, never something to grow it -- a
-    # superset assembled from the profile it judges can never say no.
-    profile_packages: list[str] = []
-    profile_tools: list[str] = []
-    legacy_profile = None
-    if args.profile is None and declared is None:
-        # seedling-profile.toml is the pre-rename name, still picked up so a
-        # bundle built from an un-renamed copy keeps covering its profile.
-        legacy_profile = next(
-            (REPO_ROOT / name for name in ("profile.toml",
-                                           "seedling-profile.toml")
-             if (REPO_ROOT / name).is_file()), None)
-    elif args.profile:
-        legacy_profile = Path(args.profile).expanduser()
-
+    # Profiles are only ever CHECKED. There is no path by which one grows the
+    # bundle: a superset assembled from the profile it judges can never say
+    # no, which is the whole reason offline-bundle.toml stands alone.
     check_paths = [Path(p).expanduser() for p in (args.check_profiles or [])]
-    if legacy_profile is not None and declared is not None:
-        # Both given: the declaration wins on contents, and the profile joins
-        # the ones being validated rather than silently widening the bundle.
-        check_paths.append(legacy_profile)
-        legacy_profile = None
-
-    if legacy_profile is not None:
-        try:
-            loaded = profile_mod.load(legacy_profile)
-        except profile_mod.ProfileError as e:
-            warn(f"{legacy_profile}: {e}")
-            info("Fix the profile, or pass --profile= to build without it.")
-            return 2
-        profile_packages = loaded.package_set()
-        profile_tools = loaded.tool_set()
-
+    if declared is not None and not check_paths:
+        # Every profile the admin ships is validated, with nothing to list on
+        # the command line: they live in one folder, so the folder IS the list.
+        #
+        # Found relative to the SPEC, not to this file's repo: the spec sits in
+        # offline-bundler/ with installation-profile/ as its sibling one level
+        # up. Resolving against the repo root instead would make any spec
+        # passed with --bundle silently adopt this checkout's profiles.
+        base = bundle_path.parent if bundle_path else REPO_ROOT
+        for folder in (base / declared.profiles_dir,
+                       base.parent / declared.profiles_dir):
+            if folder.is_dir():
+                check_paths = sorted(folder.glob("*.toml"))
+                break
     profiles: list[profile_mod.Profile] = []
     for path in check_paths:
         try:
@@ -1288,11 +1314,39 @@ def main(argv=None) -> int:
             args.mingit = True
         if not declared.vscode:
             args.no_vscode = True
-    conda_tools = list(dict.fromkeys(extra_tools + profile_tools))
+        # [build]: every remaining flag, so the whole build is one file and
+        # one double-click. A flag still wins for a one-off run.
+        if declared.output and args.output == parser.get_default("output"):
+            output = Path(declared.output).expanduser().resolve()
+        if declared.archive and args.archive is None:
+            args.archive = declared.archive
+        if not declared.verify:
+            args.no_verify = True
+        if declared.unattended:
+            args.yes = auto = True
+        if declared.accept_third_party_terms:
+            args.accept_third_party_terms = True
+
+    # The spec and global.conf describe the same deployment from two sides.
+    # Checked before anything downloads, for the same reason the profiles are:
+    # an editor mismatch isn't visible until someone opens it, air-gapped.
+    if declared is not None:
+        conf_path = REPO_ROOT / "global.conf"
+        if conf_path.is_file():
+            conflicts = bundle_mod.check_conf(declared,
+                                              bundle_mod.read_conf(conf_path))
+            if conflicts:
+                print()
+                warn(f"offline-bundle.toml and {conf_path.name} disagree:")
+                for line in conflicts:
+                    print(f"  - {line}")
+                info("The spec says what gets staged; the conf says what each "
+                     "user's machine expects. Make them agree and re-run.")
+                return 2
+    conda_tools = list(dict.fromkeys(extra_tools))
 
     packages = REQUIRED_PACKAGES + [
-        p for p in extra_packages + profile_packages
-        if p not in REQUIRED_PACKAGES]
+        p for p in extra_packages if p not in REQUIRED_PACKAGES]
     # De-duplicate while preserving order (a profile and --packages may
     # legitimately name the same thing).
     packages = list(dict.fromkeys(packages))
@@ -1318,24 +1372,30 @@ def main(argv=None) -> int:
           "docs/OFFLINE.md")
     print()
     print(f"  Building on : {system} / {arch}")
-    print("  " + colors.warn(
-        "The bundle targets THIS platform. Build on the same OS/arch as your "
-        "offline machines."))
-    # A spec that names its target platform is checked against the machine
-    # doing the building. Getting this wrong produces a bundle that builds
-    # cleanly and then can't install anywhere it's carried -- the failure this
-    # warning has always described, now caught instead of narrated.
-    if declared is not None and declared.platform:
-        want = declared.platform.strip().lower()
-        have = f"{system}/{arch}".lower()
-        if want != have:
+    here = f"{system}/{arch}"
+    foreign_platforms: list[tuple[str, list[str]]] = []
+    if declared is not None and declared.platforms:
+        names = {n.strip().lower(): n for n in declared.platforms}
+        if here.lower() not in names:
             print()
-            warn(f"offline-bundle.toml targets {declared.platform}, but this "
-                 f"machine is {system}/{arch}.")
-            info("Build on that platform, or change `platform` in the spec. "
-                 "Wheels, uv, the interpreters and the editor are all "
-                 "platform-specific.")
+            warn(f"offline-bundle.toml serves {', '.join(declared.platforms)}, "
+                 f"but this machine is {here}.")
+            info("uv, the interpreters and the editor can only be staged by a "
+                 "machine of that platform, so build on one of them (or add "
+                 f"{here} to `platforms`).")
             return 2
+        foreign_platforms = [
+            (original, bundle_mod.platform_tags(key))
+            for key, original in names.items() if key != here.lower()]
+        print(f"  Serving     : {', '.join(declared.platforms)}")
+        if foreign_platforms:
+            print("  " + colors.warn(
+                "Wheels are downloaded for every platform above; uv, the "
+                "interpreters and the editor come from THIS one."))
+    else:
+        print("  " + colors.warn(
+            "The bundle targets THIS platform. Build on the same OS/arch as "
+            "your offline machines, or declare `platforms` in the spec."))
     print(f"  Output      : {output}")
     # --deploy-root, else the spec's, else the output folder itself. The spec
     # is where a share's real path belongs: it doesn't change between builds,
@@ -1355,9 +1415,6 @@ def main(argv=None) -> int:
         print(f"  Bundle spec : {bundle_path}")
     for path in check_paths:
         print(f"  Checking    : {path}  (validated, never folded in)")
-    if profile_packages:
-        print(f"  Profile     : {legacy_profile}  (contributed "
-              f"{len(set(profile_packages))} package(s))")
     print(f"  VS Code     : {'skipped (--no-vscode)' if args.no_vscode else 'yes (~300MB, with extensions)'}")
     if system == "Windows":
         print(f"  MinGit      : {'yes (--mingit)' if args.mingit else 'no (pass --mingit to include it)'}")
@@ -1376,7 +1433,11 @@ def main(argv=None) -> int:
     # from what gets staged.
     from seedling.commands import vscode_cmd
     try:
-        editor_flavor = vscode_cmd.flavor()
+        # The spec decides when there is one -- the same value that will be
+        # staged, so the licence notice can't describe a different build than
+        # the one that lands in the bundle.
+        editor_flavor = (declared.editor_flavor if declared is not None
+                         else vscode_cmd.flavor())
     except vscode_cmd.UnknownFlavor as e:
         print()
         warn(str(e))
@@ -1387,7 +1448,8 @@ def main(argv=None) -> int:
         vscode=not args.no_vscode,
         mingit=(system == "Windows" and args.mingit),
         flavor=editor_flavor,
-        gallery_overridden=bool(vscode_cmd.gallery_for(editor_flavor)),
+        gallery_overridden=bool(declared.extension_gallery if declared is not None
+                                else vscode_cmd.gallery_for(editor_flavor)),
         conda=bool(conda_tools),
     )
 
@@ -1458,7 +1520,8 @@ def main(argv=None) -> int:
         # each of them; fall back to the explicit --python list if the mirror
         # step was skipped, and to no pin at all if neither is known.
         py_for_wheels = mirrored_versions or [v for v in versions if v]
-        wheels_ok = build_wheels(uv_exe, packages, wheels, py_for_wheels, cache)
+        wheels_ok = build_wheels(uv_exe, packages, wheels, py_for_wheels,
+                                 cache, foreign=foreign_platforms)
     elif not uv_exe:
         warn("Skipped -- needs uv (step 2).")
 
@@ -1504,7 +1567,13 @@ def main(argv=None) -> int:
         vscode_wanted = True
         # NB: staging dir must NOT be dot-prefixed -- the VS Code CLI fails
         # extension signature verification under a `.`-leading path component.
-        vscode_ok = build_vscode(vendor / "vscode", output / "vscode-staging")
+        editor_spec = None
+        if declared is not None:
+            editor_spec = {"flavor": declared.editor_flavor,
+                           "gallery": declared.extension_gallery,
+                           "extensions": declared.editor_extensions}
+        vscode_ok = build_vscode(vendor / "vscode",
+                                 output / "vscode-staging", editor_spec)
 
     # 8. Corporate CA certs (optional, user-supplied).
     step(8, "Corporate CA certificates (optional)")
@@ -1677,6 +1746,18 @@ def main(argv=None) -> int:
         print("  3. It reads global.conf and installs entirely from the bundle.")
         print("     (After copying, you can re-run --verify-only against the copy "
               "to prove the transfer was complete.)")
+    # A mixed fleet gets one wheelhouse and one set of binaries, so say which
+    # platforms are actually finished. Silence here would leave someone to
+    # discover it by carrying the bundle to a Linux box that has no uv.
+    if foreign_platforms:
+        print()
+        print(colors.header("Platform coverage"))
+        print(f"  {here}: complete -- wheels, uv, interpreters, editor.")
+        for name, _tags in foreign_platforms:
+            print(f"  {name}: wheels only.")
+        print("  Run this same spec on each of those platforms to finish "
+              "them; the wheelhouse is already shared.")
+
     if deploy_root == str(output):
         warn("Deploy path = the build path. If you move the folder, update the "
              "three paths in seedling/global.conf (or re-run with "
