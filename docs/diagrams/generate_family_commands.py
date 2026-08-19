@@ -6,21 +6,21 @@ description running to the right of that subcard, grouped under a
 section label ("Create & switch", "Packages", "Danger zone", ...) where
 the family has more than one natural grouping.
 
-This is the same row-per-command shape command-map.svg settled on, and for
+This is the same row-per-command shape the all-families command map settled on, and for
 the same reason: an earlier version of this file connected each command to
 the part of ~/seedling it reads or writes with an arrow into a small,
 family-scoped folder-tree column on the right (danger-zone commands got
 their own separate target cluster, cards sharing an identical target were
 bracketed into one arrow). It worked better here than it ever did in
-command-map.svg's all-families version, since one family only ever reaches
-a handful of folders -- but command-map.svg's redesign made the case for
+that all-families version, since one family only ever reaches
+a handful of folders -- but its redesign made the case for
 dropping the folder side everywhere: showing what a command actually does
 is the point of a per-command description, and giving it room to be read
 in full, instead of splitting attention between prose and a target chip,
 is worth more than the folder-mapping was.
 
 FAMILIES keeps its target/danger_target/whole_tree fields even though this
-file no longer renders them -- generate_command_map.py imports FAMILIES
+file no longer renders them -- generate_command_explorer.py imports FAMILIES
 directly to build its own row-per-command page across every family in one
 place, and changing this tuple's shape would break that import. Unused
 here, still the source of truth there.
@@ -45,10 +45,12 @@ OUT_DIR = Path(__file__).parent
 
 # -- one entry per docs/commands/<slug>.md page.
 #   subtitle:        the page's own intro line.
-#   targets:          unused here -- kept for generate_command_map.py's
-#                     import. See that file for the shape.
-#   danger_targets:   unused here -- see above.
-#   whole_tree:       unused here -- see above.
+#   targets:          VESTIGIAL. These three described which ~/seedling
+#   danger_targets:   folders a family writes to, for the all-families
+#   whole_tree:       command-map.svg -- removed once the interactive
+#                     explorer replaced it. Nothing reads them now; they are
+#                     left in place because every entry would have to be
+#                     re-tupled to drop them, and that churn buys nothing.
 #   sections:         list of (label_or_None, items); items is a list of
 #                     (signature, desc_lines, danger, arrow_targets).
 #                     arrow_targets is unused here too (kept for the same
@@ -384,7 +386,7 @@ def _wrap(text: str, max_chars: int) -> list[str]:
 
 
 def _desc_wrap_chars() -> int:
-    # ~6.3px/char at DESC_SIZE Arial regular -- same estimate command-map.svg
+    # ~6.3px/char at DESC_SIZE Arial regular -- the same estimate the command map
     # uses for the same font/size combination.
     return int(DESC_W / 6.3)
 

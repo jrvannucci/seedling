@@ -1,14 +1,14 @@
 # Command reference
 
-> **[Open the interactive command explorer](_static/command-explorer.html)** —
-> all 59 commands in one filterable list; click any one to open its full
-> documentation. Easier to navigate than the diagram below when you know
-> roughly what you're after.
-
 Every `seed` command and flag, as currently implemented. For the guided
 tour, start with **[Using seedling](GUIDE.md)**.
 
-![Every seed command, one row each, grouped by family -- a small card with the command's signature on the left and what it actually does on the right, danger-zone commands like remove-python, remove-venv, tool-remove, forge-remove, remove-repo, remove-user, purge, and purge-and-reinstall tinted red.](diagrams/command-map.svg)
+<a class="cmd-explorer" href="_static/command-explorer.html">
+  <span class="cmd-explorer-title">Open the command explorer &rarr;</span>
+  <span class="cmd-explorer-sub">All 59 commands in one filterable list.
+  Click any command to open its full documentation, without leaving the
+  page.</span>
+</a>
 
 ---
 

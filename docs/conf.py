@@ -14,7 +14,7 @@ it, so there's no second source of truth to keep in sync:
 Diagrams are pre-rendered SVGs under ``docs/diagrams/``, every one of them a
 hand-authored, pure-Python generator script with no dependency beyond the
 stdlib and each other -- ``generate_profile_flows.py``,
-``generate_command_map.py``, ``generate_family_commands.py``,
+``generate_family_commands.py``,
 ``generate_marketing_flows.py``. That makes them all safe to run on every
 build, so ``_generate_diagrams`` below does exactly that: their SVGs are
 always fresh, never a stale committed artifact someone forgot to regenerate
@@ -123,7 +123,7 @@ def _generate_home(*_args) -> None:
 
 
 def _generate_diagrams(*_args) -> None:
-    """Regenerate every SVG diagram (command-map, per-family command
+    """Regenerate every SVG diagram (per-family command
     breakdowns, profile-flow, the marketing flow diagrams embedded in
     README.md) before Sphinx reads any sources, so a build always embeds
     current output rather than a possibly-stale committed SVG. Every
@@ -132,13 +132,11 @@ def _generate_diagrams(*_args) -> None:
     dependency."""
     diagrams_dir = _HERE / "diagrams"
     sys.path.insert(0, str(diagrams_dir))
-    import generate_command_map
     import generate_family_commands
     import generate_marketing_flows
     import generate_profile_flows
 
     generate_profile_flows.main()
-    generate_command_map.build()
     generate_family_commands.build()
     generate_marketing_flows.build()
 

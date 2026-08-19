@@ -14,7 +14,7 @@ default flowchart look, so a README scroll doesn't visibly change palette
 between a hand-authored diagram and a mermaid one.
 
 Hooked into the same docs/conf.py `_generate_diagrams` build-time pass as
-generate_command_map.py / generate_family_commands.py / generate_profile_
+generate_family_commands.py / generate_profile_
 flows.py -- always fresh, never a stale committed SVG.
 
     python docs/diagrams/generate_marketing_flows.py

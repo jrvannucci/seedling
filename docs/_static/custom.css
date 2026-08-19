@@ -75,3 +75,51 @@
 .rst-content div[class^="highlight"] pre {
     overflow-x: auto;
 }
+
+/* 3. The command-explorer button, on COMMANDS.md.
+ *
+ * It replaces command-map.svg -- an image of all 59 commands that could
+ * only ever be read at one zoom level. The explorer does the same job
+ * interactively, so this has to look like the entry point to a tool rather
+ * than another inline link, and it carries the diagrams' own colours
+ * (NAVY/ICE from diagrams/generate_profile_flows.py) so the set still reads
+ * as one design.
+ *
+ * A raw <a> in the Markdown, not a [link](...), on purpose: MyST turns a
+ * link to a .html file into a *download* reference with a hashed URL, and
+ * this one wants to stay _static/command-explorer.html.
+ */
+.cmd-explorer {
+    display: block;
+    margin: 1.5rem 0 2rem;
+    padding: 1.1rem 1.4rem;
+    background: #1B4332;
+    border: 1px solid #14331F;
+    border-radius: 6px;
+    color: #E9F5EC !important;
+    text-decoration: none !important;
+    transition: background .15s ease;
+}
+.cmd-explorer:hover,
+.cmd-explorer:focus {
+    background: #2D6A4F;
+}
+.cmd-explorer:focus-visible {
+    outline: 3px solid #95D5B2;
+    outline-offset: 2px;
+}
+.cmd-explorer .cmd-explorer-title {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #FFFFFF;
+}
+.cmd-explorer .cmd-explorer-sub {
+    display: block;
+    margin-top: .25rem;
+    font-size: .92rem;
+    color: #B7DCC6;
+}
+@media (prefers-reduced-motion: reduce) {
+    .cmd-explorer { transition: none; }
+}
