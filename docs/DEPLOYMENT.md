@@ -13,7 +13,7 @@ This page is the deployment track. It assumes you are setting seedling up
 
 ## Contents
 
-- [Who this is for](#who-this-is-for)
+- [The deployment workflow](#the-deployment-workflow)
 - [Deployment configuration: `global.conf`](#deployment-configuration-globalconf)
 - [Shared-machine (multi-user) installs](#shared-machine-multi-user-installs)
 - [Choosing an editor](#choosing-an-editor)
@@ -26,35 +26,33 @@ This page is the deployment track. It assumes you are setting seedling up
 
 ---
 
-## Who this is for
+## The deployment workflow
 
-The deployment features exist for environments where the ordinary "install
-Python from python.org, then pip install what you need" path is blocked,
-unreliable, or unauditable:
+You edit one copy of seedling and hand it out. Everyone who installs from it
+inherits your settings — no flags, no environment variables, no instructions
+to get wrong.
 
-- **Disconnected or restricted networks** — no github.com, no pypi.org, or
-  outbound access only through an approved mirror. Everything seedling needs
-  can come from a git server, an internal index, or a plain file share. See
-  [OFFLINE.md](OFFLINE.md).
-- **Managed desktops** — users without administrator rights. seedling installs
-  entirely inside a folder the user already owns and writes nothing to
-  `%APPDATA%`, `~/.local/share`, the registry, or any system location.
-- **Shared and lab machines** — one install root serving many users, each with
-  a private, conflict-free copy. See
-  [Shared-machine installs](#shared-machine-multi-user-installs).
-- **Standardizing a team** — every person gets the same interpreter, the same
-  default packages, and the same editor setup from one distributed config,
-  with no per-user setup instructions to follow or get wrong.
+1. **Edit [`global.conf`](https://github.com/jrvannucci/seedling/blob/main/global.conf)**
+   in the copy you distribute: where installs come from, where packages come
+   from, which editor, which profiles.
+2. **Put your profiles in `installation-profile/`** — one marked
+   `default = true` for everyone, others opt-in by name. See
+   [deployment profiles](PROFILES.md).
+3. **Distribute the copy** — a network share, an internal git host, or (for a
+   disconnected network) an [offline bundle](OFFLINE.md) built with
+   `offline-bundler.cmd`.
+4. **Users run `install.cmd`** from it. One command, no follow-up steps.
 
-The mechanism in all four cases is the same: you edit
-[`global.conf`](https://github.com/jrvannucci/seedling/blob/main/global.conf)
-in the copy of the repo you distribute, and everyone who installs from that
-copy inherits your settings. **Your users never set an environment variable,
-pass a flag, or edit a file.**
+Afterwards, changing the standard means editing the copy on the share; users
+pick it up with `seed update-commands` and `seed apply`.
 
----
+**Why the deployment features exist:** networks where the ordinary "install
+Python from python.org, then pip install what you need" path is blocked or
+unauditable — disconnected or mirror-only networks, managed desktops with no
+admin rights, shared lab machines (one root, a private folder per user), and
+teams that need everyone on an identical setup.
 
-### Deployment configuration: `global.conf`
+## Deployment configuration: `global.conf`
 
 `global.conf` at the repo root is the single place a deployment's paths
 and install-time settings live. Every setting is listed in the file with
@@ -163,7 +161,7 @@ but never overwrite a setting for you. Resolution order for the install source:
 2. `SEEDLING_REPO_URL` from `global.conf`
 3. the baked-in public default (what the piped one-liner uses)
 
-### Shared-machine (multi-user) installs
+## Shared-machine (multi-user) installs
 
 By default seedling lives under each user's home (`~/seedling`), so
 multiple users on one machine never interfere. If you'd rather put it on a
@@ -232,37 +230,29 @@ For whole profiles built around each of these choices, see
 
 ### Which VS Code build
 
-`seed vscode` installs the official Microsoft build of Visual Studio Code by
-default, and its extensions come from the Microsoft Marketplace. For most
-teams that is the right choice and needs no configuration.
+`seed vscode` installs the official Microsoft build by default, with
+extensions from the Marketplace. For most teams that needs no configuration.
 
-It is worth a second look if you are **staging an offline bundle onto a
-share**, because that means redistributing whatever you pick:
-
-- The official VS Code binaries are distributed under Microsoft's
-  proprietary licence — the MIT licence on `microsoft/vscode` covers the
-  source, not the branded builds.
-- Marketplace extensions carry their own separate Terms of Use.
-
-Both restrict redistribution in ways an internal file share may not satisfy.
-If that matters to your organization, switch to the openly-licensed stack:
+It deserves a second look if you're **staging an offline bundle onto a
+share**, because that is redistribution: the official binaries are under
+Microsoft's proprietary licence (the MIT licence on `microsoft/vscode` covers
+the source, not the branded builds), and Marketplace extensions carry their
+own Terms of Use. Both restrict redistribution in ways an internal share may
+not satisfy. If that matters:
 
 ```
 SEEDLING_VSCODE_FLAVOR="vscodium"
 ```
 
-VSCodium is the same source built without Microsoft's branding and
-telemetry, under the MIT licence, and it already points at
-[Open VSX](https://open-vsx.org) — an Eclipse Foundation registry whose
-content is openly licensed. Nothing else needs setting: seedling picks the
-matching extension set automatically.
+VSCodium is the same source without Microsoft's branding and telemetry, MIT
+licensed, already pointed at [Open VSX](https://open-vsx.org). seedling picks
+the matching extension set automatically.
 
-**The tradeoff is Pylance.** It is proprietary, licensed to run only in
-official Microsoft products, and therefore absent from Open VSX by design.
-Without it the Python extension falls back to its bundled Jedi language
-server, and completions and type checking are noticeably weaker. That is a
-real cost to weigh, not a footnote — for many teams it is the deciding
-factor in the other direction.
+**The tradeoff is Pylance** — proprietary, licensed to run only in official
+Microsoft products, so absent from Open VSX by design. Without it the Python
+extension falls back to its bundled Jedi server, and completions and type
+checking are noticeably weaker. For many teams that's the deciding factor in
+the other direction.
 
 ### Pointing at an internal registry
 

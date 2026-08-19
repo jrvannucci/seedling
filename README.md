@@ -5,50 +5,38 @@
 ![seedling: a tidy, single-folder global Python distributor and local environment manager -- zero-touch config, offline-first, safe by default, built for scale, and scriptable, all on top of one removable folder.](docs/diagrams/mission.svg)
 
 **Go from nothing to writing Python in one command.** No prior setup, no
-tools to install first, nothing to learn about how Python is packaged.
-Run one line, open a terminal, and start coding. Under the hood it's the
-same fast, modern tooling ([`uv`](https://astral.sh/uv)) — you just never
-have to set it up. And it keeps everything in a single,
-well-organized folder instead of scattering files across your system — so if
-you ever want it gone, one command — `seed purge` — removes it all and leaves
-your computer exactly as it was.
-
-Already fluent in Python? seedling still earns its place. You get the same
-one-line, reproducible install with nothing to configure, and every
-interpreter, virtual environment, and cloned repo stays tidy in one
-predictable location instead of sprawling across your machine. It's also a
-fast way to standardize a team: point it at
-[your own git host or a network share](docs/OFFLINE.md) via
-[`global.conf`](global.conf), and hand junior or non-technical users a
-fully preconfigured, batteries-included environment they install in a single
-line.
+tools to install first, nothing to learn about how Python is packaged. Run one
+line, open a terminal, type `python`. Everything lives in a single folder you
+can delete — `seed purge` leaves your machine exactly as it was.
 
 ---
 
-## What seedling installs and manages for you
+## Why this is easier
 
 ![The usual way means hours of setup before your first line of code; with seedling, one command and you're writing Python.](docs/diagrams/why-vs-usual.svg)
 
-**All handled automatically, so you don't have to think about it:**
+Setting Python up yourself means choosing an installer, learning virtual
+environments, wiring up PATH, and finding an editor — before you write a line
+of code. Every one of those is a place to get stuck, and they're all handled
+here:
 
-- 🐍 **Python itself** — the newest version, installed and ready (you don't
-  even need Python beforehand)
-- 📦 A **ready-to-use environment** with common tools already in it — just
-  `python` and go
-- 🧰 A portable **editor** — VS Code with Python extensions and settings
-  already configured, or **Spyder** if you'd rather have a variable explorer
-  and an IPython console
-- 🔁 One command to **clone and work on projects** from GitHub
-- 🗒️ Sensible extras handled for you — **logs**, a **health check**, and a
-  one-screen **summary** of everything installed
-- 🧹 Completely **undoable** — nothing touches your system; `seed purge`
-  removes all of it in one command
+- **You don't need Python to install it.** The one-liner brings its own.
+- **An environment is already waiting.** Open a terminal and `python` works,
+  in a venv, with common packages in it.
+- **An editor comes with it.** `seed vscode` — or `seed spyder` — already
+  wired to the environment you're in.
+- **It's one folder, and it's undoable.** Nothing touches the registry,
+  `%APPDATA%`, or `~/.local`. One command removes all of it.
+
+Already fluent in Python? The same install gives you every interpreter, venv
+and cloned repo in one predictable place instead of sprawled across your
+machine — and it's the fastest way to hand a whole team an identical setup.
 
 ---
 
 ## Install
 
-Nothing needs to be pre‑installed — not Python, not uv, nothing.
+Nothing needs to be pre-installed — not Python, not uv, nothing.
 
 **macOS / Linux:**
 ```sh
@@ -60,209 +48,107 @@ curl -fsSL https://raw.githubusercontent.com/jrvannucci/seedling/main/installers
 irm https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/install.ps1 | iex
 ```
 
-That one command does the whole setup for you — no follow-up steps, no
-configuration. When it finishes, you're ready to code:
-
 ![Run the one-liner, seedling sets up everything Python needs, open a new terminal, and python just works.](docs/diagrams/install-flow.svg)
 
-Open a new terminal and go:
-
-```sh
-python                    # newest Python, in the dev venv, ready to go
-seed install requests     # add packages to the current venv
-seed venv myproject       # create another isolated environment
-seed vscode               # open the bundled VS Code
-seed summary              # see everything seedling has installed
-```
-
-> Skip the default environment with `SEEDLING_AUTO_SETUP=false` before
-> installing. On Windows you can also just download the repo and
-> double‑click `install.cmd`.
+> On Windows you can also download the repo and double-click `install.cmd`.
+> Skip the ready-made environment with `SEEDLING_AUTO_SETUP=false`.
 >
-> **Given a profile by your admin?** Point the same one-liner at it and you
-> get their exact environment — every venv, package and repo — in one step:
-> `curl -fsSL ... | SEEDLING_PROFILE=./team.toml sh` (on Windows, set
-> `$env:SEEDLING_PROFILE` first). See
+> **Given a profile by your admin?** Point the same one-liner at it and you get
+> their exact environment in one step:
+> `curl -fsSL ... | SEEDLING_PROFILE=./team.toml sh`. See
 > [deployment profiles](docs/PROFILES.md).
 
 ---
 
-## How it's organized (optional reading)
+## The everyday workflow
 
-You don't need any of this to get started — `python` already works. But if
-you're curious, everything lives under one folder, `~/seedling`. The
-**Python** you install can have multiple isolated **environments** built from
-it (so one project's packages never break another's); a ready-to-use one is
-created for you and activates automatically in every new terminal.
+Open a new terminal. You're already in a working environment, so the loop is
+short:
 
-```
-~/seedling/
-├── system/                 seedling's own runtime
-│   ├── bin/                    uv and the seed-cli shim
-│   ├── tool/                   the venv seed-cli runs in
-│   ├── src/                    seedling's own source copy
-│   ├── config/settings.json    settings (seed config)
-│   ├── logs/                   one log file per day
-│   ├── cache/uv/               uv's download cache
-│   ├── conda/                  micromamba + conda-forge tools (seed forge-install)
-│   ├── shims/                  launchers for PyPI apps (seed tool-install)
-│   ├── certs/                  CA bundle for org installs
-│   └── shell/                  the seed.sh / seed.ps1 hook
-├── python/
-│   ├── base/312/           seed python 312
-│   └── venvs/myproject/    seed venv myproject
-├── extensions/
-│   ├── vscode/
-│   │   └── app/            portable VS Code (bundled)
-│   ├── spyder-config/      Spyder's settings (seed spyder)
-│   └── apps/
-│       └── spyder/         PyPI apps, one env each (seed tool-install)
-└── repo/
-    └── myrepo/             seed repo-clone <url>
+```sh
+python                     # the newest Python, in a venv, ready
+seed install requests      # add packages to the environment you're in
+seed venv myproject        # a separate environment for a separate project
+seed activate myproject    # switch to it (new terminals remember the default)
+seed run -- pytest         # run something in a venv without switching
 ```
 
-Nothing is written to `%APPDATA%`, `~/.vscode`, `~/.local/share`, or the
-other places tools like this usually scatter files — it's all contained here,
-which is why `seed purge` can remove every trace in one command.
+That's the whole day-to-day. The rest is there when you need it: `seed vscode`
+opens the bundled editor, `seed repo-clone <url>` pulls a project into
+`~/seedling/repo`, `seed summary` shows everything installed, and
+`seed health-check` verifies it.
 
----
+Names are predictable: a bare noun does the thing (`python` installs, `venv`
+creates), `noun-list` shows them, and **anything that deletes is `remove-*`**.
 
-## Everyday commands
+🔎 **[Browse every command](docs/_static/command-explorer.html)** — all 59,
+filterable, click one to open its full documentation. Or read the
+[command reference](docs/COMMANDS.md).
 
-Command names read predictably: a bare noun is the action (`python` installs,
-`venv` creates), `noun-list` shows things, and **anything that deletes is a
-`remove-*` command**.
-
-| Command | What it does |
-|---|---|
-| `seed python [ver]` | Install an interpreter (newest stable if no version) |
-| `seed venv <name>` | Create an isolated environment |
-| `seed activate <name>` | Activate a venv in your current shell |
-| `seed run -- <cmd...>` | Run a command in a venv without activating one |
-| `seed which [name]` | Print a venv's python interpreter path |
-| `seed install <pkg...>` | Add packages to the active venv |
-| `seed download-whls <pkg...>` | Download a package + its deps as wheels for an offline install |
-| `seed vscode` | Open the bundled, portable VS Code |
-| `seed spyder` | Open Spyder, wired to your active venv |
-| `seed tool-install <name>` | Install a Python app (Spyder, JupyterLab) in its own env |
-| `seed forge-install <name>` | Install a CLI tool from conda-forge (ripgrep, pandoc) |
-| `seed repo-clone <url>` | Clone a git repo into `~/seedling/repo` |
-| `seed summary` | One screen of everything installed |
-| `seed health-check` | Verify the whole install is sound |
-| `seed remove-user` | Wipe everything seedling created |
-
-📖 The **[full command reference](docs/COMMANDS.md)** documents every command
-and flag.
-
----
-
-## Lifecycle: install, use, update, undo
-
-seedling never changes itself behind your back, and it's always cleanly
-reversible.
+### It changes only when you ask
 
 ![Install with the one-liner, use seed to manage venvs and packages, update only when you ask, and uninstall cleanly with seed purge.](docs/diagrams/lifecycle.svg)
 
-- **Updates are explicit.** The installer copies seedling's source into
-  `~/seedling` and runs from that private copy. New commits on GitHub — or
-  deleting wherever you downloaded it — change nothing until you run
-  `seed update-commands`.
-- **Uninstall is a single folder delete.** `seed purge` removes `~/seedling`
-  and the shell hook; `seed purge-and-reinstall` wipes and rebuilds from
-  scratch while preserving your cloned repos.
+seedling runs from its own private copy of the source in `~/seedling`. New
+commits upstream change nothing until you run `seed update-commands`. When
+you're done with it, `seed purge` removes the folder and the shell hook.
 
 ---
 
 ## For organizations 🏢
 
-Everything above describes a default install from the internet. seedling is
-also built to be **deployed** — by one person, to everyone else, on networks
-where the usual Python setup path doesn't work:
+seedling is also built to be **deployed** — by one person, to everyone else,
+including on networks where the usual Python setup path doesn't work at all.
 
-- **No internet required.** Point installs, interpreters, and packages at a
-  self-hosted git server, an internal index, or a plain file share. Run
-  `offline-bundler.cmd` on a connected machine and it assembles the entire
-  bundle — uv, interpreters, wheels, VS Code — for an air-gapped network.
-- **No admin rights required.** Everything lands in one folder the user
-  already owns. Nothing is written to the registry, `%APPDATA%`, or any
-  system location.
-- **Nothing for your users to configure.** You set the values once in
+- **No internet, no admin rights.** Point installs at a self-hosted git
+  server, an internal index, or a plain file share. For a fully disconnected
+  network, `offline-bundler.cmd` assembles the whole bundle — uv,
+  interpreters, wheels, the editor — on a connected machine.
+- **Nothing for your users to configure.** Set the values once in
   [`global.conf`](global.conf) in the copy you distribute; everyone who
-  installs from it inherits them. No flags, no environment variables, no
-  setup instructions to get wrong.
-- **One file defines the environment.** A
-  [deployment profile](docs/PROFILES.md) lists the interpreters, named venvs,
-  packages and repos your users should end up with — applied automatically at
-  install, and re-applied with `seed apply` when the standard changes.
-- **Add your own verbs to `seed`.** [Custom commands](docs/CUSTOM-COMMANDS.md)
-  — `seed lint`, `seed bootstrap`, whatever your team wants — declared in one
-  TOML file, with an optional fast path to run one automatically in every new
-  shell.
-- **Ship your own editor config.** Point `vscode_config_dir` at a folder of
-  `settings.json`/`keybindings.json` and every fresh install gets your
-  team's rulers, theme, and keybindings — merged over seedling's own
-  defaults, never overwriting a user's later edits. See
-  [the deployment guide](docs/DEPLOYMENT.md#seeding-your-own-settings-and-keybindings).
-- **One install root, many users.** A `{user}` token gives each person a
-  private, conflict-free folder — with an elevated `admin-*` family for
-  cross-user teardown when a machine is decommissioned.
+  installs from it inherits them.
+- **One folder defines the environments.** Each profile in
+  `installation-profile/` lists the interpreters, venvs, packages and repos a
+  group should end up with, and says who gets it — one for everyone, others
+  opt-in by name.
 - **Auditable and reversible.** Every command is logged in plain text,
-  downloads are checksum-verified, `--preview` shows exactly what a removal
-  would delete, and `seed purge` leaves the machine as it was.
-- **Nothing third-party is vendored.** seedling downloads from each
-  publisher at your direction and ships none of it, so what you may
-  redistribute stays your call — every bundle carries a `MANIFEST.json`
-  listing each component, its source, and its licence.
+  downloads are checksum-verified, `--preview` shows what a removal would
+  delete, and nothing third-party is vendored — each bundle carries a
+  `MANIFEST.json` naming every component and its licence.
 
-📘 Start with the **[deployment guide](docs/DEPLOYMENT.md)** — it covers
-configuration, rollout, and the questions a security review will ask.
-For a fully disconnected network, see
-**[offline installs](docs/OFFLINE.md)**.
+📘 Start with the **[deployment guide](docs/DEPLOYMENT.md)**, or
+**[offline networks](docs/OFFLINE.md)** for a disconnected fleet.
 
 ---
 
 ## Documentation
 
-**Using seedling**
+| | |
+|---|---|
+| [Using seedling](docs/GUIDE.md) | Installing, the folder layout, the update model, troubleshooting |
+| [Command reference](docs/COMMANDS.md) | Every command and flag |
+| [Design and safety](docs/DESIGN.md) | Why deletion is defensive, what's logged, how downloads are verified |
+| [Deployment guide](docs/DEPLOYMENT.md) | `global.conf`, shared machines, rollout, security review |
+| [Deployment profiles](docs/PROFILES.md) | The file describing what users end up with, and who gets it |
+| [Profile examples](docs/PROFILE-EXAMPLES.md) | Complete profiles: research group, software team, classroom, air-gapped fleet |
+| [Custom commands](docs/CUSTOM-COMMANDS.md) | Add your organization's own verbs to `seed` |
+| [Offline networks](docs/OFFLINE.md) | Running with no internet at all |
+| [Licensing](docs/LICENSING.md) | What seedling downloads, and under what terms |
 
-- 📖 **[Using seedling](docs/GUIDE.md)** — installation, the folder layout,
-  why `seed` is a shell function, the update model, uninstalling, and
-  troubleshooting.
-- 📋 **[Command reference](docs/COMMANDS.md)** — every command and flag.
-- 🛡️ **[Design and safety](docs/DESIGN.md)** — why deletion is so defensive,
-  what gets logged, how downloads are verified, unattended use.
-
-**Deploying seedling**
-
-- 📘 **[Deployment guide](docs/DEPLOYMENT.md)** — `global.conf`,
-  shared-machine installs, admin teardown, rollout, security review.
-- 🧩 **[Deployment profiles](docs/PROFILES.md)** — one file describing the
-  venvs, packages and repos your users should end up with.
-- 📄 **[Profile examples](docs/PROFILE-EXAMPLES.md)** — complete profiles for
-  a research group, a software team, a classroom, an air-gapped fleet.
-- 🔧 **[Custom commands](docs/CUSTOM-COMMANDS.md)** — add your organization's
-  own verbs to `seed`, and optionally run them automatically at shell startup.
-- 📴 **[Offline / air‑gapped installs](docs/OFFLINE.md)** — running with no
-  internet at all.
-- ⚖️ **[Licensing and redistribution](docs/LICENSING.md)** — seedling ships no
-  third‑party software; what it downloads and under what terms.
-
-🗺️ Not sure where to look? The **[documentation map](docs/DOCUMENTATION.md)**
+🗺️ Not sure where to look? The [documentation map](docs/DOCUMENTATION.md)
 routes you from what you're trying to do to the right page.
 
-**Contributing:** working on seedling itself? The
-[contributor guide](docs/CONTRIBUTING.md) covers the edit → `seed update-commands`
-loop, the source layout, and running the tests (`uvx pytest` from the repo
-root — no setup needed).
+**Working on seedling itself?** The
+[contributor guide](docs/CONTRIBUTING.md) covers the edit →
+`seed update-commands` loop, the source layout, and the tests (`uvx pytest`
+from the repo root).
 
 ---
 
 ## License
 
-seedling is licensed under the **[Apache License 2.0](LICENSE)**. It has no
-third‑party runtime dependencies and bundles no third‑party software; the
-tools it downloads on your behalf (uv, Python, and optionally an editor) come
-from their publishers under their own licenses — see
-[THIRD‑PARTY‑NOTICES](THIRD-PARTY-NOTICES.md) and, for what you may
-redistribute when building an offline bundle,
-[docs/LICENSING.md](docs/LICENSING.md).
+Apache 2.0. seedling has no third-party runtime dependencies and bundles no
+third-party software; the tools it downloads for you come from their
+publishers under their own licenses — see
+[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md) and, for what you may
+redistribute in an offline bundle, [docs/LICENSING.md](docs/LICENSING.md).

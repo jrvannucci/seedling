@@ -237,33 +237,23 @@ What that means per declaration, when the thing is already there:
 | `editor` | skipped if that editor is already installed |
 | `[config]` / `default` venv | **overwritten** whenever the current value differs from the profile |
 
-**It will not delete or recreate anything.** An existing venv is left alone
-even if its packages have drifted from the profile — someone may have
-installed something they need. `--force` closes the gap in one direction only:
-it adds what's missing, never removes or rebuilds. Getting rid of something is
-`seed remove-venv`, run deliberately by a person.
+**Nothing is ever deleted or recreated.** An existing venv is left alone even
+if its packages have drifted — someone may need what they added. `--force`
+closes the gap in one direction only: it adds what's missing, never removes.
+Getting rid of something is `seed remove-venv`, run deliberately by a person.
 
-**An existing clone is never updated.** `apply` clones what's missing; it
-doesn't fetch or pull for a clone that's already on disk. If upstream moved
-and the fleet needs the new commit, that's `git pull` in the repo (`seed
-repo-cd <name>`), not a profile change.
-
-**The install, though, follows the venv rather than the clone.** A repo is
-installed into any venv `install` names that doesn't already have it. So a
-venv rebuilt after `seed remove-venv dev` comes back with the repo in it, and
-a repo added to the profile later reaches venvs that already exist — without
-re-installing on every apply into venvs that are already correct.
+**A clone is never pulled**, only cloned when absent. If upstream moved and
+the fleet needs the new commit, that's `git pull` in the repo, not a profile
+change. The *install*, though, follows the venv rather than the clone: a repo
+is installed into any venv `install` names that doesn't already have it, so a
+venv rebuilt after `seed remove-venv` comes back with the repo in it.
 
 > Whether a venv "already has it" is answered by looking for the repo's own
 > distribution (the `[project] name` in its `pyproject.toml`). A repo with
-> only a `requirements.txt` installs no distribution of its own, so there's
-> nothing to look for: those are installed when the venv is new (or rebuilt),
-> and otherwise left alone until `seed apply --force`.
-
-> The same probe is why **adding an extra to a repo already installed
-> somewhere needs `seed apply --force`**: extras don't change the
-> distribution's name, so the venv still looks like it has the repo. This
-> matches `[[venv]] packages`, which also only grows with `--force`.
+> only a `requirements.txt` installs no distribution of its own, so those are
+> installed when the venv is new and otherwise left until `--force`. Same
+> reason adding an *extra* to a repo a venv already has needs `--force`:
+> extras don't change the distribution's name.
 
 **Settings are the one thing converged rather than filled in.** A key in
 `[config]`, and the `default` venv, are written whenever the machine's current

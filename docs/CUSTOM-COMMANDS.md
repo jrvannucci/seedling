@@ -242,36 +242,17 @@ Nothing else has to change to opt in: a bare name with no `&&` is just a
 chain of one, so every existing `startup_commands` value keeps meaning
 exactly what it always did.
 
-**All of it happens in one seed-cli process, not one per command.** The
-shell hook checks `settings.json` natively (no process spawned at all when
-nothing is configured), then, if there's anything to run, spawns seed-cli
-exactly once (`seed custom --startup`) and loops internally — so
-terminal-open latency stays flat whether you have one startup command or
-five.
+**One seed-cli process runs the lot**, so a five-command routine costs one
+startup rather than five — the reason this is viable in *every* shell.
 
-**This is deliberately unconditional.** `default_venv` auto-activation is
-skipped when a venv is already active (it would be wrong to override a
-choice you already made); `startup_commands` is not tied to venv state at
-all and always runs, because the whole point is a routine your organization
-wants to happen every time, independent of what the user was doing.
+**It is deliberately unconditional.** Unlike `default_venv` auto-activation,
+startup commands run whether or not a venv is already active: a connectivity
+check or a sync that only ran sometimes would be worse than not having one.
 
-**A failing command warns and moves on — to the next *entry*, not necessarily
-the next name.** If `check-mirror` exits non-zero, you see `seedling: startup
-command 'check-mirror' failed (exit 1)`; if it was chained (`check-mirror&&sync`),
-`sync` is skipped too, but every *other* entry in `startup_commands` still
-runs, and the shell still opens normally either way. A typo or a genuinely
-offline moment in this list must never lock anyone out of their own terminal
-— the one thing worse than a startup check failing is a startup check that
-bricks the ability to fix it.
-
-**A name that isn't declared anywhere** (a typo, or a command removed later)
-behaves the same way: `seed config set` warns immediately so you catch it
-while editing (checking every name inside every chain, not just whole
-entries), and if one slips through anyway, the shell reports "not found"
-and — same as a real failure — stops just that entry's chain, never the
-rest of the list.
-
----
+**A failure warns and moves on** to the next entry — never to the rest of a
+`&&` chain, and never stopping the shell from opening. A typo in this list
+must not lock anyone out of their terminal, so an undeclared name warns once
+and is skipped.
 
 ## Distributing it
 

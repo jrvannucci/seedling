@@ -37,44 +37,20 @@ after it's installed) needs git the same way — reusing that same
 auto-bootstrapped portable copy on Windows; see
 [`seed repo-clone`](commands/repos.md#seed-repo-clone-git-url) for details.
 
-### The four ways to install
+### Where an install comes from
 
-There are four install origins. Whichever one you use is saved as the
-`update_source` setting, so `seed update-commands` (and `seed purge`'s
-"reinstall later" hint) keeps pointing back at it. **The thing that differs
-between them is what you configure up front** — origins 1 and 2 need nothing;
-origins 3 and 4 are set once in
-[`global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf) so your users don't
-have to.
+Whichever origin you use is saved as the `update_source` setting, so
+`seed update-commands` keeps pointing back at it. Origins 1 and 2 need no
+configuration; 3 and 4 are set once in
+[`global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf) so your
+users pass no flags of their own.
 
-**1. Public GitHub** — the default, for anyone on the open internet
-- *Configure:* nothing.
-- *Install:* the `curl` / `irm` one-liners → see [One-line install](#one-line-install).
-- *Recorded as:* the public repo URL.
-
-**2. Local checkout** — install from a copy of this repo you already have
-- *Configure:* nothing.
-- *Install:* run `install.cmd` from inside the repo folder → see [Local checkout install](#local-checkout-install).
-- *Recorded as:* the checkout **directory** itself, so `seed update-commands` re-copies from that working tree. (An explicit `SEEDLING_REPO`/`SEEDLING_REPO_URL` override records a URL instead.) Developing seedling? The [contributor guide](CONTRIBUTING.md) builds the edit → update loop on this.
-
-**3. Directory / network share** — for machines with no GitHub access at all
-- *Configure:* set `SEEDLING_REPO_URL` to a **folder** holding a copy of this repo, in [`global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf).
-- *Install:* run `install.cmd`; your users pass no flags of their own.
-- *Recorded as:* that directory.
-- *More:* [Deployment configuration](DEPLOYMENT.md#deployment-configuration-globalconf) — and, for a fully disconnected network, the [offline guide](OFFLINE.md).
-
-**4. Self-hosted git** — a private GitHub Enterprise / GitLab / fork URL
-- *Configure:* set `SEEDLING_REPO_URL` to the **git URL**, in [`global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf).
-- *Install:* run `install.cmd` (or the one-liner with `SEEDLING_REPO` set).
-- *Recorded as:* that URL.
-- *More:* [Deployment configuration](DEPLOYMENT.md#deployment-configuration-globalconf).
-
-Origins 3 and 4 are the organization-deployment story: set the source **once**
-in the [`global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf) you
-distribute, and everyone installs with no flags or environment variables at
-all. To install from a different source for a **single run** without editing
-anything, set the `SEEDLING_REPO` environment variable instead — see
-[Installing from a different source, for one run](#installing-from-a-different-source-for-one-run).
+| Origin | Set up | Install with |
+|---|---|---|
+| **Public GitHub** (default) | nothing | the `curl` / `irm` one-liner |
+| **Local checkout** | nothing | `install.cmd` from inside the repo folder — the checkout itself becomes the update source, which is the loop the [contributor guide](CONTRIBUTING.md) builds on |
+| **Directory / network share** | `SEEDLING_REPO_URL` = a **folder** holding a copy of the repo | `install.cmd`; see the [offline guide](OFFLINE.md) for a disconnected network |
+| **Self-hosted git** | `SEEDLING_REPO_URL` = the **git URL** | `install.cmd`, or the one-liner with `SEEDLING_REPO` set |
 
 ### One-line install
 
@@ -120,54 +96,25 @@ $env:SEEDLING_REPO = "https://github.com/someone/fork.git"; .\install.cmd
 $env:SEEDLING_REPO = "S:\shared\seedling"; .\install.cmd
 ```
 
-### What the installer actually does, step by step
+### What the installer actually does
 
-1. **Locates the source.** If run from inside a copy of this repo (it
-   checks for `src/pyproject.toml`), it uses that. Otherwise it clones the
-   resolved source via `git clone --depth 1`, or copies it if it's a
-   directory path.
-2. **Lays out `~/seedling/`** — `system/bin/`, `system/config/`,
-   `system/shell/`, `python/base/`, `python/venvs/`, `extensions/`, `repo/`.
-3. **Copies the source into `~/seedling/system/src`** — minus any `.git`
-   folder: no git checkout lives inside seedling, and the origin is
-   recorded in the `update_source` setting instead. This copy, not the
-   original download/clone location, is what `seed-cli` actually gets
-   installed from. See [The update model](#the-update-model).
-   Any `vendor/` folder in the source (offline binaries: uv, portable
-   git, pre-seeded VS Code — see [OFFLINE.md](OFFLINE.md)) is placed into
-   its runtime locations at this point, and excluded from the copy.
-4. **Installs `uv` into `~/seedling/system/bin`**, using uv's own official
-   installer with `UV_INSTALL_DIR` redirected there and
-   `UV_NO_MODIFY_PATH=1` set (seedling manages its own PATH/shell
-   integration rather than letting uv touch your global PATH). Skipped if
-   `~/seedling/system/bin/uv` already exists.
-5. **Installs `~/seedling/system/src/src` as an isolated uv tool**, via
-   `uv tool install --force --reinstall`, with `UV_TOOL_DIR` and
-   `UV_TOOL_BIN_DIR` redirected into `~/seedling/system/tool` and
-   `~/seedling/system/bin`. uv will fetch its own private Python
-   interpreter for this if none is available — you still never need Python
-   pre-installed. This produces the `seed-cli` binary/shim. `--reinstall`
-   forces uv to bypass its build cache, which matters every time
-   `seed update-commands` runs this same step later.
-6. **Sets up the default environment** (unless `SEEDLING_AUTO_SETUP` is
-   `no`, or a `dev` venv already exists from a previous install): installs
-   the newest stable Python, creates a `dev` venv with the default
-   packages, and records `dev` as the `default_venv` that new shells
-   auto-activate — unless a different `default_venv` was already chosen.
-   Also downloads the portable VS Code (unless `SEEDLING_AUTO_VSCODE` is
-   `no`, or it's already present) so `seed vscode` opens instantly.
+It locates the source (a repo folder it's run from, else a shallow clone or a
+copy of the directory you pointed it at), lays out `~/seedling/`, and copies
+the source into `system/src` **minus any `.git`** — no git checkout lives
+inside seedling, and the origin is recorded as `update_source` instead. That
+private copy, not wherever you downloaded from, is what `seed-cli` is built
+and run from; see [the update model](#the-update-model).
 
-   VS Code isn't the only option: `seed spyder` installs and opens **Spyder**
-   instead, wired to whichever venv you have activated. Both are installed on
-   demand and both tell you the download size before starting. Other Python
-   applications — JupyterLab, httpie — install the same way with
-   `seed tool-install <name>`, each in its own environment so nothing lands in
-   your project venvs.
-7. **Writes the shell integration.** Copies `seed.sh.template` /
-   `seed.ps1.template` into `~/seedling/system/shell/seed.sh` (or `.ps1`),
-   with the real `~/seedling` path substituted in, then appends a line to
-   your shell profile (`.zshrc`, `.bashrc`, `.profile`, or `$PROFILE`) that
-   sources it — only if that line isn't already present.
+It then installs `uv` into `system/bin`, builds `seed-cli` from the copied
+source, writes the shell hook, and — unless `SEEDLING_AUTO_SETUP=false` —
+installs the newest Python and creates the auto-activating `dev` venv. A
+`vendor/` folder in the source (uv, portable git, a pre-seeded editor for an
+offline install) is placed into its runtime locations at this point rather
+than downloaded.
+
+Everything it writes is under `~/seedling` and the one shell-profile line
+that loads the hook. Nothing goes to the registry, `%APPDATA%`, or
+`~/.local`.
 
 ### Windows execution policy
 
@@ -292,31 +239,11 @@ shell function, since a subprocess has no way to affect your shell.
 
 ## Help output & color
 
-`seed` (no arguments) or `seed -h`/`--help` shows commands grouped by what
-they're for — status, Python interpreters, venvs & packages, PyPI
-applications, conda-forge tools, offline utilities, git repos, editors,
-your organization's own [custom commands](CUSTOM-COMMANDS.md) (only shown
-once something's configured), everyday utilities, and a "danger zone" for
-everything destructive (`seed help` prints the current, authoritative list)
-— rather than argparse's default flat, alphabetized list, which stops being
-easy to scan once there are more than a handful of commands.
-Subcommand-specific help (`seed venv -h`, etc.) is unaffected and still uses
-argparse's normal per-command output.
-
-Color (used for headers, warnings, and success messages) is automatically
-disabled when stdout isn't a real terminal — piped output, redirected to a
-file, CI logs — or when the `NO_COLOR` environment variable is set (per
-[no-color.org](https://no-color.org)), so scripting against seedling's
-output never has to deal with stray ANSI escape codes. On Windows, seedling
-enables virtual terminal processing itself rather than requiring it be
-turned on beforehand.
-
-Output from the tools seedling drives is attributed in the terminal: lines
-coming from uv are prefixed `[uv]`, and lines from git are prefixed
-`[git]`, so it's always clear whether a message came from seedling itself
-or from the tool underneath.
-
----
+`seed help` groups commands the way you'd look for one rather than
+alphabetically, and `seed help --admin` reveals the elevated shared-root
+family. Color is on when the output is a terminal and off when it's piped or
+redirected, so captured logs stay plain text; `NO_COLOR=1` turns it off
+everywhere.
 
 ## The update model
 

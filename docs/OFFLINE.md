@@ -1,407 +1,58 @@
 # Running seedling on an offline network
 
-seedling was designed so that an organization on an isolated network — no
-github.com, no pypi.org, no internet at all — can still install it, use it,
-and keep it updated. This page lists **every component that normally comes
-from the internet**, when it's needed, and what to provide instead.
-
-The audience here is whoever prepares the deployment (a shared drive or a
-self-hosted git server). End users on the offline network never deal with
-any of this — they run `install.cmd` from the share and everything works.
+An organization on an isolated network — no github.com, no pypi.org, no
+internet at all — can still install seedling, use it, and keep it updated.
+One person prepares a bundle on a connected machine; everyone else runs
+`install.cmd` from a share and gets a complete Python setup.
 
 > This is part two of the deployment track. The
 > **[deployment guide](DEPLOYMENT.md)** covers the settings themselves —
-> `global.conf`, shared-machine installs, admin teardown, and what a
-> security review will ask. This page covers the one additional problem an
-> isolated network creates: where each downloaded component comes from
-> instead.
+> `global.conf`, shared-machine installs, admin teardown, and what a security
+> review will ask. This page covers the one problem an isolated network adds:
+> where each downloaded component comes from instead.
 
 ---
 
-## The short version
-
-> **In a hurry?** For the common share-only case, skip the manual steps: run
-> **`offline-bundler.cmd`** (`sh ./offline-bundler/offline-bundler.cmd` on macOS/Linux) on a
-> connected machine. It downloads uv, the Python interpreter archives, all the
-> wheels, and (optionally) VS Code + its extensions, then writes a matching
-> `global.conf` — see
-> [Putting it together](#putting-it-together-preparing-the-share). The rest of
-> this page explains what it's doing and covers the cases it leaves to you
-> (self-hosted indexes, corporate CAs).
-
-Everything is driven by **editing [`global.conf`](../global.conf)** in the
-copy of the repo you distribute (plus dropping a few binaries in `vendor/`) —
-your users never set environment variables or change anything on their
-machines. Find the scenario that matches your network and set only what it
-lists:
-
-**You have a self-hosted git server and internal mirrors** — GitHub
-Enterprise / GitLab, plus Artifactory / Nexus / devpi:
-
-| Set | To |
-|---|---|
-| `SEEDLING_REPO_URL` | your seedling repo's git URL |
-| `SEEDLING_PYTHON_MIRROR` | your `python-build-standalone` mirror |
-| `SEEDLING_PACKAGE_INDEX` | your internal package index (must also serve `hatchling`, used to build seed-cli) |
-| `vendor/uv/` | the `uv` binary (it won't be on your package index) |
-
-**You have only a shared network drive** — no git server, no internal index,
-just a file share everyone can read:
-
-| Set | To |
-|---|---|
-| `SEEDLING_REPO_URL` | a **folder** on the share holding a copy of this repo |
-| `SEEDLING_PYTHON_MIRROR` | a **folder** of `python-build-standalone` archives |
-| `SEEDLING_PACKAGE_INDEX` | a **folder** of wheels (must include `hatchling`) |
-| `vendor/uv/` | the `uv` binary |
-| `vendor/git/` | MinGit — Windows only, if there's no system git |
-
-Full walkthrough: [Variant: nothing but a shared drive](#variant-nothing-but-a-shared-drive).
-
-**You have internet, but pip/interpreter downloads are blocked or must stay
-internal** — only the package (and maybe Python) sources are restricted:
-
-| Set | To |
-|---|---|
-| `SEEDLING_REPO_URL` | leave unset — installs from public GitHub |
-| `SEEDLING_PACKAGE_INDEX` | your internal index or wheels folder |
-| `SEEDLING_PYTHON_MIRROR` | only if interpreter downloads are blocked too |
-
-**Your network re-signs HTTPS with a corporate CA** — a TLS-inspecting proxy
-(can combine with any scenario above):
-
-| Set | To |
-|---|---|
-| `SEEDLING_NATIVE_TLS=true` | trust the OS certificate store — **or** — |
-| `vendor/certs/` | your CA's `.pem`/`.crt` files (bundled and trusted automatically) |
-
-Details: [HTTPS and corporate certificate authorities](#https-and-corporate-certificate-authorities).
-
-**Optional in any scenario** — via the [`vendor/` convention](#the-vendor-convention):
-
-| Set | To |
-|---|---|
-| `vendor/vscode/` | a pre-seeded portable VS Code (ships the editor offline) |
-| `vendor/git/` | MinGit — git on Windows with no system install |
-
-The conf values are recorded in seedling's settings at install time and applied
-automatically to every command afterward (view or change them later with `seed
-config`). Everything that *isn't* a download — venvs, activation, config,
-logging, previews, removal, directory-based updates — already works with zero
-network access. The [component-by-component reference](#what-seedling-downloads-and-when)
-below backs each scenario, and [Putting it together](#putting-it-together-preparing-the-share)
-is a start-to-finish walkthrough.
-
----
-
-## The `vendor/` convention
-
-Binaries that can't come from a URL/directory setting are handled by a
-single convention: a **`vendor/` folder inside the copy of the repo you
-distribute**. The installer copies whatever it finds there into place
-*before* any download step runs (each of which skips itself when its
-target already exists) — presence equals intent, no wrapper scripts, no
-configuration:
-
-Every payload is a folder whose contents go to the destination:
-
-```
-vendor/uv/         (uv.exe or uv, uvx too if present) -> ~/seedling/system/bin/
-vendor/micromamba/ (the micromamba binary)             -> ~/seedling/system/bin/
-vendor/git/        (an extracted MinGit)              -> ~/seedling/extensions/git/
-vendor/vscode/     (a pre-seeded portable VS Code)    -> ~/seedling/extensions/vscode/
-vendor/certs/      (corporate CA .pem/.crt files)     -> bundled into
-                    ~/seedling/system/certs/ca-bundle.pem and trusted everywhere
-```
-
-Reinstalls never overwrite binaries already in place, `vendor/` is
-excluded from seedling's private source copy and from updates (a
-pre-seeded VS Code would otherwise bloat `system/src` by hundreds of MB),
-and the folder is gitignored — it exists only on distribution media.
-
----
-
-## What seedling downloads, and when
-
-| Download | From | When it happens |
-|---|---|---|
-| seedling source | github.com (default) | Install; `seed update-commands` |
-| `uv` binary | astral.sh | Install (skipped if already present) |
-| CPython interpreters | github.com (python-build-standalone releases) | `seed python`; the installer's default-environment setup; first `uv tool install` if no Python exists on the machine |
-| Python packages (incl. `hatchling` to build seed-cli, and the default venv packages `ipython`/`ruff`) | pypi.org | Install; `seed venv`; `seed install`; `seed update-commands` |
-| `micromamba` binary + conda-forge tools | github.com (micromamba-releases) / conda-forge | First `seed forge-install`; `micromamba` itself only once |
-| MinGit (Windows only) | github.com (git-for-windows releases) | First `seed repo-clone` if no git is found |
-| VS Code + extensions | update.code.visualstudio.com / marketplace.visualstudio.com | First `seed vscode` / `seed vscode-repo` |
-
----
-
-## 1. seedling's own source — built-in support
-
-Put a copy of this repo on a network share (say `S:\tools\seedling`), edit
-[`global.conf`](../global.conf) in that copy, and users install by
-running `install.cmd` from it (or with
-`SEEDLING_REPO=S:\tools\seedling` from anywhere). The installer records the
-share as `update_source`, so `seed update-commands` re-copies from it —
-**no git involved anywhere** in this flow. To ship an update, replace the
-contents of the share.
-
-A self-hosted git server (GitHub Enterprise, GitLab, Gitea) works the same
-way with a URL instead of a path; updates then do a fresh shallow clone,
-which requires git on user machines (see #6).
-
----
-
-## 2. The `uv` binary
-
-The installers normally download uv from `astral.sh` — but they **skip that
-step entirely if uv is already in place**:
-
-- Windows: `~\seedling\system\bin\uv.exe`
-- macOS/Linux: `~/seedling/system/bin/uv`
-
-So the offline recipe is: download uv's standalone binary once (from
-[github.com/astral-sh/uv/releases](https://github.com/astral-sh/uv/releases),
-on a connected machine) and drop it into `vendor/uv/` in your repo copy —
-the installer places it automatically. Pin one uv version for the whole organization and update it deliberately —
-that also pins which Python versions "newest" resolves to.
-
----
-
-## 3. Python interpreters
-
-`seed python` (and `uv tool install`, when no usable Python exists on the
-machine) downloads CPython builds from the
-[python-build-standalone](https://github.com/astral-sh/python-build-standalone)
-GitHub releases. To redirect this:
-
-1. Mirror the release archives you need onto an internal web server or
-   file share (only the platforms/versions you actually use — one
-   `cpython-<version>-windows-x86_64-none` archive is ~30 MB).
-2. Set **`SEEDLING_PYTHON_MIRROR`** in `global.conf` to that location —
-   a URL, or just the share path (`S:\tools\python-builds`); seedling
-   converts paths to the `file://` form uv needs.
-
-The installer applies it to its own default-environment setup and records
-it as the `python_mirror` setting, which every later `seed python` applies
-automatically.
-
-> **At least one mirrored interpreter must satisfy seedling's own
-> `requires-python`** (see `src/pyproject.toml`). The mirror serves two
-> different jobs: it supplies the interpreter `uv tool install` uses to build
-> `seed-cli` itself, *and* the base Pythons your users install for their own
-> venvs. Older versions are perfectly fine for the second job — mirror as many
-> as you like — but if *none* of them is new enough for the first, the bundle
-> builds cleanly on your connected machine and then fails on the air-gapped
-> one, which is the worst place to find out. `offline-bundler.cmd` checks this
-> before it downloads anything and refuses to build.
->
-> When you mirror several interpreters, the wheel step (#4) resolves the
-> package set **once per version** into the same flat wheel folder. That's
-> necessary rather than tidy: the headline packages are version-agnostic, but
-> their compiled dependencies aren't — `ipykernel` alone pulls `pyzmq`,
-> `tornado`, `debugpy` and `psutil`, which ship separate `cp312`/`cp39` wheels.
-> A folder holding every tag is exactly what an offline index wants.
-
----
-
-## 4. Python packages
-
-`seed venv` (default packages), `seed install`, and building seed-cli
-itself all resolve packages from PyPI. Redirect this by setting
-**`SEEDLING_PACKAGE_INDEX`** in `global.conf` to either:
-
-- an **index URL** (any pip-compatible index: Artifactory, Nexus, devpi),
-  or
-- a **plain directory of wheels** (e.g. a network share folder). seedling
-  then generates a uv configuration declaring that directory as the one
-  and only package source, with the internet index disabled entirely — a
-  package that isn't in the folder fails cleanly instead of silently
-  reaching for pypi.org.
-
-Like the mirror, it's applied during install itself (building seed-cli
-needs it) and recorded as the `package_index` setting for every later
-command. The index/directory must contain at minimum:
-
-- **`hatchling`** (and its dependencies `packaging`, `pathspec`,
-  `pluggy`, `trove-classifiers`) — uv needs it to **build seed-cli from
-  source** during install and every `seed update-commands`.
-- **the default venv packages** (`ipython`, `ruff`, `ipykernel`, `pip`, and their dependencies)
-  for every new venv. If your organization prefers a different set, change
-  `SEEDLING_VENV_DEFAULT_PACKAGES` in `global.conf` and stock those
-  instead.
-- Whatever your users actually `seed install`.
-
-### Populating a wheel directory
-
-seedling ships the builder for this folder so you don't need a separate pip
-setup on the connected machine. From a machine with internet (or reach to your
-internal index):
-
-```
-seed download-whls hatchling ipython ruff ipykernel pip pandas
-```
-
-downloads each package **and every transitive dependency** as wheels into
-`./wheelhouse`. Feed a list you already maintain with
-`seed download-requirements requirements.txt` instead. Copy the resulting
-folder to the share and set `SEEDLING_PACKAGE_INDEX` (or `seed config set
-package_index`) to it.
-
-Two things to keep in mind for a share-only deployment:
-
-- **Match the target platform.** Wheels default to the platform you run the
-  command on. If the connected machine differs from the fleet, build for the
-  target explicitly — every `pip download` flag passes through:
-  `seed download-whls pandas --only-binary=:all: --platform win_amd64
-  --python-version 312`.
-- **A missing transitive dependency fails resolution outright** offline (the
-  internet index is disabled), so build the wheel set from a clean list and
-  test it by creating a venv on a disconnected machine.
-
-If you already have an internal index URL configured, `download-whls` uses it
-automatically (as `--index-url`) — handy for staging a share from an
-Artifactory/Nexus mirror.
-
----
-
-## 5. conda-forge command-line tools (optional)
-
-`seed forge-install` (non-Python CLI tools like `ripgrep`, `pandoc`, `gh`)
-resolves from conda-forge via a vendored **micromamba** binary — never a
-system conda/mamba install. Redirect the channel by setting
-**`SEEDLING_CONDA_CHANNEL`** in `global.conf` to a local directory (a
-mirrored conda channel) instead of the default `conda-forge`.
-
-- **`vendor/micromamba/`** ships the binary itself (see
-  [the vendor/ convention](#the-vendor-convention)) — installed once, like
-  `uv`, never re-downloaded after that.
-- **The channel** is a directory of `.conda`/`.tar.bz2` packages plus a
-  `repodata.json`, built with:
-
-  ```
-  seed download-forge ripgrep pandoc gh
-  ```
-
-  which resolves each tool **and its dependencies** into `./conda-channel`
-  (default; `--dest` to change it). Copy that folder to the share and point
-  `SEEDLING_CONDA_CHANNEL` at it.
-
-Skipped entirely if your organization doesn't use `seed forge-install` —
-nothing here is required for Python interpreters, venvs, or packages.
-
----
-
-## 6. git (optional)
-
-git is needed for exactly two things, both avoidable:
-
-- **`seed repo-clone`** — cloning your internal repos. If your git host is
-  on the internal network, users need a git client: extract
-  [MinGit](https://github.com/git-for-windows/git/releases) (Windows) into
-  `vendor/git/` in your repo copy — the installer places it at
-  `~\seedling\extensions\git\`, which seedling checks right after PATH
-  and never re-downloads from — or deploy git through your normal
-  software channel. [`offline-bundler.cmd`](#the-easy-way-offline-bundlercmd) can
-  fetch it for you: it asks during the walkthrough, and `--mingit` turns it on
-  (which is also what includes it under `--yes`).
-- **URL-based `seed update-commands`** — only if your `update_source` is a
-  git URL. A directory `update_source` (the network-share flow above)
-  needs no git at all.
-
-If neither applies, skip this component entirely.
-
----
-
-## 7. VS Code (optional)
-
-`seed vscode` downloads VS Code from Microsoft's update API and extensions
-from the marketplace — neither has a supported mirror.
-
-> **Check the licensing before you stage this one.** Bundling the editor
-> onto a share is redistribution, and the official VS Code binaries and
-> Marketplace extensions both carry terms that restrict it —
-> `offline-bundler.cmd` will ask you to acknowledge this before staging them
-> (see [LICENSING.md](LICENSING.md)). Setting
-> `SEEDLING_VSCODE_FLAVOR="vscodium"` switches to the MIT-licensed build and
-> the openly-licensed Open VSX registry, which carry no such restriction —
-> at the cost of Pylance. See
-> [Choosing a VS Code build](DEPLOYMENT.md#which-vs-code-build).
-> Everything below applies to whichever flavor you pick.
->
-> **The editor is decided by `offline-bundler/offline-bundle.toml`.** Its
-> `[editor]` table sets the flavor, the extension set and the gallery, and
-> those are what get staged. The builder also **checks them against
-> `global.conf`** before downloading anything: the spec says what is staged,
-> the conf says what each user's machine expects, and a disagreement stops
-> the build rather than surfacing when someone opens the editor on the far
-> side of the air gap.
-
-Three options:
-
-- **Let the builder do it** (easiest): [`offline-bundler.cmd`](#putting-it-together-preparing-the-share)
-  downloads VS Code + the default extensions and drops them into `vendor/vscode/`
-  for you. Skip that step with `--no-vscode` if you don't want it.
-- **Pre-seed it by hand**: run `seed vscode` once on a connected machine, then
-  copy the resulting `~/seedling/extensions/vscode/` folder into `vendor/vscode/`
-  in your repo copy — the installer places it on each machine, and seedling
-  detects the existing install and never re-downloads. VS Code is fully
-  portable in this layout — settings and extensions travel with the folder.
-- **Skip it**: everything else in seedling works without VS Code; users
-  bring whatever editor your organization deploys.
-
-Additional extensions on an offline network must be installed from `.vsix`
-files (`code --install-extension foo.vsix`), downloadable from the
-marketplace website on a connected machine.
-
----
-
-## The default environment setup
-
-A standard install ends by installing the newest Python and creating the
-auto-activated `dev` venv. Offline, this works **only if #3 and #4 are in
-place** (it needs an interpreter archive and the `ipython`/`ruff`
-packages), and the VS Code part only works pre-seeded (#7) — otherwise set
-`SEEDLING_AUTO_VSCODE="false"` alongside it. If none of it is ready yet, set
-`SEEDLING_AUTO_SETUP="false"` in your distributed `global.conf` — the install then finishes bare but working,
-and the setup can be run later per-machine:
-
-```
-seed python && seed venv dev && seed config set default_venv dev
-```
-
-A failed auto-setup is never fatal either way — seedling itself still
-installs; users just see a warning with those same commands.
-
----
-
-## Putting it together: preparing the share
+## The workflow
 
 ![The offline bundle drawn as a superset: everything that crosses the air gap sits inside one box, deployment profiles are nested inside it as subsets, a profile naming a package the bundle lacks is drawn outside with the crossing struck through, and global.conf sits outside pointing in.](diagrams/bundle-superset.svg)
 
-### The two folders
+**Three files, then one command.** In the copy of seedling you distribute:
 
 ```
-offline-bundler/
-  offline-bundle.toml     what the share holds, and every build setting
-  offline-bundler.cmd     run this -- no arguments
-installation-profile/
-  profile.toml            what users end up with
-  analysis.toml           ...and any others; every one is validated
-global.conf               where each user's machine looks for all of it
+offline-bundler/offline-bundle.toml    what the share will HOLD
+installation-profile/*.toml            what each user ends up WITH, and who gets it
+global.conf                            where every machine LOOKS for it
 ```
 
-The build takes **no arguments**: everything that used to be a flag lives in
-`[build]` in the spec, so the person who rebuilds the share in six months runs
-the same one command the admin who wrote it did.
+On a **connected** machine:
 
 ```
-offline-bundler.cmd
+offline-bundler.cmd            (Windows -- double-clicking works)
+sh ./offline-bundler.cmd       (macOS/Linux)
 ```
 
-Every `*.toml` in `installation-profile/` is checked against the bundle
-automatically — the folder is the list, so there is nothing to keep in sync.
-Flags still exist as one-off overrides (`--dry-run`, `--verify-only`,
-`--bundle=` to ignore the spec entirely).
+No arguments: everything the build needs is in the spec. It validates every
+profile against the bundle *before* downloading anything, stages uv, the
+interpreters, the wheels, the conda channel and the editor, writes a
+`global.conf` pointing at the share, and proves the result installs by doing
+an offline install of it.
+
+Then **copy the folder to the share** and re-check the copy that arrived:
+
+```
+offline-bundler.cmd --verify-only -o "S:	ools"
+```
+
+Users run `install.cmd` from `S:	ools\seedling\`. Same command for
+everyone; each person gets the profiles distributed to them.
+
+Afterwards: edit a profile on the share, users run `seed update-commands`
+then `seed apply`. A profile written later, from inside, is checked with
+[`seed profile-check`](commands/status.md#seed-profile-check-profile---bundle-path)
+before anyone applies it.
+
+## Building the bundle
 
 ### `offline-bundle.toml` — what the share contains
 
@@ -569,7 +220,7 @@ the three paths. Useful flags:
 | `--yes` | Build unattended, taking the default answer for every step |
 | `--python 3.12,3.11` | Which interpreter version(s) to mirror (default: newest). At least one must satisfy seedling's own `requires-python`; older ones alongside it are fine, and are there for your users' venvs |
 | `--packages pandas,polars` | Extra wheels to stock beyond the defaults |
-| `--tools ripgrep,pandoc` | conda-forge command-line tools to bundle (see [#5](#5-conda-forge-command-line-tools-optional)) — a profile's `[tools]` are included automatically, this is for anything beyond that |
+| `--tools ripgrep,pandoc` | conda-forge command-line tools to bundle (see [#5](#component-reference)) — a profile's `[tools]` are included automatically, this is for anything beyond that |
 | `--no-vscode` | Skip the VS Code + extensions download (the ~300MB step) |
 | `--mingit` | Also bundle portable MinGit (Windows). Normally set as `[git] mingit = true` in the spec |
 | `--bundle PATH` | The `offline-bundle.toml` declaring what the share contains. Defaults to the one next to `global.conf`; `--bundle=` (empty) ignores it |
@@ -590,7 +241,7 @@ folder.
 
 uv, the interpreters, the wheels, and VS Code + extensions are all automatic.
 Two things are opt-in: **MinGit** is off unless `[git] mingit = true` (most fleets
-already have git — see [#6](#6-git-optional)), and **corporate CA
+already have git — see [#6](#component-reference)), and **corporate CA
 certs** are yours to supply (see the CA section). Note that under `--yes` every
 step takes its default, so MinGit is skipped unless the spec asks for it.
 
@@ -659,7 +310,195 @@ setting a single environment variable.
 
 ---
 
+## Which scenario is yours
+
+
+> **In a hurry?** For the common share-only case, skip the manual steps: run
+> **`offline-bundler.cmd`** (`sh ./offline-bundler/offline-bundler.cmd` on macOS/Linux) on a
+> connected machine. It downloads uv, the Python interpreter archives, all the
+> wheels, and (optionally) VS Code + its extensions, then writes a matching
+> `global.conf` — see
+> [Putting it together](#building-the-bundle). The rest of
+> this page explains what it's doing and covers the cases it leaves to you
+> (self-hosted indexes, corporate CAs).
+
+Everything is driven by **editing [`global.conf`](../global.conf)** in the
+copy of the repo you distribute (plus dropping a few binaries in `vendor/`) —
+your users never set environment variables or change anything on their
+machines. Find the scenario that matches your network and set only what it
+lists:
+
+**You have a self-hosted git server and internal mirrors** — GitHub
+Enterprise / GitLab, plus Artifactory / Nexus / devpi:
+
+| Set | To |
+|---|---|
+| `SEEDLING_REPO_URL` | your seedling repo's git URL |
+| `SEEDLING_PYTHON_MIRROR` | your `python-build-standalone` mirror |
+| `SEEDLING_PACKAGE_INDEX` | your internal package index (must also serve `hatchling`, used to build seed-cli) |
+| `vendor/uv/` | the `uv` binary (it won't be on your package index) |
+
+**You have only a shared network drive** — no git server, no internal index,
+just a file share everyone can read:
+
+| Set | To |
+|---|---|
+| `SEEDLING_REPO_URL` | a **folder** on the share holding a copy of this repo |
+| `SEEDLING_PYTHON_MIRROR` | a **folder** of `python-build-standalone` archives |
+| `SEEDLING_PACKAGE_INDEX` | a **folder** of wheels (must include `hatchling`) |
+| `vendor/uv/` | the `uv` binary |
+| `vendor/git/` | MinGit — Windows only, if there's no system git |
+
+Full walkthrough: [Variant: nothing but a shared drive](#variant-nothing-but-a-shared-drive).
+
+**You have internet, but pip/interpreter downloads are blocked or must stay
+internal** — only the package (and maybe Python) sources are restricted:
+
+| Set | To |
+|---|---|
+| `SEEDLING_REPO_URL` | leave unset — installs from public GitHub |
+| `SEEDLING_PACKAGE_INDEX` | your internal index or wheels folder |
+| `SEEDLING_PYTHON_MIRROR` | only if interpreter downloads are blocked too |
+
+**Your network re-signs HTTPS with a corporate CA** — a TLS-inspecting proxy
+(can combine with any scenario above):
+
+| Set | To |
+|---|---|
+| `SEEDLING_NATIVE_TLS=true` | trust the OS certificate store — **or** — |
+| `vendor/certs/` | your CA's `.pem`/`.crt` files (bundled and trusted automatically) |
+
+Details: [HTTPS and corporate certificate authorities](#https-and-corporate-certificate-authorities).
+
+**Optional in any scenario** — via the [`vendor/` convention](#the-vendor-convention):
+
+| Set | To |
+|---|---|
+| `vendor/vscode/` | a pre-seeded portable VS Code (ships the editor offline) |
+| `vendor/git/` | MinGit — git on Windows with no system install |
+
+The conf values are recorded in seedling's settings at install time and applied
+automatically to every command afterward (view or change them later with `seed
+config`). Everything that *isn't* a download — venvs, activation, config,
+logging, previews, removal, directory-based updates — already works with zero
+network access. The [component-by-component reference](#component-reference)
+below backs each scenario, and [Putting it together](#building-the-bundle)
+is a start-to-finish walkthrough.
+
+---
+
+## The `vendor/` convention
+
+
+Binaries that can't come from a URL/directory setting are handled by a
+single convention: a **`vendor/` folder inside the copy of the repo you
+distribute**. The installer copies whatever it finds there into place
+*before* any download step runs (each of which skips itself when its
+target already exists) — presence equals intent, no wrapper scripts, no
+configuration:
+
+Every payload is a folder whose contents go to the destination:
+
+```
+vendor/uv/         (uv.exe or uv, uvx too if present) -> ~/seedling/system/bin/
+vendor/micromamba/ (the micromamba binary)             -> ~/seedling/system/bin/
+vendor/git/        (an extracted MinGit)              -> ~/seedling/extensions/git/
+vendor/vscode/     (a pre-seeded portable VS Code)    -> ~/seedling/extensions/vscode/
+vendor/certs/      (corporate CA .pem/.crt files)     -> bundled into
+                    ~/seedling/system/certs/ca-bundle.pem and trusted everywhere
+```
+
+Reinstalls never overwrite binaries already in place, `vendor/` is
+excluded from seedling's private source copy and from updates (a
+pre-seeded VS Code would otherwise bloat `system/src` by hundreds of MB),
+and the folder is gitignored — it exists only on distribution media.
+
+---
+
+## Component reference
+
+`offline-bundler.cmd` stages all of this for you. This section is for the
+deployments that don't use it — an internal mirror per component, or a partial
+bundle — and for understanding what the bundler is doing.
+
+| Component | Normally from | When it's needed | Point it elsewhere with |
+|---|---|---|---|
+| seedling's own source | github.com | Install; `seed update-commands` | `SEEDLING_REPO_URL` — a git URL **or a folder** on a share (no git needed) |
+| `uv` | astral.sh | Install (skipped if already present) | `vendor/uv/` in the copy you distribute |
+| Python interpreters | python-build-standalone releases | `seed python`; the installer's default setup | `SEEDLING_PYTHON_MIRROR` — a mirror URL or a folder of archives |
+| Python packages | pypi.org | Install; `seed venv`; `seed install`; `seed update-commands` | `SEEDLING_PACKAGE_INDEX` — an index URL, or a folder of wheels (which disables the internet index entirely) |
+| conda-forge tools | conda-forge | First `seed forge-install` (micromamba once) | `SEEDLING_CONDA_CHANNEL` — a mirror or a local channel folder |
+| git (Windows) | git-for-windows releases | First `seed repo-clone`, if no system git | `vendor/git/` — only needed if the machines have no system git |
+| VS Code + extensions | update.code.visualstudio.com / Marketplace | First `seed vscode` | `vendor/vscode/` — a pre-seeded portable copy |
+
+Four things about that table are worth knowing before you rely on it.
+
+**The package index must also serve what seedling itself needs**, not just
+your users' packages: `hatchling` (uv builds `seed-cli` with it, at install
+and at every `seed update-commands`) plus the default venv packages
+(`ipython`, `ruff`, `ipykernel`, `pip`) and all of their transitive
+dependencies. A missing transitive dependency fails resolution outright
+offline — there is no index to fall back to.
+
+**At least one mirrored interpreter must satisfy seedling's own
+`requires-python`.** The mirror does two jobs: it supplies the interpreter
+that builds `seed-cli`, and the base Pythons your users create venvs from.
+Older versions are fine for the second — mirror as many as you like — but if
+none is new enough for the first, the bundle builds cleanly here and fails
+there. The bundler checks this before downloading anything and refuses to
+build.
+
+**Wheels are resolved once per interpreter and once per platform**, into one
+flat folder. That's necessary rather than tidy: headline packages are
+version-agnostic but their compiled dependencies aren't — `ipykernel` alone
+pulls `pyzmq`, `tornado`, `debugpy` and `psutil`, each shipping separate
+`cp312`/`cp313` wheels. A flat folder holding every tag is exactly what an
+offline index wants, and it's what lets one wheelhouse serve a mixed fleet.
+
+**Staging the editor is redistribution.** The official VS Code binaries and
+Marketplace extensions carry terms that restrict it, so the bundler asks you
+to acknowledge that before staging them (see [LICENSING.md](LICENSING.md)).
+`[editor] flavor = "vscodium"` switches to the MIT-licensed build and the
+openly-licensed Open VSX registry, which carry no such restriction — at the
+cost of Pylance. See
+[Choosing a VS Code build](DEPLOYMENT.md#which-vs-code-build).
+
+### Populating a wheel directory by hand
+
+```
+seed download-whls hatchling ipython ruff ipykernel pip pandas
+```
+
+Wheels land in `./wheelhouse`; copy it to the share and set
+`SEEDLING_PACKAGE_INDEX` to that folder. Cross-platform bundles take
+`pip download`'s own flags: `--platform win_amd64 --python-version 312
+--only-binary=:all:`. On a network with an internal index you can publish
+them instead of sharing a folder — `seed upload-whls ./wheelhouse`.
+
+---
+
+## The default environment setup
+
+
+A standard install ends by installing the newest Python and creating the
+auto-activated `dev` venv. Offline, this works **only if #3 and #4 are in
+place** (it needs an interpreter archive and the `ipython`/`ruff`
+packages), and the VS Code part only works pre-seeded (#7) — otherwise set
+`SEEDLING_AUTO_VSCODE="false"` alongside it. If none of it is ready yet, set
+`SEEDLING_AUTO_SETUP="false"` in your distributed `global.conf` — the install then finishes bare but working,
+and the setup can be run later per-machine:
+
+```
+seed python && seed venv dev && seed config set default_venv dev
+```
+
+A failed auto-setup is never fatal either way — seedling itself still
+installs; users just see a warning with those same commands.
+
+---
+
 ## HTTPS and corporate certificate authorities
+
 
 If your internal mirror/index/git host serves HTTPS signed by a corporate
 CA, plain installs fail certificate verification. Two independent fixes,
@@ -686,6 +525,7 @@ the settings.
 
 ## Variant: nothing but a shared drive
 
+
 An organization whose only common infrastructure is a **file share between
 machines** — no internal web servers, no git host, no index server — can
 still run everything. Each server-shaped component above has a plain-files
@@ -695,7 +535,7 @@ equivalent:
 |---|---|
 | seedling source + updates | Already file-based (#1) — the ideal case |
 | Python interpreter mirror | `SEEDLING_PYTHON_MIRROR="S:\tools\python-builds"` — a share folder of archives; seedling handles the `file://` conversion |
-| Package index | `SEEDLING_PACKAGE_INDEX="S:\tools\wheels"` — a **directory of wheels** on the share; the internet index is disabled automatically. Populate it on a connected machine with [`seed download-whls`](#populating-a-wheel-directory) (include `hatchling`, the default venv packages, and all transitive deps for your platform) |
+| Package index | `SEEDLING_PACKAGE_INDEX="S:\tools\wheels"` — a **directory of wheels** on the share; the internet index is disabled automatically. Populate it on a connected machine with [`seed download-whls`](#populating-a-wheel-directory-by-hand) (include `hatchling`, the default venv packages, and all transitive deps for your platform) |
 | git hosting | git needs no server: **bare repositories on the share** (`git init --bare S:/repos/project.git`) are full remotes — `seed repo-clone S:/repos/project.git`, push, and pull all work over git's file protocol |
 | VS Code | Pre-seeded portable folder in `vendor/vscode/`, as above (#7) |
 
@@ -709,6 +549,7 @@ access control.
 ---
 
 ## Known degradations offline
+
 
 - **Download checksum lookups** (used for MinGit and VS Code metadata)
   aren't reachable — irrelevant in practice, since those downloads don't

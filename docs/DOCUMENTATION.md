@@ -1,14 +1,10 @@
 # seedling documentation
 
-seedling is a single `seed` command — a tidy, single-folder global Python
-distributor and local environment manager — that keeps every Python
-interpreter, virtual environment, VS Code install, and cloned repo it
-manages inside one folder: `~/seedling`. Nothing it does touches your
-system Python, `%APPDATA%`, `~/.vscode`, or any of the other places these
-tools normally scatter files into.
+The map. Everything is split into two tracks — one for people **using**
+seedling on their own machine, one for people **deploying** it to others.
 
-This page is the map. The documentation is split into two tracks — one for
-people **using** seedling, one for people **deploying** it to others.
+New here? The [home page](index.md) covers what seedling is and the everyday
+workflow in a couple of minutes.
 
 ---
 
@@ -19,7 +15,8 @@ Start here if seedling is installed on your own machine, or about to be.
 | | |
 |---|---|
 | **[Using seedling](GUIDE.md)** | How installation works, the folder layout, why `seed` is a shell function, the update model, uninstalling, and troubleshooting. |
-| **[Command reference](COMMANDS.md)** | Every command and flag in detail. |
+| **[Command explorer](_static/command-explorer.html)** | All 59 commands, filterable — click one to open its full documentation. The fastest way to find something. |
+| **[Command reference](COMMANDS.md)** | The same content as a page, plus the per-family breakdowns. |
 | **[Design and safety](DESIGN.md)** | Why deletion is so defensive, what gets logged, how downloads are verified, and how to run seedling unattended. |
 | **[Scripting & automation](commands/scripting-and-automation.md)** | The machine-facing surface, in one place: `seed run`, `seed which`, `--json` on every read command, never blocking on a prompt, and how concurrent commands are serialized. |
 
@@ -54,7 +51,9 @@ layout, and running the tests.
 | I want to… | Go to |
 |---|---|
 | Install seedling | [Using seedling → How installation works](GUIDE.md#how-installation-works) |
-| Look up a command | [Command reference](COMMANDS.md) |
+| Deploy it to other people | [Deployment guide → The deployment workflow](DEPLOYMENT.md#the-deployment-workflow) |
+| Build a bundle for an air-gapped network | [Offline networks → The workflow](OFFLINE.md#the-workflow) |
+| Look up a command | [Command explorer](_static/command-explorer.html) |
 | Drive seedling from a script, CI job or AI agent | [Scripting & automation](commands/scripting-and-automation.md) |
 | Get a venv's interpreter path | [`seed which`](commands/venvs-and-packages.md#seed-which-name---json) |
 | Run something in a venv without a shell | [`seed run`](commands/venvs-and-packages.md#seed-run--n-venv----command-args) |
@@ -68,6 +67,7 @@ layout, and running the tests.
 | Standardize a team's setup | [Profile examples](PROFILE-EXAMPLES.md) |
 | Add my own verbs to `seed` | [Custom commands](CUSTOM-COMMANDS.md) |
 | Give everyone the same venvs and packages | [Profile examples](PROFILE-EXAMPLES.md) |
+| Give different teams different environments | [Profiles → Who gets which profile](PROFILES.md#who-gets-which-profile) |
 | Point installs at an internal source | [Deployment guide → `global.conf`](DEPLOYMENT.md#deployment-configuration-globalconf) |
 | Install with no internet | [Offline networks](OFFLINE.md) |
 | Put many users on one machine | [Deployment guide → Shared-machine installs](DEPLOYMENT.md#shared-machine-multi-user-installs) |
