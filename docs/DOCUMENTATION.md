@@ -15,8 +15,7 @@ Start here if seedling is installed on your own machine, or about to be.
 | | |
 |---|---|
 | **[Using seedling](GUIDE.md)** | How installation works, the folder layout, why `seed` is a shell function, the update model, uninstalling, and troubleshooting. |
-| **[Command explorer](_static/command-explorer.html)** | All 59 commands, filterable — click one to open its full documentation. The fastest way to find something. |
-| **[Command reference](COMMANDS.md)** | The same content as a page, plus the per-family breakdowns. |
+| **[Command reference](COMMANDS.md)** | All 59 commands in one filterable list — click any one to open its full documentation — plus the per-family breakdowns. |
 | **[Design and safety](DESIGN.md)** | Why deletion is so defensive, what gets logged, how downloads are verified, and how to run seedling unattended. |
 | **[Scripting & automation](commands/scripting-and-automation.md)** | The machine-facing surface, in one place: `seed run`, `seed which`, `--json` on every read command, never blocking on a prompt, and how concurrent commands are serialized. |
 
@@ -53,7 +52,7 @@ layout, and running the tests.
 | Install seedling | [Using seedling → How installation works](GUIDE.md#how-installation-works) |
 | Deploy it to other people | [Deployment guide → The deployment workflow](DEPLOYMENT.md#the-deployment-workflow) |
 | Build a bundle for an air-gapped network | [Offline networks → The workflow](OFFLINE.md#the-workflow) |
-| Look up a command | [Command explorer](_static/command-explorer.html) |
+| Look up a command | [Command reference](COMMANDS.md) |
 | Drive seedling from a script, CI job or AI agent | [Scripting & automation](commands/scripting-and-automation.md) |
 | Get a venv's interpreter path | [`seed which`](commands/venvs-and-packages.md#seed-which-name---json) |
 | Run something in a venv without a shell | [`seed run`](commands/venvs-and-packages.md#seed-run--n-venv----command-args) |

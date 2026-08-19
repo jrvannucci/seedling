@@ -3,12 +3,9 @@
 Every `seed` command and flag, as currently implemented. For the guided
 tour, start with **[Using seedling](GUIDE.md)**.
 
-<a class="cmd-explorer" href="_static/command-explorer.html">
-  <span class="cmd-explorer-title">Open the command explorer &rarr;</span>
-  <span class="cmd-explorer-sub">All 59 commands in one filterable list.
-  Click any command to open its full documentation, without leaving the
-  page.</span>
-</a>
+```{raw} html
+:file: _include/command-explorer.html
+```
 
 ---
 

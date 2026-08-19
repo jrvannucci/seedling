@@ -20,6 +20,12 @@ drift from them:
 Deliberately single-column: the point is scanning a list and opening one
 thing, not comparing two columns.
 
+Emitted as a FRAGMENT (scoped styles + markup + script, no <html>), which
+docs/COMMANDS.md pulls in with a `raw` directive. It used to be a standalone
+page under _static/, which meant clicking through to it left the docs site
+behind -- no sidebar, no search, no breadcrumbs. Embedded, it inherits all of
+that, and the theme owns the page chrome while this owns only the widget.
+
 Run:  python docs/generate_command_explorer.py
 """
 
@@ -35,7 +41,7 @@ sys.path.insert(0, str(HERE / "diagrams"))
 
 from generate_family_commands import FAMILIES  # noqa: E402
 
-OUT = HERE / "_static" / "command-explorer.html"
+OUT = HERE / "_include" / "command-explorer.html"
 
 # seedling's own diagram palette (diagrams/generate_profile_flows.py), so the
 # explorer and the SVGs it stands in for read as one set rather than two
@@ -179,206 +185,211 @@ def _render(body: str) -> str:
 # ---------------------------------------------------------------------------
 
 CSS = f"""
-:root {{
-  --ground: #FFFFFF;
-  --surface: #FBFDFB;
-  --raised: {ICE};
-  --ink: #14261C;
-  --ink-soft: {SLATE};
-  --line: #D4E6DA;
-  --accent: {NAVY};
-  --danger: {DANGER};
-  --danger-tint: #F7ECE9;
-  --focus: #2D6A4F;
-  --shadow: 0 1px 2px rgba(20, 38, 28, .06);
+/* Scoped to .cmdx. This is embedded in a full docs page, so it styles the
+   widget and nothing else -- no body, no :root, no dark-mode block (the
+   theme is light-only, and a widget that went dark on its own would be the
+   only dark thing on the page). */
+.cmdx {{
+  --cx-ink: #14261C;
+  --cx-soft: {SLATE};
+  --cx-line: #D4E6DA;
+  --cx-accent: {NAVY};
+  --cx-raised: {ICE};
+  --cx-danger: {DANGER};
+  --cx-danger-tint: #F7ECE9;
+  margin: 1.5rem 0 0;
 }}
-@media (prefers-color-scheme: dark) {{
-  :root:not([data-theme="light"]) {{
-    --ground: #0E1A13;
-    --surface: #12211A;
-    --raised: #162A20;
-    --ink: #E6F2EA;
-    --ink-soft: #9DBCAA;
-    --line: #243B2E;
-    --accent: #95D5B2;
-    --danger: #E0846F;
-    --danger-tint: #2A1A16;
-    --focus: #95D5B2;
-    --shadow: none;
-  }}
+.cmdx .tools {{
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: .6rem 0;
+  background: #fff;
+  border-bottom: 1px solid var(--cx-line);
 }}
-:root[data-theme="dark"] {{
-  --ground: #0E1A13;
-  --surface: #12211A;
-  --raised: #162A20;
-  --ink: #E6F2EA;
-  --ink-soft: #9DBCAA;
-  --line: #243B2E;
-  --accent: #95D5B2;
-  --danger: #E0846F;
-  --danger-tint: #2A1A16;
-  --focus: #95D5B2;
-  --shadow: none;
+.cmdx #cmdx-q {{
+  flex: 1 1 18rem;
+  padding: .5rem .7rem;
+  font: inherit;
+  color: var(--cx-ink);
+  background: #fff;
+  border: 1px solid var(--cx-line);
+  border-radius: 5px;
 }}
-
-* {{ box-sizing: border-box; }}
-body {{
-  margin: 0;
-  background: var(--ground);
-  color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
+.cmdx #cmdx-q:focus-visible,
+.cmdx #cmdx-expand:focus-visible,
+.cmdx summary:focus-visible {{
+  outline: 3px solid #95D5B2;
+  outline-offset: 1px;
 }}
-.wrap {{ max-width: 860px; margin: 0 auto; padding: 40px 20px 96px; }}
-
-header h1 {{
+.cmdx #cmdx-expand {{
+  padding: .5rem .8rem;
+  font: inherit;
+  color: var(--cx-accent);
+  background: var(--cx-raised);
+  border: 1px solid var(--cx-line);
+  border-radius: 5px;
+  cursor: pointer;
+}}
+.cmdx #cmdx-expand:hover {{ background: #DCEDE2; }}
+.cmdx .count {{
+  margin: .6rem 0 1.2rem;
+  font-size: .85rem;
+  color: var(--cx-soft);
+}}
+.cmdx .family {{ margin: 0 0 2rem; }}
+.cmdx .family h2 {{
+  margin: 0 0 .2rem;
+  padding: 0;
+  font-size: 1.15rem;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 30px; font-weight: 700; margin: 0 0 6px;
-  text-wrap: balance; color: var(--ink);
+  color: var(--cx-accent);
+  border: none;
 }}
-header p {{ margin: 0; color: var(--ink-soft); font-style: italic; }}
-
-.tools {{
-  position: sticky; top: 0; z-index: 5;
-  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-  margin: 26px 0 8px; padding: 12px 0;
-  background: var(--ground); border-bottom: 1px solid var(--line);
+.cmdx .family .sub {{
+  margin: 0 0 .8rem;
+  font-size: .88rem;
+  color: var(--cx-soft);
 }}
-input[type="search"] {{
-  flex: 1 1 260px; min-width: 0;
-  padding: 9px 12px; font: inherit; color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line); border-radius: 7px;
+.cmdx .section-label {{
+  margin: 1rem 0 .4rem;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--cx-soft);
 }}
-input[type="search"]::placeholder {{ color: var(--ink-soft); }}
-button {{
-  font: inherit; color: var(--ink); cursor: pointer;
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: 7px; padding: 9px 13px;
+.cmdx .section-label.danger {{ color: var(--cx-danger); }}
+.cmdx .cmds {{ display: flex; flex-direction: column; gap: .3rem; }}
+.cmdx details {{
+  border: 1px solid var(--cx-line);
+  border-left: 3px solid var(--cx-accent);
+  border-radius: 4px;
+  background: #fff;
 }}
-button:hover {{ background: var(--raised); }}
-:is(a, button, summary, input):focus-visible {{
-  outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px;
+.cmdx details.danger {{
+  border-left-color: var(--cx-danger);
+  background: var(--cx-danger-tint);
 }}
-.count {{ color: var(--ink-soft); font-size: 13px; margin: 0 0 22px; }}
-
-.family {{ margin: 0 0 34px; }}
-.family > h2 {{
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 19px; margin: 0 0 2px; color: var(--ink);
+.cmdx summary {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .1rem 1rem;
+  padding: .55rem .8rem;
+  cursor: pointer;
+  list-style: none;
 }}
-.family > .sub {{ margin: 0 0 14px; color: var(--ink-soft); font-size: 13.5px; }}
-.section-label {{
-  font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
-  color: var(--ink-soft); margin: 18px 0 8px;
+.cmdx summary::-webkit-details-marker {{ display: none; }}
+.cmdx summary:hover {{ background: #F4FAF6; }}
+.cmdx details.danger summary:hover {{ background: #F2E2DE; }}
+.cmdx .sig {{
+  font-family: Consolas, "SF Mono", Monaco, monospace;
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--cx-accent);
 }}
-.section-label.danger {{ color: var(--danger); }}
-
-.cmds {{ display: flex; flex-direction: column; gap: 6px; }}
-details {{
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left: 3px solid transparent;
-  border-radius: 8px; box-shadow: var(--shadow);
+.cmdx details.danger .sig {{ color: var(--cx-danger); }}
+.cmdx .gist {{ font-size: .86rem; color: var(--cx-soft); }}
+.cmdx .body {{
+  padding: .2rem .9rem .9rem;
+  border-top: 1px solid var(--cx-line);
+  font-size: .9rem;
 }}
-details.danger {{ border-left-color: var(--danger); background: var(--danger-tint); }}
-details[open] {{ background: var(--raised); }}
-details[open].danger {{ background: var(--danger-tint); }}
-summary {{
-  cursor: pointer; list-style: none; padding: 11px 14px;
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+.cmdx .body > *:first-child {{ margin-top: .7rem; }}
+.cmdx .body pre {{
+  padding: .6rem .8rem;
+  overflow-x: auto;
+  background: #F4FAF6;
+  border: 1px solid var(--cx-line);
+  border-radius: 4px;
+  font-size: .84rem;
 }}
-summary::-webkit-details-marker {{ display: none; }}
-summary::before {{
-  content: "+"; font-family: Consolas, "SF Mono", Monaco, monospace;
-  color: var(--ink-soft); width: 12px; flex: none;
+.cmdx .body code {{
+  font-family: Consolas, "SF Mono", Monaco, monospace;
+  font-size: .86em;
 }}
-details[open] summary::before {{ content: "\\2212"; }}
-.sig {{
-  font-family: Consolas, "SF Mono", Monaco, "Courier New", monospace;
-  font-size: 13.5px; font-weight: 700; color: var(--ink);
+.cmdx .body pre code {{ background: none; border: none; padding: 0; }}
+.cmdx .body blockquote {{
+  margin: .7rem 0;
+  padding: .1rem 0 .1rem .9rem;
+  border-left: 3px solid var(--cx-line);
+  color: var(--cx-soft);
 }}
-details.danger .sig {{ color: var(--danger); }}
-.gist {{ color: var(--ink-soft); font-size: 13.5px; }}
-.body {{ padding: 2px 16px 16px 40px; border-top: 1px solid var(--line); }}
-.body > :first-child {{ margin-top: 12px; }}
-.body p {{ margin: 0 0 10px; }}
-.body ul {{ margin: 0 0 12px; padding-left: 20px; }}
-.body li {{ margin: 0 0 5px; }}
-.body blockquote {{
-  margin: 0 0 12px; padding: 8px 12px;
-  border-left: 3px solid var(--line); color: var(--ink-soft);
+.cmdx .scroll {{ overflow-x: auto; }}
+.cmdx .body table {{ border-collapse: collapse; font-size: .86rem; }}
+.cmdx .body th, .cmdx .body td {{
+  padding: .35rem .6rem;
+  border: 1px solid var(--cx-line);
+  text-align: left;
+  vertical-align: top;
 }}
-code {{
-  font-family: Consolas, "SF Mono", Monaco, "Courier New", monospace;
-  font-size: .9em; background: var(--raised);
-  padding: 1px 5px; border-radius: 4px;
+.cmdx .body th {{ background: var(--cx-raised); }}
+.cmdx .empty, .cmdx .cmdx-foot {{
+  font-size: .85rem;
+  color: var(--cx-soft);
 }}
-pre {{
-  margin: 0 0 12px; padding: 11px 13px; overflow-x: auto;
-  background: var(--raised); border: 1px solid var(--line); border-radius: 7px;
-}}
-pre code {{ background: none; padding: 0; }}
-.scroll {{ overflow-x: auto; margin: 0 0 12px; }}
-table {{ border-collapse: collapse; font-size: 13.5px; width: 100%; }}
-th, td {{
-  text-align: left; padding: 6px 10px;
-  border-bottom: 1px solid var(--line); vertical-align: top;
-}}
-th {{ color: var(--ink-soft); font-weight: 600; }}
-.empty {{ color: var(--ink-soft); font-style: italic; padding: 30px 0; }}
-footer {{
-  margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line);
-  color: var(--ink-soft); font-size: 13px;
-}}
-@media (prefers-reduced-motion: reduce) {{
-  * {{ transition: none !important; animation: none !important; }}
+.cmdx .cmdx-foot {{
+  margin-top: 2rem;
+  padding-top: .8rem;
+  border-top: 1px solid var(--cx-line);
 }}
 """
 
 JS = """
-const q = document.getElementById('q');
-const rows = [...document.querySelectorAll('details[data-hay]')];
-const count = document.getElementById('count');
-const empty = document.getElementById('empty');
+(function () {
+  // Scoped to .cmdx: this runs inside a full docs page now, so a bare
+  // querySelectorAll would reach into the theme's own markup.
+  const root = document.querySelector('.cmdx');
+  if (!root) return;
+  const q = root.querySelector('#cmdx-q');
+  const rows = [...root.querySelectorAll('details[data-hay]')];
+  const count = root.querySelector('#cmdx-count');
+  const empty = root.querySelector('#cmdx-empty');
 
-function apply() {
-  const term = q.value.trim().toLowerCase();
-  let shown = 0;
-  for (const row of rows) {
-    const hit = !term || row.dataset.hay.includes(term);
-    row.hidden = !hit;
-    if (hit) shown++;
-    if (term && hit && term.length > 2) row.open = true;
-    if (!term) row.open = false;
+  function apply() {
+    const term = q.value.trim().toLowerCase();
+    let shown = 0;
+    for (const row of rows) {
+      const hit = !term || row.dataset.hay.includes(term);
+      row.hidden = !hit;
+      if (hit) shown++;
+      if (term && hit && term.length > 2) row.open = true;
+      if (!term) row.open = false;
+    }
+    for (const fam of root.querySelectorAll('.family')) {
+      const any = [...fam.querySelectorAll('details')].some(d => !d.hidden);
+      fam.hidden = !any;
+    }
+    for (const label of root.querySelectorAll('.section-label')) {
+      const group = label.nextElementSibling;
+      label.hidden = group ? ![...group.querySelectorAll('details')]
+        .some(d => !d.hidden) : false;
+    }
+    count.textContent = term
+      ? shown + (shown === 1 ? ' command matches' : ' commands match')
+      : rows.length + ' commands across ' +
+        root.querySelectorAll('.family').length + ' families';
+    empty.hidden = shown !== 0;
   }
-  for (const fam of document.querySelectorAll('.family')) {
-    const any = [...fam.querySelectorAll('details')].some(d => !d.hidden);
-    fam.hidden = !any;
-  }
-  for (const label of document.querySelectorAll('.section-label')) {
-    const group = label.nextElementSibling;
-    label.hidden = group ? ![...group.querySelectorAll('details')]
-      .some(d => !d.hidden) : false;
-  }
-  count.textContent = term
-    ? shown + (shown === 1 ? ' command matches' : ' commands match')
-    : rows.length + ' commands across ' +
-      document.querySelectorAll('.family').length + ' families';
-  empty.hidden = shown !== 0;
-}
 
-q.addEventListener('input', apply);
-document.getElementById('expand').addEventListener('click', () => {
-  const anyClosed = rows.some(r => !r.hidden && !r.open);
-  rows.filter(r => !r.hidden).forEach(r => { r.open = anyClosed; });
-});
-document.addEventListener('keydown', e => {
-  if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); }
-  if (e.key === 'Escape' && document.activeElement === q) { q.value = ''; apply(); }
-});
-apply();
+  q.addEventListener('input', apply);
+  root.querySelector('#cmdx-expand').addEventListener('click', () => {
+    const anyClosed = rows.some(r => !r.hidden && !r.open);
+    rows.filter(r => !r.hidden).forEach(r => { r.open = anyClosed; });
+  });
+  document.addEventListener('keydown', e => {
+    const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if (e.key === '/' && !typing) { e.preventDefault(); q.focus(); }
+    if (e.key === 'Escape' && document.activeElement === q) {
+      q.value = ''; apply();
+    }
+  });
+  apply();
+})();
 """
 
 
@@ -419,38 +430,24 @@ def build() -> str:
             f'<p class="sub">{html.escape(subtitle)}</p>'
             + "".join(blocks) + "</section>")
 
-    return f"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>seedling commands</title>
-<style>{CSS}</style>
-</head>
-<body>
-<div class="wrap">
-<header>
-  <h1>seedling commands</h1>
-  <p>Every command, grouped the way you'd look for one. Click to open.</p>
-</header>
-
+    return f"""<style>{CSS}</style>
+<div class="cmdx">
 <div class="tools">
-  <input type="search" id="q" placeholder="Filter commands &mdash; press / to focus"
+  <input type="search" id="cmdx-q"
+         placeholder="Filter commands &mdash; press / to focus"
          aria-label="Filter commands" autocomplete="off">
-  <button id="expand" type="button">Expand / collapse shown</button>
+  <button id="cmdx-expand" type="button">Expand / collapse shown</button>
 </div>
-<p class="count" id="count"></p>
+<p class="count" id="cmdx-count"></p>
 
 {"".join(families_html)}
 
-<p class="empty" id="empty" hidden>Nothing matches that.</p>
+<p class="empty" id="cmdx-empty" hidden>Nothing matches that.</p>
 
-<footer>Generated from the command reference &mdash; {total} commands.
-Run <code>seed help</code> for the same list in your terminal.</footer>
+<p class="cmdx-foot">{total} commands. Run <code>seed help</code> for the same
+list in your terminal.</p>
 </div>
 <script>{JS}</script>
-</body>
-</html>
 """
 
 
