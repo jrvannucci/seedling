@@ -137,7 +137,11 @@ class Bundle:
     # who re-runs it six months later.
     output: str | None = None
     profiles_dir: str = "installation-profile"
-    archive: str | None = None
+    # A bundle exists to be carried somewhere -- onto a share, through a
+    # review, across an air gap -- and a folder of ~200k files is the wrong
+    # shape for every one of those. Archiving is the default; `archive = false`
+    # opts out for the case where the output folder IS the share.
+    archive: str | None = "auto"
     verify: bool = True
     unattended: bool = False
     accept_third_party_terms: bool = False
@@ -198,9 +202,11 @@ def parse(text: str, path: Path | None = None) -> Bundle:
     b.profiles_dir = _opt_str(build.get("profiles"),
                               "[build] profiles") or b.profiles_dir
     archive = build.get("archive")
-    if archive is not None and archive is not False:
-        # true means "pick the format for my platform"; false is the same as
-        # leaving the key out, which is what a commented-out default reads as.
+    if archive is False:
+        # Explicitly off -- distinct from leaving the key out, which now
+        # means "archive it, pick the format for me".
+        b.archive = None
+    elif archive is not None:
         if archive is True:
             archive = "auto"
         _require(isinstance(archive, str) and archive in

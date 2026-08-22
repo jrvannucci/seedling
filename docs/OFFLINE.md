@@ -180,7 +180,10 @@ sh ./GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd            (macOS/Linux)
 
 It walks you through every component below, asking before it downloads each
 (or pass `--yes` to build the whole thing unattended), and produces a ready
-folder:
+folder — plus, by default, a `.tar.gz` of it and an `UNPACK.cmd` beside it, so
+what you carry across the gap is two files and the person receiving them needs
+to know nothing about tar (`--no-archive` if the folder itself is the
+destination):
 
 ```
 offline-bundle/
@@ -231,7 +234,8 @@ the three paths. Useful flags:
 | `--no-verify` | Skip the preflight check at the end of a build |
 | `--deploy-root S:\tools` | Bake the final share path into `global.conf` (defaults to the spec's `deploy_root`) |
 | `--accept-third-party-terms` | Acknowledge redistribution rights for the restricted components (VS Code, Marketplace extensions). Deliberately **not** covered by `--yes` |
-| `--archive [zip/tar/tar.gz]` | Also pack the finished bundle into one archive file to carry across the gap. Bare `--archive` picks zip on Windows, tar.gz elsewhere |
+| `--archive [zip/tar/tar.gz]` | Which format to pack the bundle into. **On by default**, `tar.gz` on every platform; pass a format to override |
+| `--no-archive` | Leave the bundle as a folder. For when the output folder *is* the share |
 | `--dry-run` | Show the plan and exit without downloading |
 
 It is **not** a `seed` command — it prepares the distribution, so it runs from
@@ -246,6 +250,31 @@ Two things are opt-in: **MinGit** is off unless `[git] mingit = true` (most flee
 already have git — see [#6](#component-reference)), and **corporate CA
 certs** are yours to supply (see the CA section). Note that under `--yes` every
 step takes its default, so MinGit is skipped unless the spec asks for it.
+
+### Carrying it: the archive and its unpacker
+
+The build ends with two files beside the bundle folder:
+
+```
+offline-bundle/            the assembled bundle (left in place)
+offline-bundle.tar.gz      the same thing, as one file
+UNPACK.cmd                 double-click on the far side
+```
+
+Copy the **`.tar.gz` and `UNPACK.cmd`** to the share, the USB drive, or through
+the transfer station. On the other side, a double-click on `UNPACK.cmd`
+extracts the bundle and prints what to run next
+(`<bundle>\GET_STARTED\install.cmd`). Nobody needs to know what tar is, which
+matters when the person receiving a bundle is not the person who built it.
+
+`tar.gz` on **every** platform, including Windows. zip was the Windows default
+once, on the reasoning that Explorer opens it with no extra tool — but a bundle
+is tens of thousands of small files, and zip compresses each one independently
+while gzip compresses the whole stream, so tar.gz comes out dramatically
+smaller on exactly this shape of data. `tar.exe` has shipped with Windows since
+10 1803, and the unpacker removes the only thing zip's native handling was
+buying. `--archive zip` still forces it, for a transfer station that accepts
+nothing else.
 
 ### Proving the bundle works, before it leaves
 

@@ -104,9 +104,14 @@ output = "offline-bundle"
 # is checked -- the folder is the list, so there is nothing to keep in sync.
 profiles = "installation-profile"
 
-# Pack the finished bundle into one file to carry across the gap.
-# true picks zip on Windows and tar.gz elsewhere; or name a format.
-archive = false
+# Pack the finished bundle into one file to carry across the gap -- ON by
+# default (zip on Windows, tar.gz elsewhere), because a bundle exists to be
+# carried somewhere and a folder of ~200k files is the wrong shape for a
+# share, a review, or a USB stick. The folder is left in place either way.
+#
+# Name a format ("zip", "tar", "tar.gz") to choose, or set false when the
+# output folder IS the share and there is nothing to carry.
+# archive = "zip"
 
 # Run the preflight install at the end, proving the bundle works before it
 # leaves this machine. Leave this on.

@@ -411,11 +411,14 @@ def test_summary_warns_when_the_bundle_was_never_verified(tmp_path, monkeypatch,
 # format resolution and the folder-layout-on-extraction guarantee.
 
 
-@pytest.mark.parametrize("system,expected", [
-    ("Windows", "zip"), ("Linux", "tar.gz"), ("Darwin", "tar.gz"),
-])
-def test_resolve_archive_format_auto_picks_by_platform(system, expected):
-    assert build_offline.resolve_archive_format("auto", system) == expected
+@pytest.mark.parametrize("system", ["Windows", "Linux", "Darwin"])
+def test_resolve_archive_format_auto_is_tar_gz_everywhere(system):
+    """One format on every platform. zip was chosen for Windows because
+    Explorer opens it, but a bundle is tens of thousands of small files --
+    zip compresses each independently while gzip compresses the stream --
+    and the bundle now ships an UNPACK launcher, which was the only thing
+    zip's native handling was buying."""
+    assert build_offline.resolve_archive_format("auto", system) == "tar.gz"
 
 
 @pytest.mark.parametrize("fmt", ["zip", "tar", "tar.gz"])
@@ -478,12 +481,24 @@ def test_archive_bundle_returns_none_and_warns_on_failure(tmp_path, monkeypatch,
     assert "Could not create the archive" in capsys.readouterr().out
 
 
-def test_build_without_archive_flag_creates_no_archive_file(tmp_path, monkeypatch):
+def test_a_build_archives_by_default(tmp_path, monkeypatch):
+    """A bundle exists to be carried somewhere; a folder of ~200k files is
+    the wrong shape for a share, a review, or a USB stick."""
     monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
     out = tmp_path / "b"
-    build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify", "-o", str(out)])
-    assert not out.with_suffix(".zip").exists()
+    build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify",
+                        "-o", str(out)])
+    assert Path(str(out) + ".tar.gz").exists()
+
+
+def test_no_archive_leaves_the_bundle_as_a_folder(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_offline, "build_uv", lambda *a: None)
+    out = tmp_path / "b"
+    build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify",
+                        "--no-archive", "-o", str(out)])
     assert not Path(str(out) + ".tar.gz").exists()
+    assert not out.with_suffix(".zip").exists()
+    assert out.is_dir(), "the folder itself is always left in place"
 
 
 def test_build_with_bare_archive_flag_writes_and_reports_it(tmp_path, monkeypatch,
@@ -494,7 +509,7 @@ def test_build_with_bare_archive_flag_writes_and_reports_it(tmp_path, monkeypatc
     code = build_offline.main(["--bundle=", "--yes", "--no-vscode", "--no-verify",
                               "--archive", "-o", str(out)])
     assert code == 0
-    archive = Path(str(out) + ".tar.gz")  # "auto" on non-Windows -> tar.gz
+    archive = Path(str(out) + ".tar.gz")  # "auto" is tar.gz everywhere
     assert archive.exists()
     text = capsys.readouterr().out
     assert "Wrote" in text and archive.name in text
@@ -1182,3 +1197,56 @@ def test_the_manifest_keeps_its_placeholder_when_nothing_was_staged(tmp_path):
     entry = json.loads(path.read_text(encoding="utf-8"))["components"][0]
     assert entry["staged"] is False
     assert "licenses" not in entry
+
+
+# --- the unpacker shipped beside the archive -------------------------------
+
+def test_the_archive_ships_an_unpacker_beside_it(tmp_path):
+    """Whoever receives a bundle is often not whoever built it. "Extract this,
+    then run the installer inside" is an instruction to get wrong on a
+    locked-down machine by someone who has never used tar."""
+    out = tmp_path / "offline-bundle"
+    (out / "seedling").mkdir(parents=True)
+    (out / "seedling" / "x").write_text("x")
+    archive = build_offline.archive_bundle(out, "tar.gz")
+    script = build_offline.write_unpacker(archive, out.name)
+
+    assert script == archive.with_name("UNPACK.cmd")
+    body = script.read_text(encoding="utf-8")
+    assert body.startswith(":;"), "polyglot: sh execs, cmd.exe reads a label"
+    assert archive.name in body
+    assert "GET_STARTED" in body, "it must say what to run next"
+    # read_text() translates line endings, so the CRLF a .cmd needs to
+    # be read by cmd.exe is only visible in the bytes.
+    assert b"\r\n" in script.read_bytes(), "a .cmd needs CRLF"
+
+
+def test_the_unpacker_actually_round_trips(tmp_path):
+    """The archive it writes must extract with the exact command it runs."""
+    import shutil
+    import subprocess
+    out = tmp_path / "offline-bundle"
+    (out / "seedling" / "GET_STARTED").mkdir(parents=True)
+    (out / "seedling" / "GET_STARTED" / "install.cmd").write_text("rem hi")
+    archive = build_offline.archive_bundle(out, "tar.gz")
+    build_offline.write_unpacker(archive, out.name)
+
+    received = tmp_path / "received"
+    received.mkdir()
+    shutil.copy(archive, received)
+    result = subprocess.run(["tar", "-xzf", archive.name], cwd=received,
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert (received / out.name / "seedling" / "GET_STARTED" /
+            "install.cmd").is_file()
+
+
+def test_no_unpacker_for_an_explicitly_requested_zip(tmp_path):
+    """A launcher that shells out to tar would be wrong for a zip, and
+    Explorer opens those natively anyway."""
+    out = tmp_path / "offline-bundle"
+    out.mkdir()
+    (out / "x").write_text("x")
+    archive = build_offline.archive_bundle(out, "zip")
+    assert build_offline.write_unpacker(archive, out.name) is None
+

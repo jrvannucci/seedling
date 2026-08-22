@@ -123,6 +123,12 @@ installed. It needs Python 3.12+ on the build machine — the same floor
 seedling itself requires, since it imports seedling's own modules to read the
 spec and validate profiles.
 
+By default it also packs the finished bundle into a single `.tar.gz` (on
+every platform) and writes an **`UNPACK.cmd`** beside it. Those two files are
+what you carry across the gap: on the far side a double-click extracts the
+bundle and says what to run next, so the recipient needs to know nothing about
+tar. `--no-archive` leaves it as a folder instead.
+
 Flags remain available for one-off builds (`--dry-run`, `--verify-only`,
 `--bundle`, `--check-profile`, `--output`, and the rest); the
 [offline guide](../OFFLINE.md#the-easy-way-get_started_offline_bundleoffline-bundlercmd) lists them.

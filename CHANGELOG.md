@@ -11,6 +11,37 @@ what a release involves.
 
 ## [Unreleased]
 
+### Changed (breaking)
+
+- **An offline build now produces a compressed archive by default**, and it is
+  `tar.gz` on every platform including Windows. A bundle exists to be carried
+  somewhere -- onto a share, through a review, across an air gap -- and a
+  folder of a couple of hundred thousand files is the wrong shape for all
+  three.
+
+  Windows used to get zip, on the reasoning that Explorer opens one with no
+  extra tool. Two things outweigh that: a bundle is tens of thousands of small
+  files, and zip compresses each entry independently while gzip compresses the
+  whole stream, so tar.gz comes out dramatically smaller on exactly this shape
+  of data; and `tar.exe` has shipped with Windows since 10 1803. `--archive
+  zip` still forces zip for a transfer station that accepts nothing else.
+
+  **To migrate:** nothing, unless you scripted around the old behaviour --
+  `--no-archive` (or `[build] archive = false`) restores a folder-only build,
+  which is what you want when the output folder *is* the share.
+
+### Added
+
+- **`UNPACK.cmd`, written beside the archive.** Whoever receives a bundle is
+  often not whoever built it, and "extract this, then run the installer
+  inside" is one more instruction to get wrong on a locked-down machine by
+  someone who has never used tar. What you carry is now two files: the
+  `.tar.gz` and a launcher that unpacks it and prints what to run next. Same
+  polyglot trick as `install.cmd`, so a double-click works on Windows and
+  `sh ./UNPACK.cmd` works everywhere else, and it says plainly what to do if
+  `tar` is missing on a pre-1803 Windows.
+
+
 ### Added
 
 - **A reference page for the files you run directly** --

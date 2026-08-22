@@ -453,13 +453,22 @@ _ARCHIVE_FORMATS = {"zip": "zip", "tar": "tar", "tar.gz": "gztar"}
 
 
 def resolve_archive_format(requested: str, system: str) -> str:
-    """'auto' (the default when --archive is passed with no value) becomes
-    zip on Windows, tar.gz elsewhere -- whichever format that platform's own
-    tools open without installing anything extra. An explicit format passes
-    through unchanged."""
+    """'auto' -- the default -- is tar.gz on every platform.
+
+    It used to be zip on Windows, on the reasoning that Explorer opens a zip
+    with no extra tool. Two things outweigh that. A bundle is tens of
+    thousands of small files, and zip compresses each entry independently
+    while gzip compresses the whole stream, so tar.gz comes out dramatically
+    smaller on exactly this shape of data. And the bundle ships an UNPACK
+    launcher beside it (see write_unpacker), so nobody needs to know how to
+    open either format -- which was the only thing zip was buying.
+
+    Windows has shipped bsdtar as tar.exe since Windows 10 1803, so
+    `tar -xzf` is native there too. An explicit format still passes through:
+    an organization whose transfer station only accepts zip can ask for it."""
     if requested != "auto":
         return requested
-    return "zip" if system == "Windows" else "tar.gz"
+    return "tar.gz"
 
 
 def archive_bundle(output: Path, fmt: str) -> Path | None:
@@ -484,6 +493,66 @@ def archive_bundle(output: Path, fmt: str) -> Path | None:
         warn(f"Could not create the archive: {e}")
         return None
     return Path(created)
+
+
+UNPACK_NAME = "UNPACK.cmd"
+
+# Polyglot, exactly like install.cmd: a POSIX shell execs the sh half, cmd.exe
+# reads that same line as a label and falls through to the batch body.
+UNPACK_TEMPLATE = r""":; exec sh -c 'cd "$(dirname "$0")" && tar -xzf "{archive}" && echo && echo "Unpacked. Next: sh ./{folder}/GET_STARTED/install.cmd" && exit 0' # POSIX shells take this line
+@echo off
+rem Unpack the seedling offline bundle sitting next to this file.
+rem   Windows:     double-click this file
+rem   macOS/Linux: run `sh ./UNPACK.cmd`
+rem Needs nothing installed: tar has shipped with Windows since 10 1803.
+setlocal
+cd /d "%~dp0"
+where tar >nul 2>nul
+if errorlevel 1 (
+    echo.
+    echo This needs 'tar', which Windows has included since Windows 10 1803.
+    echo On an older Windows, extract {archive} with 7-Zip instead.
+    pause
+    exit /b 1
+)
+echo Unpacking {archive} ...
+tar -xzf "{archive}"
+if errorlevel 1 (
+    echo.
+    echo Unpacking failed. If the file was copied over a network, check it
+    echo arrived complete -- a truncated archive fails exactly like this.
+    pause
+    exit /b 1
+)
+echo.
+echo Unpacked into {folder}
+echo.
+echo Next: run {folder}\GET_STARTED\install.cmd
+echo.
+pause
+"""
+
+
+def write_unpacker(archive: Path, folder: str) -> Path | None:
+    """Drop an UNPACK launcher beside the archive.
+
+    The person who receives a bundle is not always the person who built it,
+    and "extract this and run the installer inside" is one more instruction
+    to get wrong -- on a locked-down machine where the recipient may not know
+    what tar is. One double-click covers it, and points at what to run next."""
+    if not archive.name.endswith(".tar.gz"):
+        # A zip was asked for explicitly; Explorer opens those natively and a
+        # launcher that shells out to tar would be wrong for it.
+        return None
+    script = archive.with_name(UNPACK_NAME)
+    try:
+        script.write_text(
+            UNPACK_TEMPLATE.format(archive=archive.name, folder=folder),
+            encoding="utf-8", newline="\r\n")
+    except OSError as e:
+        warn(f"Could not write {UNPACK_NAME}: {e}")
+        return None
+    return script
 
 
 def _progress(done: int, total: int) -> None:
@@ -1243,11 +1312,14 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--archive", nargs="?", const="auto", default=None,
         choices=["auto", "zip", "tar", "tar.gz"], metavar="{zip,tar,tar.gz}",
-        help="After building, also pack the whole bundle into one archive "
-             "file next to it -- one file to carry across the air gap "
-             "instead of a folder tree. Bare --archive picks zip on "
-             "Windows, tar.gz elsewhere; pass a format to choose "
-             "explicitly. The folder itself is left in place either way.")
+        help="Which archive format to pack the finished bundle into. ON BY "
+             "DEFAULT (zip on Windows, tar.gz elsewhere) -- pass a format to "
+             "choose explicitly, or --no-archive to skip it. The folder "
+             "itself is left in place either way.")
+    parser.add_argument(
+        "--no-archive", dest="no_archive", action="store_true",
+        help="Leave the bundle as a folder, without packing it. For the case "
+             "where the output folder IS the share.")
     parser.add_argument(
         "--bundle", metavar="PATH",
         help="The offline-bundle.toml declaring what this share contains -- "
@@ -1343,6 +1415,14 @@ def main(argv=None) -> int:
                  "profile) and re-run.")
             return 2
 
+    # A bundle is made to be carried somewhere, and a folder of a couple of
+    # hundred thousand files is the wrong shape for a share, a review or a
+    # USB stick. Packing it is the default; --no-archive opts out.
+    if args.no_archive:
+        args.archive = None
+    elif args.archive is None and declared is None:
+        args.archive = "auto"
+
     extra_tools = [t.strip() for t in args.tools.split(",") if t.strip()]
     if declared is not None:
         extra_tools += declared.tools
@@ -1357,8 +1437,12 @@ def main(argv=None) -> int:
         # one double-click. A flag still wins for a one-off run.
         if declared.output and args.output == parser.get_default("output"):
             output = Path(declared.output).expanduser().resolve()
-        if declared.archive and args.archive is None:
-            args.archive = declared.archive
+        # An explicit --no-archive outranks the spec: a flag is this run,
+        # the spec is every run.
+        # The spec decides only when no archive flag was given: a flag is
+        # this run, the spec is every run.
+        if not args.no_archive and args.archive is None:
+            args.archive = declared.archive     # None when archive = false
         if not declared.verify:
             args.no_verify = True
         if declared.unattended:
@@ -1455,6 +1539,12 @@ def main(argv=None) -> int:
     for path in check_paths:
         print(f"  Checking    : {path}  (validated, never folded in)")
     print(f"  VS Code     : {'skipped (--no-vscode)' if args.no_vscode else 'yes (~300MB, with extensions)'}")
+    if args.archive:
+        packed = resolve_archive_format(args.archive, system)
+        print(f"  Archive     : yes ({packed}) -- one file to carry; the "
+              f"folder stays too")
+    else:
+        print("  Archive     : no -- the bundle stays a folder")
     if system == "Windows":
         print(f"  MinGit      : {'yes (--mingit)' if args.mingit else 'no (pass --mingit to include it)'}")
 
@@ -1718,6 +1808,13 @@ def main(argv=None) -> int:
         if archive_path is not None:
             size_mb = archive_path.stat().st_size / (1024 * 1024)
             ok(f"Wrote {archive_path}  ({size_mb:.0f} MB)")
+            # Whoever receives this is often not whoever built it, and
+            # "extract it, then run the installer inside" is one more
+            # instruction to get wrong.
+            unpacker = write_unpacker(archive_path, output.name)
+            if unpacker is not None:
+                ok(f"Wrote {unpacker}  -- carry it beside the archive; a "
+                   f"double-click unpacks and says what to run next.")
 
     # Summary.
     print()
