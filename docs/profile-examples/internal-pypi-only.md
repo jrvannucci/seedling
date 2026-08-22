@@ -60,7 +60,7 @@ The conf is where this shape becomes visible — **a URL and directory paths
 side by side**:
 
 ```sh
-# global.conf -- in the copy on the share.
+# GET_STARTED/global.conf -- in the copy on the share.
 
 # Install seedling itself from the share: no git, no network.
 SEEDLING_REPO_URL="S:\seedling\seedling"
@@ -78,14 +78,14 @@ SEEDLING_CONDA_CHANNEL="S:\seedling\conda-channel"
 # ship the PEM in vendor/certs/ and leave native_tls off.
 SEEDLING_NATIVE_TLS="false"
 
-SEEDLING_PROFILE="profile.toml"
+SEEDLING_PROFILE="installation-profile"
 ```
 
 **What the share holds.** Even here the bundle declares its own contents —
 and on this network that list has a second job, below:
 
 ```toml
-# offline-bundle.toml -- next to global.conf.
+# offline-bundle.toml -- in GET_STARTED_OFFLINE_BUNDLE/.
 
 pythons = ["3.12"]
 
@@ -109,13 +109,13 @@ mingit = true
 **Building it:**
 
 ```
-offline-bundler.cmd
+GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd
 ```
 
 **Two ways to feed the index.** The wheel step is the one that's optional
 here, and which way you go decides what `package_index` points at:
 
-1. **Let the proxy serve them.** `offline-bundler` is a walkthrough, so run it
+1. **Let the proxy serve them.** the bundler is a walkthrough, so run it
    *without* `--yes` and answer **no** at "Download the wheels now?", then
    yes to the rest. `package_index` stays the Artifactory URL. Simplest, and
    right when the proxy really does reach everything your profiles name.
@@ -193,9 +193,9 @@ Note what is *absent*: no `wheels/`, because the internal PyPI serves those.
 ```
 offline-bundle/                    -> copied to S:\seedling
 ├── MANIFEST.json
-├── seedling/                      users run install.cmd from here
-│   ├── global.conf              the mixed URL + directory conf above
-│   ├── profile.toml
+├── seedling/                      users run GET_STARTED/install.cmd from here
+│   ├── GET_STARTED/global.conf              the mixed URL + directory conf above
+│   ├── installation-profile/profile.toml
 │   └── vendor/
 │       ├── uv/
 │       │   ├── uv.exe

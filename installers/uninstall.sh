@@ -13,11 +13,11 @@ set -eu
 
 SEEDLING_HOME_FROM_ENV="${SEEDLING_HOME:-}"
 
-# This script lives in installers/; global.conf is at the repo root above.
+# This script lives in installers/; the conf is in GET_STARTED/ alongside it.
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 SEEDLING_HOME_DIR=""
-[ -f "$REPO_ROOT/global.conf" ] && . "$REPO_ROOT/global.conf"
+[ -f "$REPO_ROOT/GET_STARTED/global.conf" ] && . "$REPO_ROOT/GET_STARTED/global.conf"
 
 # Home resolution: env override, else conf's SEEDLING_HOME_DIR (leading "~"
 # means $HOME), else the default -- identical to the installer.

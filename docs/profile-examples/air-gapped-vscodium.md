@@ -43,7 +43,7 @@ them:
 
 ```toml
 # offline-bundle.toml -- what the share will hold. Lives in
-# offline-bundler/, and the builder reads it with no arguments.
+# GET_STARTED_OFFLINE_BUNDLE/, and the builder reads it with no arguments.
 
 pythons = ["3.12"]
 
@@ -65,7 +65,7 @@ Build it, checking the profile against the declaration before anything
 downloads — and again against what actually landed:
 
 ```sh
-offline-bundler.cmd
+GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd
 ```
 
 The `[editor] flavor` above is what gets staged. `global.conf` sets the same
@@ -73,7 +73,7 @@ choice for each installed machine, and the builder refuses to build if the two
 disagree:
 
 ```sh
-# global.conf, in the copy you distribute
+# GET_STARTED/global.conf, in the copy you distribute
 SEEDLING_VSCODE_FLAVOR="vscodium"
 SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ruff"
 ```
@@ -108,10 +108,10 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ru
 ```
 offline-bundle/
 ├── MANIFEST.json            what was staged, and under what licence
-├── seedling/                users run install.cmd from here
-│   ├── global.conf            written with your --deploy-root paths
-│   ├── offline-bundle.toml    what the share holds (read back by profile-check)
-│   ├── profile.toml           the profile above
+├── seedling/                users run GET_STARTED/install.cmd from here
+│   ├── GET_STARTED/global.conf            written with your --deploy-root paths
+│   ├── GET_STARTED_OFFLINE_BUNDLE/offline-bundle.toml    what the share holds (read back by profile-check)
+│   ├── installation-profile/profile.toml           the profile above
 │   └── vendor/
 │       ├── uv/                  uv.exe, uvx.exe
 │       ├── vscode/              app/  (portable VSCodium + Open VSX exts)

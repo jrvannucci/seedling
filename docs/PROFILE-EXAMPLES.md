@@ -4,8 +4,9 @@ Complete, working [deployment profiles](PROFILES.md) for real situations.
 Each one is a whole file — copy it, change the names, ship it. For what every
 key means, see the [profile reference](PROFILES.md#reference).
 
-Save any of these as `profile.toml` next to `global.conf` in the
-copy you distribute, and everyone who installs from it gets that environment.
+Save any of these into `installation-profile/` in the copy you distribute.
+One marked `[distribution] default = true` reaches everyone; others reach the
+users they list.
 
 | Example | What it's for | Offline | Index | VS Code | Spyder | conda-forge | CA certs | Bundle | x86_64 only |
 | --- | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |

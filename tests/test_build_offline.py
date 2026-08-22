@@ -427,8 +427,8 @@ def test_resolve_archive_format_explicit_passes_through(fmt):
 
 def _fake_output_dir(tmp_path) -> Path:
     out = tmp_path / "offline-bundle"
-    (out / "seedling").mkdir(parents=True)
-    (out / "seedling" / "global.conf").write_text("SEEDLING_REPO_URL=x\n")
+    (out / "seedling" / "GET_STARTED").mkdir(parents=True)
+    (out / "seedling" / "GET_STARTED" / "global.conf").write_text("SEEDLING_REPO_URL=x\n")
     (out / "wheels").mkdir()
     (out / "wheels" / "hatchling-1.0-py3-none-any.whl").write_text("wheel")
     (out / "MANIFEST.json").write_text("{}")
@@ -445,7 +445,7 @@ def test_archive_bundle_zip_contains_the_whole_tree_under_one_folder(tmp_path):
     # the same layout install.cmd/seed apply expect -- not the contents
     # spilled loose at the archive root.
     assert all(n.startswith("offline-bundle/") for n in names)
-    assert "offline-bundle/seedling/global.conf" in names
+    assert "offline-bundle/seedling/GET_STARTED/global.conf" in names
     assert "offline-bundle/wheels/hatchling-1.0-py3-none-any.whl" in names
     assert "offline-bundle/MANIFEST.json" in names
 
@@ -458,13 +458,13 @@ def test_archive_bundle_tar_gz_contains_the_whole_tree_under_one_folder(tmp_path
         names = tf.getnames()
     assert all(n.startswith("offline-bundle/") or n == "offline-bundle"
               for n in names)
-    assert "offline-bundle/seedling/global.conf" in names
+    assert "offline-bundle/seedling/GET_STARTED/global.conf" in names
 
 
 def test_archive_bundle_leaves_the_original_folder_in_place(tmp_path):
     out = _fake_output_dir(tmp_path)
     build_offline.archive_bundle(out, "zip")
-    assert (out / "seedling" / "global.conf").exists()
+    assert (out / "seedling" / "GET_STARTED" / "global.conf").exists()
 
 
 def test_archive_bundle_returns_none_and_warns_on_failure(tmp_path, monkeypatch,

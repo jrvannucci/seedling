@@ -257,7 +257,7 @@ and is skipped.
 ## Distributing it
 
 Same shape as a [profile](PROFILES.md#distributing-it): name the file in
-[`global.conf`](https://github.com/jrvannucci/seedling/blob/main/global.conf),
+[`global.conf`](https://github.com/jrvannucci/seedling/blob/main/GET_STARTED/global.conf),
 distribute the copy of seedling that carries it (and any `script` files
 alongside it), and every installer run picks it up automatically:
 

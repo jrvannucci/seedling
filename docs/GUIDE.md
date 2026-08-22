@@ -48,7 +48,7 @@ users pass no flags of their own.
 | Origin | Set up | Install with |
 |---|---|---|
 | **Public GitHub** (default) | nothing | the `curl` / `irm` one-liner |
-| **Local checkout** | nothing | `install.cmd` from inside the repo folder — the checkout itself becomes the update source, which is the loop the [contributor guide](CONTRIBUTING.md) builds on |
+| **Local checkout** | nothing | `GET_STARTED/install.cmd` from inside the repo folder — the checkout itself becomes the update source, which is the loop the [contributor guide](CONTRIBUTING.md) builds on |
 | **Directory / network share** | `SEEDLING_REPO_URL` = a **folder** holding a copy of the repo | `install.cmd`; see the [offline guide](OFFLINE.md) for a disconnected network |
 | **Self-hosted git** | `SEEDLING_REPO_URL` = the **git URL** | `install.cmd`, or the one-liner with `SEEDLING_REPO` set |
 
@@ -70,7 +70,7 @@ By default the installers clone from
 If you have a local copy of this project (e.g. an unzipped download), run
 the installer from inside it:
 
-- **macOS/Linux:** `sh ./install.cmd` (or `installers/install.sh` directly)
+- **macOS/Linux:** `sh ./GET_STARTED/install.cmd` (or `installers/install.sh` directly)
 - **Windows:** `install.cmd` (double-clicking it also works)
 
 This records the checkout directory as `update_source`, so later
@@ -88,8 +88,8 @@ the source is recorded as the `update_source` setting so
 `seed update-commands` keeps working from it too.
 
 ```sh
-SEEDLING_REPO=https://github.com/someone/fork.git sh ./install.cmd
-SEEDLING_REPO=/mnt/share/seedling sh ./install.cmd
+SEEDLING_REPO=https://github.com/someone/fork.git sh ./GET_STARTED/install.cmd
+SEEDLING_REPO=/mnt/share/seedling sh ./GET_STARTED/install.cmd
 ```
 ```powershell
 $env:SEEDLING_REPO = "https://github.com/someone/fork.git"; .\install.cmd
@@ -331,7 +331,7 @@ Two narrower / fallback options:
   installs, venvs, VS Code, cloned repos, uv, its own source) but **leaves
   the `seed` shell hook** in your profile, so a later reinstall picks back
   up cleanly.
-- `uninstall.cmd` (Windows) / `sh ./uninstall.cmd` (macOS/Linux) — the
+- `GET_STARTED/uninstall.cmd` (Windows) / `sh ./uninstall.cmd` (macOS/Linux) — the
   **standalone fallback for when `seed` itself is broken** and `seed purge`
   can't run. Run from your copy of the repo; it needs no working seed-cli
   (pure shell/PowerShell). It resolves the install location the same way
@@ -343,7 +343,7 @@ Two narrower / fallback options:
 
 If you have *neither* a working `seed` *nor* the repo, you can pipe the
 uninstaller straight from GitHub — the same one-liner shape as the
-installer (pipe the underlying `installers/uninstall.*`, not `uninstall.cmd`):
+installer (pipe the underlying `installers/uninstall.*`, not `GET_STARTED/uninstall.cmd`):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/uninstall.sh | sh

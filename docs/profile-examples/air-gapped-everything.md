@@ -102,7 +102,7 @@ vscode_extensions = [
 exists — the share paths, TLS, and the multi-user layout:
 
 ```sh
-# global.conf -- shipped in the copy on the share.
+# GET_STARTED/global.conf -- shipped in the copy on the share.
 
 # Install from the share itself: a directory, not a git URL, so neither git
 # nor a network is needed to install, or to `seed update-commands` later.
@@ -138,7 +138,7 @@ SEEDLING_PROFILE="installation-profile/profile.toml"
 This is the file `--check-profile` and `seed profile-check` validate against:
 
 ```toml
-# offline-bundle.toml -- next to global.conf in the copy you distribute.
+# offline-bundle.toml -- in GET_STARTED_OFFLINE_BUNDLE/ in the copy you distribute.
 
 schema = 1
 
@@ -178,7 +178,7 @@ interpreters, packages, tools and MinGit, so the only flags left are where it
 lands and the licence acknowledgement:
 
 ```
-offline-bundler.cmd
+GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd
 ```
 
 **What each piece buys**
@@ -211,7 +211,7 @@ offline-bundler.cmd
   against the copy on the share to prove the transfer was complete too:
 
   ```
-  offline-bundler.cmd --verify-only -o S:\seedling
+  GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd --verify-only -o S:\seedling
   ```
 
 - **`MANIFEST.json`** records every component, its source, its licence, and
@@ -230,11 +230,11 @@ Everything the builder can produce, plus the one folder it can't:
 ```
 offline-bundle/                       -> copied to S:\seedling
 ├── MANIFEST.json                     every component, its source and licence
-├── seedling/                         users run install.cmd from here
+├── seedling/                         users run GET_STARTED/install.cmd from here
 │   ├── install.cmd                   what users actually run
 │   ├── installers/                   install.ps1, install.sh
-│   ├── global.conf                 the conf above, --deploy-root applied
-│   ├── profile.toml         the profile above
+│   ├── GET_STARTED/global.conf                 the conf above, --deploy-root applied
+│   ├── installation-profile/profile.toml         the profile above
 │   ├── src/                          seedling's own source
 │   └── vendor/
 │       ├── uv/

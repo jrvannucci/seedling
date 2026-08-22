@@ -175,10 +175,10 @@ for three people is checked as thoroughly as the default.
 ## Distributing it
 
 Put the file in the copy of seedling you distribute and name it in
-[`global.conf`](https://github.com/jrvannucci/seedling/blob/main/global.conf):
+[`global.conf`](https://github.com/jrvannucci/seedling/blob/main/GET_STARTED/global.conf):
 
 ```
-SEEDLING_PROFILE="profile.toml"
+SEEDLING_PROFILE="installation-profile"
 ```
 
 That is the whole handoff. Your users run the same `install.cmd` they would

@@ -1,13 +1,13 @@
-:; exec sh "$(dirname "$0")/installers/install.sh" # POSIX shells take this line; the comment also swallows the CR of the CRLF line ending
+:; exec sh "$(dirname "$0")/../installers/install.sh" # POSIX shells take this line; the comment also swallows the CR of the CRLF line ending
 @echo off
 rem The generic seedling installer -- one file, every platform:
-rem   Windows:     double-click this file, or run `.\install.cmd`
-rem   macOS/Linux: run `sh ./install.cmd` (line 1 hands off to installers/install.sh;
+rem   Windows:     double-click this file, or run `.\GET_STARTED\install.cmd`
+rem   macOS/Linux: run `sh ./GET_STARTED/install.cmd` (line 1 hands off to installers/install.sh;
 rem                cmd.exe reads that same line as a label and skips it)
 rem Batch files aren't subject to PowerShell's script execution policy, so
 rem this launches installers\install.ps1 with the bypass already applied,
 rem scoped to just this one run (it does NOT change your system's policy).
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0installers\install.ps1" %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\installers\install.ps1" %*
 if errorlevel 1 (
     pause
     exit /b 1

@@ -25,7 +25,7 @@ that checkout directory as the `update_source` setting. `seed update-commands`
 then re-copies from your working tree, so the loop is:
 
 1. Install once from your checkout:
-   - **macOS/Linux:** `sh ./install.cmd`
+   - **macOS/Linux:** `sh ./GET_STARTED/install.cmd`
    - **Windows:** `install.cmd`
 2. Edit the source in your checkout (or `git pull`).
 3. Run `seed update-commands`. Your changes are copied into the install and
@@ -68,7 +68,7 @@ To point an install at a fork's URL in the first place, set it at install time
 ```
 README.md
 global.conf         deployment config: install/update source URL (or directory) + install-time settings
-install.cmd           generic installer entry point: batch on Windows, `sh ./install.cmd` on macOS/Linux
+install.cmd           generic installer entry point: batch on Windows, `sh ./GET_STARTED/install.cmd` on macOS/Linux
 uninstall.cmd         generic uninstaller entry point (same dual-platform trick)
 offline-bundler.cmd     builds an offline distribution bundle (dual-platform launcher; NOT a seed command)
 installers/

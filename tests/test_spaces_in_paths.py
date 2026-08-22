@@ -92,7 +92,7 @@ def test_installer_into_spaced_home(tmp_path):
         [BASH, "-c",
          f"cd '{copy.as_posix()}' && "
          f"HOME='{fake_home.as_posix()}' SHELL=/bin/bash SEEDLING_AUTO_SETUP=false "
-         f"sh ./install.cmd"],
+         f"sh ./GET_STARTED/install.cmd"],
         capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
     assert (seedling_home / "system" / "src" / "src" / "pyproject.toml").exists()

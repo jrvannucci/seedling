@@ -3,7 +3,7 @@
 An organization on an isolated network — no github.com, no pypi.org, no
 internet at all — can still install seedling, use it, and keep it updated.
 One person prepares a bundle on a connected machine; everyone else runs
-`install.cmd` from a share and gets a complete Python setup.
+`GET_STARTED/install.cmd` from a share and gets a complete Python setup.
 
 > This is part two of the deployment track. The
 > **[deployment guide](DEPLOYMENT.md)** covers the settings themselves —
@@ -20,7 +20,7 @@ One person prepares a bundle on a connected machine; everyone else runs
 **Three files, then one command.** In the copy of seedling you distribute:
 
 ```
-offline-bundler/offline-bundle.toml    what the share will HOLD
+GET_STARTED_OFFLINE_BUNDLE/offline-bundle.toml    what the share will HOLD
 installation-profile/*.toml            what each user ends up WITH, and who gets it
 global.conf                            where every machine LOOKS for it
 ```
@@ -29,7 +29,7 @@ On a **connected** machine:
 
 ```
 offline-bundler.cmd            (Windows -- double-clicking works)
-sh ./offline-bundler.cmd       (macOS/Linux)
+sh ./GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd       (macOS/Linux)
 ```
 
 No arguments: everything the build needs is in the spec. It validates every
@@ -41,10 +41,10 @@ an offline install of it.
 Then **copy the folder to the share** and re-check the copy that arrived:
 
 ```
-offline-bundler.cmd --verify-only -o "S:	ools"
+GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd --verify-only -o "S:	ools"
 ```
 
-Users run `install.cmd` from `S:	ools\seedling\`. Same command for
+Users run `GET_STARTED/install.cmd` from `S:	ools\seedling\`. Same command for
 everyone; each person gets the profiles distributed to them.
 
 Afterwards: edit a profile on the share, users run `seed update-commands`
@@ -57,7 +57,8 @@ before anyone applies it.
 ### `offline-bundle.toml` — what the share contains
 
 The bundle's own config file: a standalone declaration of everything the
-share will hold. Put it next to `global.conf`; `offline-bundler` reads it by
+share will hold. It lives in `GET_STARTED_OFFLINE_BUNDLE/` beside the
+launcher; the bundler reads it by
 default.
 
 **It knows nothing about profiles, on purpose.** The dependency runs one way
@@ -118,7 +119,7 @@ mixed-fleet build is one run per platform into the same output folder:
 
 ```
 (on Windows)  offline-bundler.cmd
-(on Linux)    sh ./offline-bundler.cmd
+(on Linux)    sh ./GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd
 ```
 
 The build prints a **coverage report** naming which platforms are complete and
@@ -128,7 +129,7 @@ being discovered on the far side of the gap.
 Profiles are validated against it, never folded into it:
 
 ```
-offline-bundler.cmd --check-profile profiles/research.toml \
+GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd --check-profile profiles/research.toml \
                   --check-profile profiles/software-team.toml
 ```
 
@@ -167,14 +168,14 @@ On a machine installed from a bundle it finds the share by itself
 Exit `0` means it applies cleanly, `1` lists exactly what's missing, `2` means
 the profile itself is invalid. No network, and nothing is changed.
 
-### The easy way: `offline-bundler.cmd`
+### The easy way: `GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd`
 
 The repo ships a builder that assembles the entire bundle for you. On a
 **connected** machine, from a checkout of this repo:
 
 ```
 offline-bundler.cmd                 (Windows)
-sh ./offline-bundler/offline-bundler.cmd            (macOS/Linux)
+sh ./GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd            (macOS/Linux)
 ```
 
 It walks you through every component below, asking before it downloads each
@@ -223,7 +224,7 @@ the three paths. Useful flags:
 | `--tools ripgrep,pandoc` | conda-forge command-line tools to bundle (see [#5](#component-reference)) — a profile's `[tools]` are included automatically, this is for anything beyond that |
 | `--no-vscode` | Skip the VS Code + extensions download (the ~300MB step) |
 | `--mingit` | Also bundle portable MinGit (Windows). Normally set as `[git] mingit = true` in the spec |
-| `--bundle PATH` | The `offline-bundle.toml` declaring what the share contains. Defaults to the one next to `global.conf`; `--bundle=` (empty) ignores it |
+| `--bundle PATH` | The `offline-bundle.toml` declaring what the share contains. Defaults to the one in `GET_STARTED_OFFLINE_BUNDLE/`; `--bundle=` (empty) ignores it |
 | `--check-profile PATH` | Validate a profile against the bundle, before and after building, without adding anything to it. Repeatable — one bundle commonly serves several teams |
 | `--verify-only` | Don't build — just run the preflight check against the bundle at `-o` and exit (0 = it installs). Use it on the copy that reached your share |
 | `--no-verify` | Skip the preflight check at the end of a build |
@@ -274,7 +275,7 @@ Run it any time against an existing bundle — **including the copy on your
 share**, which is the only way to prove the transfer was complete:
 
 ```
-offline-bundler.cmd --verify-only -o S:\tools\offline-bundle
+GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd --verify-only -o S:\tools\offline-bundle
 ```
 
 It exits 0 when the bundle installs, non-zero otherwise, so it drops into a
@@ -314,7 +315,7 @@ setting a single environment variable.
 
 
 > **In a hurry?** For the common share-only case, skip the manual steps: run
-> **`offline-bundler.cmd`** (`sh ./offline-bundler/offline-bundler.cmd` on macOS/Linux) on a
+> **`GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd`** (`sh ./GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd` on macOS/Linux) on a
 > connected machine. It downloads uv, the Python interpreter archives, all the
 > wheels, and (optionally) VS Code + its extensions, then writes a matching
 > `global.conf` — see
@@ -322,7 +323,7 @@ setting a single environment variable.
 > this page explains what it's doing and covers the cases it leaves to you
 > (self-hosted indexes, corporate CAs).
 
-Everything is driven by **editing [`global.conf`](../global.conf)** in the
+Everything is driven by **editing [`global.conf`](../GET_STARTED/global.conf)** in the
 copy of the repo you distribute (plus dropping a few binaries in `vendor/`) —
 your users never set environment variables or change anything on their
 machines. Find the scenario that matches your network and set only what it
@@ -417,7 +418,7 @@ and the folder is gitignored — it exists only on distribution media.
 
 ## Component reference
 
-`offline-bundler.cmd` stages all of this for you. This section is for the
+`GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd` stages all of this for you. This section is for the
 deployments that don't use it — an internal mirror per component, or a partial
 bundle — and for understanding what the bundler is doing.
 

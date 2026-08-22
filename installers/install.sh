@@ -50,11 +50,11 @@ is_true()  { [ "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" = "true" ]; }
 # 1. Locate the seedling source (local checkout next to this script, or clone)
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-# This script lives in installers/; the repo root (global.conf, src/) is
+# This script lives in installers/; the repo root (GET_STARTED/, src/) is
 # one level up.
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# global.conf at the repo root is the deployment config: organizations
+# GET_STARTED/global.conf is the deployment config: organizations
 # distributing seedling from their own git host or a network drive set the
 # source (and any install-time settings) there ONCE, and their users install
 # with no flags or env vars. Standard internet installs ship a conf whose
@@ -78,8 +78,8 @@ SEEDLING_PROFILE=""
 SEEDLING_CUSTOM_COMMANDS=""
 SEEDLING_STARTUP_COMMANDS=""
 CONF_FILE=""
-if [ -f "$REPO_ROOT/global.conf" ]; then
-    CONF_FILE="$REPO_ROOT/global.conf"
+if [ -f "$REPO_ROOT/GET_STARTED/global.conf" ]; then
+    CONF_FILE="$REPO_ROOT/GET_STARTED/global.conf"
     . "$CONF_FILE"
 fi
 
@@ -370,8 +370,8 @@ fi
 #     clobber choices made later with `seed config set`).
 # ---------------------------------------------------------------------------
 # Piped installs have no local conf, but the clone we just copied does.
-if [ -z "$CONF_FILE" ] && [ -f "$SRC_DIR/global.conf" ]; then
-    . "$SRC_DIR/global.conf"
+if [ -z "$CONF_FILE" ] && [ -f "$SRC_DIR/GET_STARTED/global.conf" ]; then
+    . "$SRC_DIR/GET_STARTED/global.conf"
 fi
 
 # Record where this install came from, so `seed update-commands` knows

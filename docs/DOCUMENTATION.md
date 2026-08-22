@@ -32,7 +32,7 @@ lab, a restricted network.
 | **[Deployment profiles](PROFILES.md)** | One file describing the environment your users should end up with — interpreters, named venvs and their packages, repos — applied at install and re-applied with `seed apply`. |
 | **[Profile examples](PROFILE-EXAMPLES.md)** | Complete, working profiles for real situations — a research group, a software team, a classroom, an air-gapped fleet. Copy one and change the names. |
 | **[Custom commands](CUSTOM-COMMANDS.md)** | Add your organization's own verbs to `seed` (`seed lint`, `seed bootstrap`) and, optionally, run some of them automatically in every new shell. |
-| **[Offline / air-gapped networks](OFFLINE.md)** | Running with no internet at all: mirrors, vendored binaries, wheel directories, corporate CAs, and `offline-bundler.cmd`. |
+| **[Offline / air-gapped networks](OFFLINE.md)** | Running with no internet at all: mirrors, vendored binaries, wheel directories, corporate CAs, and `GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd`. |
 | **[Licensing and redistribution](LICENSING.md)** | seedling ships no third-party software. What it downloads, under what terms, and what changes when you stage a bundle for a share. |
 
 ---

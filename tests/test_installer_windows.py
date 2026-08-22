@@ -60,7 +60,7 @@ def _settings(home):
 
 
 def _write_conf(copy, **overrides):
-    conf = copy / "global.conf"
+    conf = copy / "GET_STARTED" / "global.conf"
     text = conf.read_text(encoding="utf-8")
     import re
     for key, value in overrides.items():

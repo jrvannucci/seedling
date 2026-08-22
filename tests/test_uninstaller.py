@@ -23,7 +23,8 @@ def _mini_repo(tmp_path, home_dir_value):
     copy = tmp_path / "copy"
     (copy / "installers").mkdir(parents=True)
     shutil.copy(UNINSTALL_SH, copy / "installers" / "uninstall.sh")
-    (copy / "global.conf").write_text(f'SEEDLING_HOME_DIR="{home_dir_value}"\n')
+    (copy / "GET_STARTED").mkdir(parents=True, exist_ok=True)
+    (copy / "GET_STARTED" / "global.conf").write_text(f'SEEDLING_HOME_DIR="{home_dir_value}"\n')
     return copy
 
 

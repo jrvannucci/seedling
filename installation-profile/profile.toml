@@ -1,9 +1,10 @@
 # =============================================================================
 # profile.toml -- the environment users end up with.
 #
-# Every *.toml in this folder is validated against ../offline-bundler/
-# offline-bundle.toml when the bundle is built, so a profile asking for
-# something the share won't hold fails on the connected machine.
+# Every *.toml in this folder is validated against
+# ../GET_STARTED_OFFLINE_BUNDLE/offline-bundle.toml when the bundle is
+# built, so a profile asking for something the share won't hold fails on
+# the connected machine.
 #
 # Point global.conf at this FOLDER, not at one file:
 #     SEEDLING_PROFILE="installation-profile"

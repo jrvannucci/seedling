@@ -75,7 +75,7 @@ SEEDLING_NATIVE_TLS="true"
 # install would fail rather than fall back.
 SEEDLING_AUTO_VSCODE="false"
 
-SEEDLING_PROFILE="profile.toml"
+SEEDLING_PROFILE="installation-profile"
 ```
 
 **Why it's shaped this way**

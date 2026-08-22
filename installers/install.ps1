@@ -32,7 +32,7 @@ function Die($msg)   {
     exit 1
 }
 
-# global.conf is the deployment config: organizations distributing
+# GET_STARTED\global.conf is the deployment config: organizations distributing
 # seedling from their own git host or a network drive set the source (and
 # any install-time settings) there ONCE, and their users install with no
 # flags or env vars. Standard internet installs ship a conf whose values
@@ -122,7 +122,7 @@ function Resolve-SeedlingGit {
 # against that instead of calling Split-Path on a null value.
 $ScriptPath = $MyInvocation.MyCommand.Path
 $ScriptDir = if ($ScriptPath) { Split-Path -Parent $ScriptPath } else { $null }
-# This script lives in installers\; the repo root (global.conf, src\) is
+# This script lives in installers\; the repo root (GET_STARTED\, src\) is
 # one level up.
 $RepoRoot = if ($ScriptDir) { Split-Path -Parent $ScriptDir } else { $null }
 
@@ -133,7 +133,7 @@ if ($RepoRoot) {
     }
 }
 
-$Conf = if ($RepoRoot) { Read-SeedlingConf (Join-Path $RepoRoot "global.conf") } else { @{} }
+$Conf = if ($RepoRoot) { Read-SeedlingConf (Join-Path $RepoRoot "GET_STARTED\global.conf") } else { @{} }
 
 # Source resolution: SEEDLING_REPO env var (one-run override) beats
 # global.conf, which beats the baked-in default.
@@ -417,7 +417,7 @@ if ($CleanupOriginalSrc) {
 # ---------------------------------------------------------------------------
 # Piped installs have no local conf, but the clone we just copied does.
 if ($Conf.Count -eq 0) {
-    $Conf = Read-SeedlingConf (Join-Path $SrcDir "global.conf")
+    $Conf = Read-SeedlingConf (Join-Path $SrcDir "GET_STARTED\global.conf")
 }
 
 # Record where this install came from, so `seed update-commands` knows

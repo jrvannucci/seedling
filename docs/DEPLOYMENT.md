@@ -32,7 +32,7 @@ You edit one copy of seedling and hand it out. Everyone who installs from it
 inherits your settings — no flags, no environment variables, no instructions
 to get wrong.
 
-1. **Edit [`global.conf`](https://github.com/jrvannucci/seedling/blob/main/global.conf)**
+1. **Edit [`global.conf`](https://github.com/jrvannucci/seedling/blob/main/GET_STARTED/global.conf)**
    in the copy you distribute: where installs come from, where packages come
    from, which editor, which profiles.
 2. **Put your profiles in `installation-profile/`** — one marked
@@ -40,8 +40,8 @@ to get wrong.
    [deployment profiles](PROFILES.md).
 3. **Distribute the copy** — a network share, an internal git host, or (for a
    disconnected network) an [offline bundle](OFFLINE.md) built with
-   `offline-bundler.cmd`.
-4. **Users run `install.cmd`** from it. One command, no follow-up steps.
+   `GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd`.
+4. **Users run `GET_STARTED/install.cmd`** from it. One command, no follow-up steps.
 
 Afterwards, changing the standard means editing the copy on the share; users
 pick it up with `seed update-commands` and `seed apply`.
@@ -177,7 +177,7 @@ the distributed `global.conf`:
 SEEDLING_HOME_DIR="C:\seedling\{user}"
 ```
 
-Then when each user runs `install.cmd` from the share:
+Then when each user runs `GET_STARTED/install.cmd` from the share:
 
 ```
 alice  ->  C:\seedling\alice\   (her interpreters, venvs, config, logs)
@@ -317,7 +317,7 @@ A workable order for a first deployment:
 3. **Point package and interpreter downloads at your mirrors** if the
    internet is blocked — `SEEDLING_PACKAGE_INDEX` and
    `SEEDLING_PYTHON_MIRROR`. On a fully disconnected network, run
-   `offline-bundler.cmd` to assemble the whole bundle in one step; see
+   `GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd` to assemble the whole bundle in one step; see
    [OFFLINE.md](OFFLINE.md).
 4. **Define the environment.** For a single venv, `SEEDLING_VENV_DEFAULT_PACKAGES`
    decides what every new venv starts with, and `SEEDLING_AUTO_VSCODE` whether
@@ -330,7 +330,7 @@ A workable order for a first deployment:
    lack of admin rights, same network restrictions. The offline guide has a
    [verification procedure](OFFLINE.md#proving-the-bundle-works-before-it-leaves)
    for this.
-6. **Distribute.** Users run the one-liner, or double-click `install.cmd` from
+6. **Distribute.** Users run the one-liner, or double-click `GET_STARTED/install.cmd` from
    the share on Windows. Nothing else is required of them.
 7. **Verify after the fact.** `seed health-check` confirms an install is
    sound; `seed summary` prints everything installed, and `--json` makes that

@@ -11,6 +11,30 @@ what a release involves.
 
 ## [Unreleased]
 
+### Changed (breaking)
+
+- **The files you actually run now sit in two named folders**, so the repo
+  root says what to do with it instead of scattering four entry points among
+  a dozen support directories:
+
+  ```
+  GET_STARTED/                 install.cmd, uninstall.cmd, global.conf
+  GET_STARTED_OFFLINE_BUNDLE/  offline-bundler.cmd/.sh, offline-bundle.toml
+  ```
+
+  **To migrate:** in a copy you distribute, move those files and tell your
+  users the new path -- `GET_STARTED\install.cmd` rather than `install.cmd`.
+  Nothing reads the old locations, so a copy left flat installs with
+  seedling's built-in defaults rather than that organization's settings.
+
+  Everything that located those files by path moved with them: both
+  installers and both uninstallers (`GET_STARTED/global.conf`, and one level
+  further up to reach `installers/`), `seed update-commands`' drift report,
+  and the bundler -- which now finds its spec in
+  `GET_STARTED_OFFLINE_BUNDLE/` and writes the bundle's conf into the copy's
+  `GET_STARTED/`.
+
+
 ## [0.12.0] - 2026-08-18
 
 ### Changed (breaking)

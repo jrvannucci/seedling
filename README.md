@@ -50,7 +50,7 @@ irm https://raw.githubusercontent.com/jrvannucci/seedling/main/installers/instal
 
 ![Run the one-liner, seedling sets up everything Python needs, open a new terminal, and python just works.](docs/diagrams/install-flow.svg)
 
-> On Windows you can also download the repo and double-click `install.cmd`.
+> On Windows you can also download the repo and double-click `GET_STARTED/install.cmd`.
 > Skip the ready-made environment with `SEEDLING_AUTO_SETUP=false`.
 >
 > **Given a profile by your admin?** Point the same one-liner at it and you get
@@ -101,10 +101,10 @@ including on networks where the usual Python setup path doesn't work at all.
 
 - **No internet, no admin rights.** Point installs at a self-hosted git
   server, an internal index, or a plain file share. For a fully disconnected
-  network, `offline-bundler.cmd` assembles the whole bundle — uv,
+  network, `GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd` assembles the whole bundle — uv,
   interpreters, wheels, the editor — on a connected machine.
 - **Nothing for your users to configure.** Set the values once in
-  [`global.conf`](global.conf) in the copy you distribute; everyone who
+  [`global.conf`](GET_STARTED/global.conf) in the copy you distribute; everyone who
   installs from it inherits them.
 - **One folder defines the environments.** Each profile in
   `installation-profile/` lists the interpreters, venvs, packages and repos a

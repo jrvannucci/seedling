@@ -1245,9 +1245,10 @@ def main(argv=None) -> int:
     declared: bundle_mod.Bundle | None = None
     bundle_path = None
     if args.bundle is None:
-        # offline-bundler/ is where the spec and its launcher live; the repo
+        # GET_STARTED_OFFLINE_BUNDLE/ is where the spec and its launcher live;
+        # the repo
         # root is still searched so a pre-folder layout keeps building.
-        bundle_path = (bundle_mod.find(REPO_ROOT / "offline-bundler")
+        bundle_path = (bundle_mod.find(REPO_ROOT / "GET_STARTED_OFFLINE_BUNDLE")
                        or bundle_mod.find(REPO_ROOT))
     elif args.bundle:
         bundle_path = Path(args.bundle).expanduser()
@@ -1331,7 +1332,7 @@ def main(argv=None) -> int:
     # Checked before anything downloads, for the same reason the profiles are:
     # an editor mismatch isn't visible until someone opens it, air-gapped.
     if declared is not None:
-        conf_path = REPO_ROOT / "global.conf"
+        conf_path = REPO_ROOT / "GET_STARTED" / "global.conf"
         if conf_path.is_file():
             conflicts = bundle_mod.check_conf(declared,
                                               bundle_mod.read_conf(conf_path))
@@ -1601,8 +1602,9 @@ def main(argv=None) -> int:
         conf_values["SEEDLING_CONDA_CHANNEL"] = (
             f"{deploy_root}\\conda-channel" if system == "Windows"
             else f"{deploy_root}/conda-channel")
-    write_conf(seedling_copy / "global.conf", conf_values)
-    ok(f"Wrote {seedling_copy / 'global.conf'} pointing at {deploy_root}.")
+    write_conf(seedling_copy / "GET_STARTED" / "global.conf", conf_values)
+    ok(f"Wrote {seedling_copy / 'GET_STARTED' / 'global.conf'} pointing at "
+       f"{deploy_root}.")
     for k, v in conf_values.items():
         info(f"  {k}={v}")
 

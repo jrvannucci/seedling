@@ -10,7 +10,7 @@
 # ~\seedling.
 $ErrorActionPreference = "Stop"
 
-# This script lives in installers\; global.conf is at the repo root above.
+# This script lives in installers\; the conf is in GET_STARTED\ alongside it.
 # $MyInvocation.MyCommand.Path is $null when this is run via `irm ... | iex`
 # (no backing file), so guard against that before Split-Path -- and fall
 # back to SEEDLING_HOME / the default location when there's no local conf.
@@ -19,7 +19,7 @@ $ScriptDir = if ($ScriptPath) { Split-Path -Parent $ScriptPath } else { $null }
 $RepoRoot = if ($ScriptDir) { Split-Path -Parent $ScriptDir } else { $null }
 $Conf = @{}
 if ($RepoRoot) {
-    $confPath = Join-Path $RepoRoot "global.conf"
+    $confPath = Join-Path $RepoRoot "GET_STARTED\global.conf"
     if (Test-Path $confPath) {
         foreach ($line in Get-Content $confPath) {
             if ($line -match '^\s*([A-Z_]+)\s*=\s*"([^"]*)"\s*$') { $Conf[$Matches[1]] = $Matches[2] }

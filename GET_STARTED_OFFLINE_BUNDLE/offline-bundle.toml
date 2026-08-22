@@ -14,7 +14,8 @@
 #      before anything downloads, and again against what actually landed. A
 #      superset assembled FROM the profiles it ships could never refuse one.
 #
-#   2. It agrees with ../global.conf about the editor. The spec says what gets
+#   2. It agrees with ../GET_STARTED/global.conf about the editor. The spec
+#      says what gets
 #      STAGED; the conf says what each user's machine expects. A disagreement
 #      stops the build, because it isn't visible until someone opens the
 #      editor on the far side of the air gap.
@@ -40,7 +41,8 @@ platforms = ["Windows/x86_64"]
 # Where the bundle will live on the TARGET machines. Baked into the
 # global.conf the builder writes, so users' package_index and friends point
 # at the share rather than at the folder you happened to build in.
-deploy_root = 'S:\tools'   # literal string (single quotes): a Windows path keeps its backslashes
+# global.conf the builder writes, so users' package_index and friends
+# point at the share rather than the folder you happened to build in.
 
 # Interpreters to mirror. Every venv any profile builds comes from one of
 # these, so a profile pinning python = "311" needs 3.11 here.

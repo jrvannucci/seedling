@@ -114,7 +114,8 @@ def test_reports_drift_when_conf_changed_upstream(run_cli, home, src_installed, 
     upstream = tmp_path / "share"
     upstream.mkdir()
     _make_source_tree(upstream, "v2")
-    (upstream / "global.conf").write_text(
+    (upstream / "GET_STARTED").mkdir(exist_ok=True)
+    (upstream / "GET_STARTED" / "global.conf").write_text(
         'SEEDLING_VENV_DEFAULT_PACKAGES="ipython,ruff,pandas"\n')
     config.set_value("update_source", str(upstream))
     config.set_value("venv_default_packages", ["ipython", "ruff"])  # the OLD value
@@ -132,7 +133,8 @@ def test_no_drift_report_when_conf_already_matches(run_cli, home, src_installed,
     upstream = tmp_path / "share"
     upstream.mkdir()
     _make_source_tree(upstream, "v2")
-    (upstream / "global.conf").write_text(
+    (upstream / "GET_STARTED").mkdir(exist_ok=True)
+    (upstream / "GET_STARTED" / "global.conf").write_text(
         'SEEDLING_VENV_DEFAULT_PACKAGES="ipython,ruff"\n')
     config.set_value("update_source", str(upstream))
     config.set_value("venv_default_packages", ["ipython", "ruff"])
@@ -147,7 +149,8 @@ def test_drift_is_reported_from_the_conf(home, tmp_path, capsys):
     it just to check a filename knocked `sh` off PATH for later tests."""
     upstream = tmp_path / "share"
     upstream.mkdir()
-    (upstream / "global.conf").write_text(
+    (upstream / "GET_STARTED").mkdir(exist_ok=True)
+    (upstream / "GET_STARTED" / "global.conf").write_text(
         'SEEDLING_VENV_DEFAULT_PACKAGES="ipython,ruff,pandas"\n')
     config.set_value("venv_default_packages", ["ipython", "ruff"])
     update_cmd.report_conf_drift(upstream)
@@ -160,7 +163,7 @@ def test_drift_is_reported_from_the_conf(home, tmp_path, capsys):
 
 def test_no_drift_report_when_no_conf_in_refreshed_source(run_cli, home, src_installed):
     """Repair mode (no update_source) or a source tree with no
-    global.conf at its root must not crash -- just nothing to report."""
+    GET_STARTED/global.conf must not crash -- just nothing to report."""
     code, out = run_cli("update-commands")
     assert code == 0
     assert "differently than" not in out
@@ -175,7 +178,8 @@ def test_drift_report_ignores_settings_a_fresh_install_wouldnt_seed(
     upstream = tmp_path / "share"
     upstream.mkdir()
     _make_source_tree(upstream, "v2")
-    (upstream / "global.conf").write_text(
+    (upstream / "GET_STARTED").mkdir(exist_ok=True)
+    (upstream / "GET_STARTED" / "global.conf").write_text(
         'SEEDLING_CONDA_CHANNEL="conda-forge"\nSEEDLING_VSCODE_FLAVOR="microsoft"\n')
     config.set_value("update_source", str(upstream))
     code, out = run_cli("update-commands")
@@ -191,7 +195,8 @@ def test_reports_drift_for_native_tls(run_cli, home, src_installed, tmp_path):
     upstream = tmp_path / "share"
     upstream.mkdir()
     _make_source_tree(upstream, "v2")
-    (upstream / "global.conf").write_text('SEEDLING_NATIVE_TLS="true"\n')
+    (upstream / "GET_STARTED").mkdir(exist_ok=True)
+    (upstream / "GET_STARTED" / "global.conf").write_text('SEEDLING_NATIVE_TLS="true"\n')
     config.set_value("update_source", str(upstream))
     code, out = run_cli("update-commands")
     assert code == 0
@@ -207,7 +212,8 @@ def test_reports_drift_for_vscode_extensions(run_cli, home, src_installed, tmp_p
     upstream = tmp_path / "share"
     upstream.mkdir()
     _make_source_tree(upstream, "v2")
-    (upstream / "global.conf").write_text(
+    (upstream / "GET_STARTED").mkdir(exist_ok=True)
+    (upstream / "GET_STARTED" / "global.conf").write_text(
         'SEEDLING_VSCODE_EXTENSIONS="ms-python.python,charliermarsh.ruff"\n')
     config.set_value("update_source", str(upstream))
     config.set_value("vscode_extensions", ["ms-python.python"])
@@ -223,7 +229,8 @@ def test_reports_drift_for_vscode_extensions_none(run_cli, home, src_installed, 
     upstream = tmp_path / "share"
     upstream.mkdir()
     _make_source_tree(upstream, "v2")
-    (upstream / "global.conf").write_text('SEEDLING_VSCODE_EXTENSIONS="none"\n')
+    (upstream / "GET_STARTED").mkdir(exist_ok=True)
+    (upstream / "GET_STARTED" / "global.conf").write_text('SEEDLING_VSCODE_EXTENSIONS="none"\n')
     config.set_value("update_source", str(upstream))
     config.set_value("vscode_extensions", ["ms-python.python"])
     code, out = run_cli("update-commands")

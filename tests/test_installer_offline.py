@@ -22,7 +22,7 @@ PUBLIC_URL = PUBLIC_REPO
 @pytest.fixture
 def install_env(tmp_path, monkeypatch):
     """A repo copy + fake HOME with a stub uv pre-planted. Returns a runner
-    that executes `sh ./install.cmd` (the polyglot entry point) and paths
+    that executes `sh ./GET_STARTED/install.cmd` (the polyglot entry point) and paths
     for assertions. The environment is scrubbed of SEEDLING_*/UV_*/SSL_*
     so a stray or leaked var (e.g. UV_NATIVE_TLS set by another test's
     config.apply_runtime_env) can't pollute the installer subprocess."""
@@ -39,7 +39,7 @@ def install_env(tmp_path, monkeypatch):
         script = (
             f"cd '{copy.as_posix()}' && "
             f"HOME='{fake_home.as_posix()}' SHELL=/bin/bash {env_extra} "
-            f"sh ./install.cmd"
+            f"sh ./GET_STARTED/install.cmd"
         )
         return run_bash(script)
 
@@ -58,7 +58,7 @@ def _settings(seedling_home):
 
 def _write_conf(copy, **overrides):
     """Rewrite global.conf values in the repo copy."""
-    conf = copy / "global.conf"
+    conf = copy / "GET_STARTED" / "global.conf"
     text = conf.read_text()
     for key, value in overrides.items():
         import re

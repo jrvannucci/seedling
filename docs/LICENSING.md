@@ -102,7 +102,7 @@ same situation as PyPI — so check the specific tools you standardize on.
 Day-to-day use raises few questions: each machine downloads from the vendor
 for itself, which is what the vendor's terms anticipate.
 
-`offline-bundler.cmd` is different. It assembles those downloads into a folder
+`GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd` is different. It assembles those downloads into a folder
 you carry to a share, from which many machines install. **That is
 redistribution**, and it is the point at which the restricted rows above
 start to matter.
@@ -112,7 +112,7 @@ components before staging any of them:
 
 ```
 offline-bundler.cmd                            # prompts before staging them
-offline-bundler.cmd --accept-third-party-terms # for unattended/CI builds
+GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd --accept-third-party-terms # for unattended/CI builds
 ```
 
 `--yes` deliberately does **not** answer this prompt. It exists to skip
@@ -148,7 +148,7 @@ for the full tradeoff.
 
 ## The bundle manifest
 
-Every bundle `offline-bundler.cmd` produces carries a `MANIFEST.json` at its
+Every bundle `GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd` produces carries a `MANIFEST.json` at its
 root, recording what was staged: each component's version, the URL it came
 from, its licence, and its redistribution category.
 
@@ -161,7 +161,7 @@ was intended.
 ```
 offline-bundle/
 ├── MANIFEST.json        <- what was staged, and under what licence
-├── seedling/            <- users run install.cmd from here
+├── seedling/            <- users run GET_STARTED/install.cmd from here
 ├── python-builds/
 └── wheels/
 ```

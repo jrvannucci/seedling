@@ -125,7 +125,7 @@ def test_public_repo_matches_installer_defaults():
     patterns = {
         "installers/install.sh": r'DEFAULT_SEEDLING_REPO="([^"]+)"',
         "installers/install.ps1": r'\$DefaultSeedlingRepo = "([^"]+)"',
-        "global.conf": r'SEEDLING_REPO_URL="([^"]+)"',
+        "GET_STARTED/global.conf": r'SEEDLING_REPO_URL="([^"]+)"',
     }
     for rel, pattern in patterns.items():
         text = (repo_root / rel).read_text(encoding="utf-8")

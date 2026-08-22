@@ -36,7 +36,7 @@ def test_installer_expands_user_token_per_user(tmp_path):
     separate, non-colliding folders."""
     copy = make_repo_copy(tmp_path / "copy")
     shared = tmp_path / "shared"
-    conf = copy / "global.conf"
+    conf = copy / "GET_STARTED" / "global.conf"
     conf.write_text(conf.read_text().replace(
         'SEEDLING_HOME_DIR="~/seedling"',
         f'SEEDLING_HOME_DIR="{shared.as_posix()}/{{user}}"'))
@@ -49,7 +49,7 @@ def test_installer_expands_user_token_per_user(tmp_path):
         return subprocess.run(
             [BASH, "-c",
              f"cd '{copy.as_posix()}' && HOME='{fake_home.as_posix()}' "
-             f"USER={user} SHELL=/bin/bash SEEDLING_AUTO_SETUP=false sh ./install.cmd"],
+             f"USER={user} SHELL=/bin/bash SEEDLING_AUTO_SETUP=false sh ./GET_STARTED/install.cmd"],
             capture_output=True, text=True, timeout=120)
 
     r1 = install_as("alice", "home_a")

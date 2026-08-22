@@ -43,7 +43,7 @@ default = true
 ```
 
 ```sh
-# global.conf, in the copy you distribute.
+# GET_STARTED/global.conf, in the copy you distribute.
 # "microsoft" is the default, but state it explicitly here -- this file is
 # what a reviewer reads to see which build was staged.
 SEEDLING_VSCODE_FLAVOR="microsoft"
@@ -53,7 +53,8 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-python.vscode-pylance,ms-python.
 The share declares its own contents, and the profile is checked against them:
 
 ```toml
-# offline-bundle.toml -- what the share will hold, next to global.conf.
+# offline-bundle.toml -- what the share will hold, in
+# GET_STARTED_OFFLINE_BUNDLE/.
 
 pythons = ["3.12"]
 
@@ -75,7 +76,7 @@ Build it with the acknowledgement, which is deliberately **not** covered by
 `--yes`:
 
 ```
-offline-bundler.cmd
+GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd
 ```
 
 **Why it's shaped this way**
@@ -111,9 +112,9 @@ and `MANIFEST.json` records those as `restricted` — which is exactly what
 offline-bundle/
 ├── MANIFEST.json            lists VS Code + extensions as RESTRICTED
 ├── seedling/
-│   ├── global.conf
-│   ├── offline-bundle.toml
-│   ├── profile.toml
+│   ├── GET_STARTED/global.conf
+│   ├── GET_STARTED_OFFLINE_BUNDLE/offline-bundle.toml
+│   ├── installation-profile/profile.toml
 │   └── vendor/
 │       ├── uv/                  uv.exe, uvx.exe
 │       ├── vscode/

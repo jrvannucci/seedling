@@ -135,7 +135,7 @@ window blocking deletion of files inside `~/seedling`. Like
 confirmation prompt says so up front.
 
 This does **not** remove the `seed` shell function/hook from your shell
-profile — use `seed purge` (or `uninstall.cmd` --
+profile — use `seed purge` (or `GET_STARTED/uninstall.cmd` --
 `sh ./uninstall.cmd` on macOS/Linux) for that.
 
 ```
@@ -155,7 +155,7 @@ OS, since PowerShell itself is cross-platform — harmless no-ops wherever
 they don't exist).
 
 After `seed purge` finishes, `seed` stops existing as a command entirely.
-This is the same end state as running `uninstall.cmd` (or
+This is the same end state as running `GET_STARTED/uninstall.cmd` (or
 `sh ./uninstall.cmd` on macOS/Linux), just reachable from inside `seed` itself without needing
 the original installer files around. Reports exactly which profile files
 it edited.
