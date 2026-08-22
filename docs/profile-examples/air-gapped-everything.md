@@ -44,6 +44,11 @@ tools = ["ripgrep", "pandoc", "gh"]
 # Both editors: engineers open VS Code, analysts open Spyder.
 editor = ["vscode", "spyder"]
 
+[distribution]
+# Everyone who installs from this share gets this profile. Others in
+# installation-profile/ opt in by listing users instead.
+default = true
+
 # --- environments ---------------------------------------------------------
 
 [[venv]]
@@ -131,7 +136,7 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-python.vscode-pylance,ms-python.
 SEEDLING_NATIVE_TLS="false"
 
 # Apply the profile automatically at install.
-SEEDLING_PROFILE="installation-profile/profile.toml"
+SEEDLING_PROFILE="installation-profile"   # the FOLDER: each profile says who gets it
 ```
 
 **What the share holds**, declared once and independently of any profile.
@@ -231,10 +236,11 @@ Everything the builder can produce, plus the one folder it can't:
 offline-bundle/                       -> copied to S:\seedling
 ├── MANIFEST.json                     every component, its source and licence
 ├── seedling/                         users run GET_STARTED/install.cmd from here
-│   ├── install.cmd                   what users actually run
+│   ├── GET_STARTED/
+│   │   ├── install.cmd               what users actually run
+│   │   └── global.conf               the conf above, --deploy-root applied
+│   ├── installation-profile/         the profiles above, one per group
 │   ├── installers/                   install.ps1, install.sh
-│   ├── GET_STARTED/global.conf                 the conf above, --deploy-root applied
-│   ├── installation-profile/profile.toml         the profile above
 │   ├── src/                          seedling's own source
 │   └── vendor/
 │       ├── uv/

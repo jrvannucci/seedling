@@ -32,6 +32,11 @@ tools = ["ripgrep", "pandoc"]
 
 editor = "vscode"
 
+[distribution]
+# Everyone who installs from this share gets this profile. Others in
+# installation-profile/ opt in by listing users instead.
+default = true
+
 [[venv]]
 name = "work"
 packages = ["pandas", "numpy", "requests", "pytest"]
@@ -109,9 +114,11 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ru
 offline-bundle/
 ├── MANIFEST.json            what was staged, and under what licence
 ├── seedling/                users run GET_STARTED/install.cmd from here
-│   ├── GET_STARTED/global.conf            written with your --deploy-root paths
-│   ├── GET_STARTED_OFFLINE_BUNDLE/offline-bundle.toml    what the share holds (read back by profile-check)
-│   ├── installation-profile/profile.toml           the profile above
+│   ├── GET_STARTED/                 install.cmd, and global.conf written
+│   │                                with your --deploy-root paths
+│   ├── GET_STARTED_OFFLINE_BUNDLE/  offline-bundle.toml -- what the share
+│   │                                holds, read back by seed profile-check
+│   ├── installation-profile/        the profile above
 │   └── vendor/
 │       ├── uv/                  uv.exe, uvx.exe
 │       ├── vscode/              app/  (portable VSCodium + Open VSX exts)

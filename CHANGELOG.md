@@ -11,6 +11,19 @@ what a release involves.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Every profile example was inert as documented.** The deployment docs point
+  `SEEDLING_PROFILE` at the `installation-profile/` folder, where a profile
+  only reaches someone if it declares `[distribution]` -- and none of the ten
+  examples declared one. Copying an example and following the setup gave every
+  user "No profile is distributed to you." All ten now carry
+  `[distribution] default = true`, and each is verified to reach a user by
+  running the resolver over the block the page actually prints.
+
+  The examples also disagreed with each other about the pointer: one named a
+  single file, the rest named the folder. All name the folder now.
+
 ### Changed (breaking)
 
 - **The files you actually run now sit in two named folders**, so the repo

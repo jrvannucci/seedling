@@ -136,7 +136,7 @@ confirmation prompt says so up front.
 
 This does **not** remove the `seed` shell function/hook from your shell
 profile — use `seed purge` (or `GET_STARTED/uninstall.cmd` --
-`sh ./uninstall.cmd` on macOS/Linux) for that.
+`sh ./GET_STARTED/uninstall.cmd` on macOS/Linux) for that.
 
 ```
 seed remove-user
@@ -156,7 +156,7 @@ they don't exist).
 
 After `seed purge` finishes, `seed` stops existing as a command entirely.
 This is the same end state as running `GET_STARTED/uninstall.cmd` (or
-`sh ./uninstall.cmd` on macOS/Linux), just reachable from inside `seed` itself without needing
+`sh ./GET_STARTED/uninstall.cmd` on macOS/Linux), just reachable from inside `seed` itself without needing
 the original installer files around. Reports exactly which profile files
 it edited.
 

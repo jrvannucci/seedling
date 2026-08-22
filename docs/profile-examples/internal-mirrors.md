@@ -39,6 +39,11 @@ tools = ["ripgrep", "pandoc"]
 # Marketplace, no update API, nothing that has to reach microsoft.com.
 editor = "spyder"
 
+[distribution]
+# Everyone who installs from this share gets this profile. Others in
+# installation-profile/ opt in by listing users instead.
+default = true
+
 [[venv]]
 name = "work"
 packages = ["pandas", "numpy", "requests", "pytest"]

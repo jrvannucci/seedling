@@ -181,7 +181,7 @@ Put the file in the copy of seedling you distribute and name it in
 SEEDLING_PROFILE="installation-profile"
 ```
 
-That is the whole handoff. Your users run the same `install.cmd` they would
+That is the whole handoff. Your users run the same `GET_STARTED/install.cmd` they would
 have anyway, and the installer applies the profile as part of setup — no
 extra step, no flags, nothing to explain.
 

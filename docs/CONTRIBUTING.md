@@ -26,7 +26,7 @@ then re-copies from your working tree, so the loop is:
 
 1. Install once from your checkout:
    - **macOS/Linux:** `sh ./GET_STARTED/install.cmd`
-   - **Windows:** `install.cmd`
+   - **Windows:** `GET_STARTED\install.cmd`
 2. Edit the source in your checkout (or `git pull`).
 3. Run `seed update-commands`. Your changes are copied into the install and
    `seed-cli` is reinstalled from them — no re-running the installer.
@@ -67,16 +67,20 @@ To point an install at a fork's URL in the first place, set it at install time
 
 ```
 README.md
-global.conf         deployment config: install/update source URL (or directory) + install-time settings
-install.cmd           generic installer entry point: batch on Windows, `sh ./GET_STARTED/install.cmd` on macOS/Linux
-uninstall.cmd         generic uninstaller entry point (same dual-platform trick)
-offline-bundler.cmd     builds an offline distribution bundle (dual-platform launcher; NOT a seed command)
+GET_STARTED/          the files a person actually runs
+  install.cmd           installer entry point: batch on Windows, `sh ./GET_STARTED/install.cmd` on macOS/Linux
+  uninstall.cmd         uninstaller entry point (same dual-platform trick)
+  global.conf           deployment config: install/update source URL (or directory) + install-time settings
+GET_STARTED_OFFLINE_BUNDLE/   everything for building an air-gapped bundle
+  offline-bundler.cmd   dual-platform launcher (NOT a seed command)
+  offline-bundler.sh    the POSIX half of it (finds Python, runs build_offline.py)
+  offline-bundle.toml   what the share will hold, and every build setting
+installation-profile/   the profiles distributed to users; each says who gets it
 installers/
   install.sh          the real POSIX installer (also what the curl one-liner runs)
   install.ps1         the real Windows installer (also what the irm one-liner runs)
   uninstall.sh / uninstall.ps1   full removal, including the shell hook (same end state as `seed purge`)
-  build_offline.py    the offline bundle builder (downloads uv + interpreters + wheels, writes global.conf)
-  build_offline.sh    POSIX launcher for offline-bundler.cmd (finds Python, runs build_offline.py)
+  build_offline.py    the offline bundle builder (downloads uv + interpreters + wheels, writes GET_STARTED/global.conf)
 docs/
   DOCUMENTATION.md    the documentation map (routes to the two tracks below)
   GUIDE.md            using seedling: install, layout, updates, troubleshooting

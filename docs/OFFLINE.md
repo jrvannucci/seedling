@@ -303,7 +303,7 @@ SEEDLING_PYTHON_MIRROR="S:\tools\python-builds"
 SEEDLING_PACKAGE_INDEX="S:\tools\wheels"
 ```
 
-Then a user runs `S:\tools\seedling\install.cmd` and gets the full
+Then a user runs `S:\tools\seedling\GET_STARTED\install.cmd` and gets the full
 experience — newest mirrored Python, `dev` venv with your default
 packages auto-activated, and `seed update-commands` flowing from the share
 — without their machine ever attempting to reach the internet, and without

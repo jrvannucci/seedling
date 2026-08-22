@@ -49,8 +49,8 @@ users pass no flags of their own.
 |---|---|---|
 | **Public GitHub** (default) | nothing | the `curl` / `irm` one-liner |
 | **Local checkout** | nothing | `GET_STARTED/install.cmd` from inside the repo folder — the checkout itself becomes the update source, which is the loop the [contributor guide](CONTRIBUTING.md) builds on |
-| **Directory / network share** | `SEEDLING_REPO_URL` = a **folder** holding a copy of the repo | `install.cmd`; see the [offline guide](OFFLINE.md) for a disconnected network |
-| **Self-hosted git** | `SEEDLING_REPO_URL` = the **git URL** | `install.cmd`, or the one-liner with `SEEDLING_REPO` set |
+| **Directory / network share** | `SEEDLING_REPO_URL` = a **folder** holding a copy of the repo | `GET_STARTED/install.cmd`; see the [offline guide](OFFLINE.md) for a disconnected network |
+| **Self-hosted git** | `SEEDLING_REPO_URL` = the **git URL** | `GET_STARTED/install.cmd`, or the one-liner with `SEEDLING_REPO` set |
 
 ### One-line install
 
@@ -71,7 +71,7 @@ If you have a local copy of this project (e.g. an unzipped download), run
 the installer from inside it:
 
 - **macOS/Linux:** `sh ./GET_STARTED/install.cmd` (or `installers/install.sh` directly)
-- **Windows:** `install.cmd` (double-clicking it also works)
+- **Windows:** `GET_STARTED\install.cmd` (double-clicking it also works)
 
 This records the checkout directory as `update_source`, so later
 `seed update-commands` re-copies from that same checkout. Developing seedling
@@ -92,8 +92,8 @@ SEEDLING_REPO=https://github.com/someone/fork.git sh ./GET_STARTED/install.cmd
 SEEDLING_REPO=/mnt/share/seedling sh ./GET_STARTED/install.cmd
 ```
 ```powershell
-$env:SEEDLING_REPO = "https://github.com/someone/fork.git"; .\install.cmd
-$env:SEEDLING_REPO = "S:\shared\seedling"; .\install.cmd
+$env:SEEDLING_REPO = "https://github.com/someone/fork.git"; .\GET_STARTED\install.cmd
+$env:SEEDLING_REPO = "S:\shared\seedling"; .\GET_STARTED\install.cmd
 ```
 
 ### What the installer actually does
@@ -123,17 +123,17 @@ Running `.\installers\install.ps1` directly, with no flags, fails with an
 blocking unsigned local scripts, not a bug in the script. Three ways around
 it:
 
-- Use `install.cmd` instead — it launches `installers\install.ps1` with
+- Use `GET_STARTED\install.cmd` instead — it launches `installers\install.ps1` with
   `-ExecutionPolicy Bypass` scoped to that single run only. It does not change your system-wide policy.
 - Use the `irm | iex` one-liner — piping into `Invoke-Expression` never
   saves a local script file, so there's nothing for the policy to block.
 - Run manually: `powershell -ExecutionPolicy Bypass -File .\installers\install.ps1`
 
-**After a successful `install.cmd` run**, it opens a brand-new, ordinary
+**After a successful `GET_STARTED\install.cmd` run**, it opens a brand-new, ordinary
 PowerShell window (profile loads normally, so `seed` is available right
 away) with a short welcome banner listing the first few commands to try,
 and leaves it open at an interactive prompt. This isn't just a convenience:
-`install.cmd` itself runs in plain `cmd.exe`, and even drives `installers\install.ps1`
+`GET_STARTED\install.cmd` itself runs in plain `cmd.exe`, and even drives `installers\install.ps1`
 with `-NoProfile`, so there's no window at any point in that original
 invocation where `seed` — a PowerShell function defined in `$PROFILE` —
 could actually work. On failure, this window is skipped and the original
@@ -331,7 +331,7 @@ Two narrower / fallback options:
   installs, venvs, VS Code, cloned repos, uv, its own source) but **leaves
   the `seed` shell hook** in your profile, so a later reinstall picks back
   up cleanly.
-- `GET_STARTED/uninstall.cmd` (Windows) / `sh ./uninstall.cmd` (macOS/Linux) — the
+- `GET_STARTED/uninstall.cmd` (Windows) / `sh ./GET_STARTED/uninstall.cmd` (macOS/Linux) — the
   **standalone fallback for when `seed` itself is broken** and `seed purge`
   can't run. Run from your copy of the repo; it needs no working seed-cli
   (pure shell/PowerShell). It resolves the install location the same way
@@ -373,7 +373,7 @@ system"** — see [Windows execution policy](#windows-execution-policy).
 **`iex : Cannot bind argument to parameter 'Path' because it is null`**
 when running the `irm ... | iex` one-liner — you're running a stale cached
 copy of the install script; re-fetch it (or download the repo and run
-`install.cmd` instead).
+`GET_STARTED\install.cmd` instead).
 
 **`seed: command not found` after installing** — open a new terminal (the
 shell hook only takes effect in new shells), or manually run

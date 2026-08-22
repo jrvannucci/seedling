@@ -32,6 +32,11 @@ python = ["3.12"]
 # setup, so nobody waits on a ~300 MB download they'll never open.
 editor = "spyder"
 
+[distribution]
+# Everyone who installs from this share gets this profile. Others in
+# installation-profile/ opt in by listing users instead.
+default = true
+
 # Collecting: talks to instruments. Deliberately lean -- the fewer libraries
 # in here, the fewer things that can break a run that's already underway.
 [[venv]]

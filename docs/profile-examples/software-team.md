@@ -33,6 +33,11 @@ tools = ["ripgrep", "gh", "just"]
 
 editor = "vscode"
 
+[distribution]
+# Everyone who installs from this share gets this profile. Others in
+# installation-profile/ opt in by listing users instead.
+default = true
+
 [[venv]]
 name = "dev"
 python = "312"

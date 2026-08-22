@@ -36,6 +36,11 @@ tools = ["ripgrep", "pandoc"]
 
 editor = "vscode"
 
+[distribution]
+# Everyone who installs from this share gets this profile. Others in
+# installation-profile/ opt in by listing users instead.
+default = true
+
 [[venv]]
 name = "work"
 packages = ["pandas", "numpy", "requests", "pytest", "mypy"]
@@ -112,9 +117,9 @@ and `MANIFEST.json` records those as `restricted` — which is exactly what
 offline-bundle/
 ├── MANIFEST.json            lists VS Code + extensions as RESTRICTED
 ├── seedling/
-│   ├── GET_STARTED/global.conf
-│   ├── GET_STARTED_OFFLINE_BUNDLE/offline-bundle.toml
-│   ├── installation-profile/profile.toml
+│   ├── GET_STARTED/                 install.cmd + global.conf
+│   ├── GET_STARTED_OFFLINE_BUNDLE/  offline-bundle.toml
+│   ├── installation-profile/        the profile above
 │   └── vendor/
 │       ├── uv/                  uv.exe, uvx.exe
 │       ├── vscode/
