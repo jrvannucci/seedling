@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1164 856" font-family="Arial, Helvetica, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1164 896" font-family="Arial, Helvetica, sans-serif">
 <defs>
   <defs>
     <style>
@@ -47,7 +47,7 @@
     </symbol>
   </defs>
 </defs>
-<rect x="0" y="0" width="1164" height="856" fill="#FFFFFF"/>
+<rect x="0" y="0" width="1164" height="896" fill="#FFFFFF"/>
 
   <g transform="translate(40,20)">
     <path d="M12 42 V16" stroke="#1B4332" stroke-width="2.6" stroke-linecap="round" fill="none"/>
@@ -93,13 +93,16 @@
 <text x="52" y="620" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#1B4332">seed package-list [--json]</text>
 <text x="364" y="618" class="body" font-size="12.5" fill="#52796F">Passthrough to `uv pip list` for the active venv.</text>
 <rect x="40" y="640" width="300" height="30" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.95"/>
-<text x="52" y="660" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#1B4332">seed show &lt;package...&gt;</text>
-<text x="364" y="658" class="body" font-size="12.5" fill="#52796F">Passthrough to `uv pip show` -- full detail on one installed package.</text>
-<text x="40" y="714" class="body" font-size="12.5" font-weight="700" fill="#9C4A3C" letter-spacing="0.4">DANGER ZONE</text>
-<rect x="40" y="726" width="300" height="30" rx="8" fill="#F5E8E5" stroke="#9C4A3C" stroke-width="1" opacity="0.95"/>
-<text x="52" y="746" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#9C4A3C">seed remove-venv &lt;name&gt;</text>
-<text x="364" y="744" class="body" font-size="12.5" fill="#52796F">Deletes one venv, force-closing anything holding it open first.</text>
+<text x="52" y="660" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#1B4332">seed venv-licenses [-n name]</text>
+<text x="364" y="658" class="body" font-size="12.5" fill="#52796F">What every package installed in a venv is licensed under, and which ones carry an obligation worth a decision.</text>
+<rect x="40" y="680" width="300" height="30" rx="8" fill="#E9F5EC" stroke="#1B4332" stroke-width="1" opacity="0.95"/>
+<text x="52" y="700" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#1B4332">seed show &lt;package...&gt;</text>
+<text x="364" y="698" class="body" font-size="12.5" fill="#52796F">Passthrough to `uv pip show` -- full detail on one installed package.</text>
+<text x="40" y="754" class="body" font-size="12.5" font-weight="700" fill="#9C4A3C" letter-spacing="0.4">DANGER ZONE</text>
 <rect x="40" y="766" width="300" height="30" rx="8" fill="#F5E8E5" stroke="#9C4A3C" stroke-width="1" opacity="0.95"/>
-<text x="52" y="786" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#9C4A3C">seed remove-venv-all</text>
-<text x="364" y="784" class="body" font-size="12.5" fill="#52796F">Deletes every venv under python/venvs.</text>
+<text x="52" y="786" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#9C4A3C">seed remove-venv &lt;name&gt;</text>
+<text x="364" y="784" class="body" font-size="12.5" fill="#52796F">Deletes one venv, force-closing anything holding it open first.</text>
+<rect x="40" y="806" width="300" height="30" rx="8" fill="#F5E8E5" stroke="#9C4A3C" stroke-width="1" opacity="0.95"/>
+<text x="52" y="826" font-family="Consolas, 'SF Mono', Monaco, 'Courier New', monospace" font-size="12.5" font-weight="700" fill="#9C4A3C">seed remove-venv-all</text>
+<text x="364" y="824" class="body" font-size="12.5" fill="#52796F">Deletes every venv under python/venvs.</text>
 </svg>

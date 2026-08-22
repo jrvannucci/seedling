@@ -148,6 +148,35 @@ for the full tradeoff.
 
 ## The bundle manifest
 
+## Finding out what you're actually shipping
+
+The manifest below covers the components seedling stages. For the **wheels**
+-- usually the largest and least-inspected part of a bundle -- three commands
+resolve every package's licence from its own metadata, with no network and
+nothing installed:
+
+```
+seed whl-licenses S:	ools\wheels     # before it goes on the share
+seed venv-licenses                     # what a machine is running
+seed forge-licenses                    # the conda-forge half
+```
+
+They group packages into families (`proprietary`, `copyleft-network`,
+`copyleft`, `copyleft-weak`, `unknown`, `public-domain`, `permissive`), name
+the ones needing a decision, and say which metadata field each answer came
+from. `--fail-on copyleft,unknown` turns that into an exit code.
+
+The bundle's `MANIFEST.json` embeds the same data for the wheel set and the
+conda channel, so the file you hand a review is complete rather than
+deferring with "per package -- review your own set".
+
+**Worth knowing:** a profile with `editor = "spyder"` pulls in PyQt6, which is
+GPL-3.0-only. For internal use that is normally fine; it matters if the share
+crosses a legal-entity boundary. PyQt6 is dual-licensed, so a commercial
+licence is available if policy rules GPL out.
+
+---
+
 Every bundle `GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd` produces carries a `MANIFEST.json` at its
 root, recording what was staged: each component's version, the URL it came
 from, its licence, and its redistribution category.

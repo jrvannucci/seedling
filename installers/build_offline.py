@@ -89,6 +89,7 @@ GIT_WIN_LATEST_API = "https://api.github.com/repos/git-for-windows/git/releases/
 # Imported rather than restated: bundle.py's validator credits a bundle with
 # holding these, so if the two lists ever disagreed, a profile would be told
 # a package is present that nothing downloaded.
+from seedling import licenses as licences  # noqa: E402
 from seedling.bundle import ALWAYS_PRESENT as REQUIRED_PACKAGES  # noqa: E402
 
 SRC_PYPROJECT = REPO_ROOT / "src" / "pyproject.toml"
@@ -376,7 +377,14 @@ def write_manifest(output: Path, names: list[str], *, staged: dict) -> Path:
     answer "what is in this, and under what terms" without re-deriving it.
 
     Written even for a partial build -- it describes the folder as it is,
-    not as it was meant to be."""
+    not as it was meant to be.
+
+    The wheel set and the conda channel are SCANNED here rather than
+    described: both entries used to carry a hand-written "per package --
+    review your own set", which asserted `permissive` for two hundred
+    distributions nobody had looked at. A profile that installs Spyder makes
+    that claim false (PyQt6 is GPL-3.0-only), and the manifest is exactly the
+    file someone hands a review."""
     entries = []
     for name in names:
         meta = COMPONENTS[name]
@@ -391,6 +399,20 @@ def write_manifest(output: Path, names: list[str], *, staged: dict) -> Path:
             entry["note"] = meta["note"]
         if staged.get(f"{name}:version"):
             entry["version"] = staged[f"{name}:version"]
+        if entry["staged"]:
+            scanned = _scan_licences(output, name)
+            if scanned:
+                entry.update(scanned)
+                # The placeholder claimed a category for packages it had
+                # never read; report what is actually there instead.
+                worst = next((f for f in licences.SEVERITY
+                              if f in scanned["licenses"]["summary"]), None)
+                entry["redistribution"] = (
+                    "permissive" if worst in ("permissive", "public-domain")
+                    else f"mixed -- includes {worst}")
+                entry["license"] = ("per package -- see `licenses` below, "
+                                    "resolved from each package's metadata")
+                entry.pop("note", None)
         entries.append(entry)
 
     doc = {
@@ -409,6 +431,22 @@ def write_manifest(output: Path, names: list[str], *, staged: dict) -> Path:
     path = output / "MANIFEST.json"
     path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
     return path
+
+
+def _scan_licences(output: Path, component: str) -> dict | None:
+    """The licence facts for the two components that are really collections.
+
+    Read from what LANDED in the bundle -- the wheels and the channel on
+    disk -- so a partial build reports what it actually has."""
+    if component == "python-packages":
+        found = licences.scan_wheelhouse(output / "wheels")
+    elif component == "conda-forge-tools":
+        found = licences.scan_conda_channel(output / "conda-channel")
+    else:
+        return None
+    if not found:
+        return None
+    return {"licenses": licences.as_manifest_entry(found)}
 
 
 _ARCHIVE_FORMATS = {"zip": "zip", "tar": "tar", "tar.gz": "gztar"}

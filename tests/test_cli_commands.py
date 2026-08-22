@@ -23,6 +23,7 @@ ALL_COMMANDS = [
     "forge", "forge-install", "forge-list", "forge-remove",
     "custom",
     "download-whls", "download-requirements", "download-forge",
+    "whl-licenses", "forge-licenses", "venv-licenses",
     "upload-whls",
     "repo-clone", "repo-list", "repo-cd", "vscode-repo", "spyder-repo",
     "repo-open", "repo-install", "remove-repo",

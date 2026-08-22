@@ -11,6 +11,44 @@ what a release involves.
 
 ## [Unreleased]
 
+### Added
+
+- **`seed venv-licenses`, `seed whl-licenses <dir>`, `seed forge-licenses`** --
+  what is everything here licensed under, and which packages carry an
+  obligation? Three commands because the question arrives from three
+  directions: a developer asking what they're running, an admin asking what is
+  about to go onto a share, and the same admin asking it of the conda-forge
+  half. Each sits beside its own family and they share one scanner.
+
+  Licences resolve from the best source each package offers -- PEP 639
+  `License-Expression` (SPDX), then a `License ::` classifier, then the
+  free-text `License` field -- and the report says which one it used, because
+  a classifier is the author's claim rather than an audit. Packages sort into
+  families (`proprietary`, `copyleft-network`, `copyleft`, `copyleft-weak`,
+  `unknown`, `public-domain`, `permissive`), the summary leads, and only the
+  non-routine ones are listed: 170 packages is not a review, 11 is. `--all`
+  lists everything, `--json` is machine-readable, and
+  `--fail-on copyleft,unknown` turns a policy into an exit code.
+
+  No network and no new dependency -- a wheel is a zip and its METADATA is
+  RFC 822, both stdlib -- so this works on the air-gapped side, and
+  seedling's "no third-party runtime dependencies" claim survives.
+
+### Fixed
+
+- **The bundle manifest claimed a licence category for packages it had never
+  read.** `MANIFEST.json` described the entire wheel set as one entry --
+  `"license": "per package -- see the wheel set"` with
+  `"redistribution": "permissive"` -- for what is routinely two hundred
+  distributions. On any profile that installs Spyder that claim is false:
+  PyQt6 is GPL-3.0-only. The entry is now scanned from the wheels that
+  actually landed, reporting a per-family summary, every package needing a
+  decision (with the licence files to read), and an honest
+  `"redistribution": "mixed -- includes copyleft"`. The conda channel gets
+  the same treatment from its repodata. A build that skipped the wheel step
+  reports nothing rather than an empty, confident result.
+
+
 ### Fixed
 
 - **Every profile example was inert as documented.** The deployment docs point

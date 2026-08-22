@@ -230,6 +230,21 @@ argument-forwarding and `VIRTUAL_ENV` warning behavior as `seed install`.
 seed uninstall requests
 ```
 
+## `seed venv-licenses [-n NAME] [--all] [--json] [--fail-on FAMILY,...]`
+
+What every package in a venv is licensed under — the active one, or the one
+`-n` names. Answers "what am I actually running", and the same flags as its
+two siblings for wheel directories and conda channels
+([offline utilities](offline-utilities.md#seed-whl-licenses-dir---all---json---fail-on-family)).
+
+```
+seed venv-licenses            # the active venv
+seed venv-licenses -n analysis
+```
+
+Reads each distribution's installed `METADATA`. No network, nothing
+installed, no third-party dependency.
+
 ## `seed package-list [--json]`
 
 Direct passthrough to `uv pip list` for the active venv. Anything after

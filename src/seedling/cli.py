@@ -20,6 +20,7 @@ from .commands import (
     forge_cmd,
     install_cmd,
     kill_cmd,
+    licenses_cmd,
     list_cmd,
     logs_viewer_cmd,
     purge_cmd,
@@ -72,6 +73,7 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("install", "<package...>", "Install packages (uv pip install)"),
         ("uninstall", "<package...>", "Uninstall packages (uv pip uninstall)"),
         ("package-list", "[--json]", "List installed packages (uv pip list)"),
+        ("venv-licenses", "[-n name]", "What every package in a venv is licensed under"),
         ("show", "<package...>", "Show package details (uv pip show)"),
     ]),
     ("Python applications from PyPI, each in its own environment", [
@@ -89,6 +91,8 @@ _HELP_GROUPS: list[tuple[str, list[tuple[str, str, str]]]] = [
         ("download-whls", "<package...>", "Download a package + its deps as wheels"),
         ("download-requirements", "<req.txt>", "Download a requirements file's wheels"),
         ("download-forge", "<name...>", "Download a conda-forge tool + its deps as a channel"),
+        ("whl-licenses", "<dir>", "Licences of every wheel in a directory (before it ships)"),
+        ("forge-licenses", "[dir]", "Licences of every package in a bundled conda channel"),
         ("upload-whls", "<dir>", "Publish a wheel directory to your internal index"),
     ]),
     ("Git repos", [
@@ -538,6 +542,42 @@ def build_parser() -> argparse.ArgumentParser:
                               "into venvs that already exist. Never deletes "
                               "or recreates anything.")
 
+    def _licence_flags(parser):
+        parser.add_argument("--json", action="store_true",
+                            help="Machine-readable output.")
+        parser.add_argument("--all", action="store_true",
+                            help="List every package, not just the ones "
+                                 "needing a decision.")
+        parser.add_argument("--fail-on", dest="fail_on", metavar="FAMILY,...",
+                            default=None,
+                            help="Exit 1 if any package falls in these "
+                                 "families (e.g. copyleft,unknown) -- for a "
+                                 "CI or pre-distribution gate.")
+
+    p_venv_lic = sub.add_parser(
+        "venv-licenses",
+        help="What every package in a venv is licensed under")
+    p_venv_lic.add_argument("-n", "--venv", dest="venv", metavar="NAME",
+                            default=None,
+                            help="Venv to inspect. Defaults to the active one.")
+    _licence_flags(p_venv_lic)
+
+    p_whl_lic = sub.add_parser(
+        "whl-licenses",
+        help="Licences of every wheel in a directory, without installing them")
+    p_whl_lic.add_argument("directory", nargs="?",
+                           help="A wheelhouse, or an offline bundle (its "
+                                "wheels/ is found for you).")
+    _licence_flags(p_whl_lic)
+
+    p_forge_lic = sub.add_parser(
+        "forge-licenses",
+        help="Licences of every package in a bundled conda channel")
+    p_forge_lic.add_argument("directory", nargs="?",
+                             help="Channel directory. Defaults to the "
+                                  "configured conda_channel when it's local.")
+    _licence_flags(p_forge_lic)
+
     p_profile_check = sub.add_parser(
         "profile-check",
         help="Check a profile against what an offline bundle actually holds")
@@ -799,6 +839,9 @@ def _dispatch_main(argv: list[str]) -> int:
         "purge-and-reinstall": purge_cmd.run,
         "apply": apply_cmd.run,
         "profile-check": bundle_cmd.check,
+        "venv-licenses": licenses_cmd.venv_licenses,
+        "whl-licenses": licenses_cmd.whl_licenses,
+        "forge-licenses": licenses_cmd.forge_licenses,
         "kill-processes": kill_cmd.run,
         "update-commands": update_cmd.run,
         "summary": summary_cmd.run,

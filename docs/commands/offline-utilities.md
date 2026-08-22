@@ -68,6 +68,70 @@ seed download-requirements requirements.txt --dest ./bundle --python-version 311
 
 ---
 
+## `seed whl-licenses <dir> [--all] [--json] [--fail-on FAMILY,...]`
+
+What is every wheel in a directory licensed under? Point it at a wheelhouse
+from `seed download-whls`, or at an offline bundle (its `wheels/` is found
+for you).
+
+This is the one an admin runs **before** copying a bundle to a share:
+
+```
+seed whl-licenses S:	ools\wheels
+```
+
+```
+Licences in S:	ools\wheels  (170 packages)
+
+  copyleft               2   recipients get source and the same rights; matters when distributing outside your organization
+  copyleft-weak          7   publish changes if you MODIFY the library itself
+  unknown                1   nobody declared one; resolve it by hand
+  permissive           160   keep the copyright notice and licence text with the copy
+
+Needs a decision (10):
+  copyleft         PyQt6              6.7.1     GPL-3.0-only        License-Expression
+  copyleft         PyQt6-WebEngine    6.7.0     GPL-3.0-only        License-Expression
+  ...
+  unknown          clr_loader         0.2.6     -                   none
+```
+
+The two GPL entries are Spyder's dependency chain: any profile with
+`editor = "spyder"` puts them in the wheelhouse. That is exactly the kind of
+thing worth knowing on the connected machine rather than after the share is
+built.
+
+## `seed forge-licenses [<channel-dir>] [--all] [--json] [--fail-on ...]`
+
+The same question for a bundled conda channel, read from its `repodata.json`
+(the archives are zstd-compressed, which the standard library can't open —
+and the licence is in the index anyway). With no argument it uses the
+configured `conda_channel` when that's a local directory.
+
+Three commands, one report, because the question arrives from three
+directions: a developer asking what they're running, an admin asking what is
+about to go onto a share, and the same admin asking it of the non-Python
+half. All take the same flags:
+
+- `--all` lists every package rather than just the ones needing a decision.
+- `--json` gives the machine-readable form (schema-versioned, like every
+  other read command).
+- `--fail-on copyleft,unknown` exits `1` if anything lands in those families
+  — a policy you can put in CI, or run before copying a bundle to a share.
+
+Nothing here touches the network, and nothing is installed to answer it: a
+wheel is a zip and its `METADATA` is plain key-value text. The licence is
+resolved from the best source each package offers, and the report says which
+one it used — `License-Expression` (PEP 639, SPDX, unambiguous), a
+`License ::` classifier (coarser), or the free-text `License` field (whatever
+the author typed). A package declaring none is reported as `unknown` rather
+than assumed permissive.
+
+Families, most serious first: `proprietary`, `copyleft-network` (AGPL),
+`copyleft` (GPL), `copyleft-weak` (LGPL/MPL), `unknown`, `unclassified`,
+`public-domain`, `permissive`. What matters for an offline bundle is that
+copying wheels onto a share is *redistribution*, which is the act licences
+govern — see [LICENSING.md](../LICENSING.md).
+
 ## `seed upload-whls <dir> [--repository-url URL]`
 
 The other direction: publish a directory of wheels **into** your

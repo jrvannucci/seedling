@@ -1142,3 +1142,43 @@ def test_the_building_platform_only_needs_to_be_listed(tmp_path, capsys,
     assert code == 0
     assert "Serving" in out and "Linux/aarch64" in out
     assert "come from THIS one" in out, "the limit has to be stated"
+
+def _licence_wheel(directory, name, ver, header):
+    import zipfile
+    with zipfile.ZipFile(directory / f"{name}-{ver}-py3-none-any.whl", "w") as z:
+        z.writestr(f"{name}-{ver}.dist-info/METADATA",
+                   f"""Name: {name}
+Version: {ver}
+{header}
+""")
+
+
+def test_the_manifest_reports_real_wheel_licences(tmp_path):
+    """The entry used to be a hand-written "per package -- review your own
+    set" that ASSERTED permissive for packages nobody had read. A bundle
+    carrying PyQt6 has to say copyleft, because the manifest is the file an
+    organization hands to a review."""
+    out = tmp_path / "bundle"
+    (out / "wheels").mkdir(parents=True)
+    _licence_wheel(out / "wheels", "pandas", "2.2.1",
+                   "License-Expression: BSD-3-Clause")
+    _licence_wheel(out / "wheels", "PyQt6", "6.7.1",
+                   "License-Expression: GPL-3.0-only")
+
+    path = build_offline.write_manifest(out, ["python-packages"],
+                                        staged={"python-packages": True})
+    entry = json.loads(path.read_text(encoding="utf-8"))["components"][0]
+    assert entry["redistribution"] == "mixed -- includes copyleft"
+    assert entry["licenses"]["summary"] == {"copyleft": 1, "permissive": 1}
+    assert [p["name"] for p in entry["licenses"]["attention"]] == ["PyQt6"]
+
+
+def test_the_manifest_keeps_its_placeholder_when_nothing_was_staged(tmp_path):
+    """A skipped wheel step must not produce an empty, confident report."""
+    out = tmp_path / "bundle"
+    out.mkdir()
+    path = build_offline.write_manifest(out, ["python-packages"],
+                                        staged={"python-packages": False})
+    entry = json.loads(path.read_text(encoding="utf-8"))["components"][0]
+    assert entry["staged"] is False
+    assert "licenses" not in entry
