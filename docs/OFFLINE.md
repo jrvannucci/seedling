@@ -184,7 +184,8 @@ folder:
 
 ```
 offline-bundle/
-  MANIFEST.json      <- every component staged, its source, and its licence
+  MANIFEST.json      <- every component staged, its source and licence,
+                        and every wheel's licence grouped by obligation
   seedling/          <- repo copy, with vendor/uv + vendor/micromamba + vendor/vscode
                         filled in and global.conf written
   python-builds/     <- the exact interpreter archive your shipped uv wants
@@ -413,6 +414,40 @@ Reinstalls never overwrite binaries already in place, `vendor/` is
 excluded from seedling's private source copy and from updates (a
 pre-seeded VS Code would otherwise bloat `system/src` by hundreds of MB),
 and the folder is gitignored — it exists only on distribution media.
+
+---
+
+## What the bundle is licensed under
+
+The build writes a `MANIFEST.json` naming every component, its source, its
+licence, and whether it was staged. The wheel set is reported per package —
+resolved from each wheel's own metadata, grouped by obligation — so the file
+answers a review rather than deferring to one.
+
+Check it yourself at any point, on either side of the gap:
+
+```
+seed whl-licenses S:	ools\wheels
+```
+
+```
+  copyleft               1   recipients get source and the same rights; matters when distributing outside your organization
+  copyleft-weak          2   publish changes if you MODIFY the library itself
+  permissive           211   keep the copyright notice and licence text with the copy
+
+Needs a decision (3):
+  copyleft         PyQt6            6.7.0    GPL-3.0-only   License-Expression
+  ...
+```
+
+`seed forge-licenses` does the same for the bundled conda channel, and
+`seed venv-licenses` for what a machine ended up running. All three take
+`--fail-on copyleft,unknown`, which turns a policy into an exit code you can
+run before copying anything to a share.
+
+**Copying a bundle onto a share is redistribution** — that is the act licences
+actually govern, and why this is worth a look before the copy rather than
+after. [LICENSING.md](LICENSING.md) covers what each family asks of you.
 
 ---
 

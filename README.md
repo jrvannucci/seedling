@@ -113,7 +113,8 @@ including on networks where the usual Python setup path doesn't work at all.
 - **Auditable and reversible.** Every command is logged in plain text,
   downloads are checksum-verified, `--preview` shows what a removal would
   delete, and nothing third-party is vendored — each bundle carries a
-  `MANIFEST.json` naming every component and its licence.
+  `MANIFEST.json` naming every component and its licence, down to each
+  individual wheel.
 
 📘 Start with the **[deployment guide](docs/DEPLOYMENT.md)**, or
 **[offline networks](docs/OFFLINE.md)** for a disconnected fleet.

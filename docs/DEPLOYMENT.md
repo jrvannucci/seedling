@@ -411,6 +411,6 @@ The questions that come up in a review, and where the answer is documented:
 | Can it be removed completely? | `seed purge` deletes the install directory and the shell hook. `admin-purge-all-users` does it for every user under a shared root. Both support `--preview` to show exactly what would go, first. |
 | What happens to user data on removal? | Destructive commands check cloned repos for work that exists nowhere else and name it before prompting. See [Unsaved work in cloned repos](DESIGN.md#unsaved-work-in-cloned-repos). |
 | Can it run unattended in CI or a deployment script? | Yes — `--non-interactive` and `-y`. See [Non-interactive mode](DESIGN.md#non-interactive-mode--previews). |
-| What third-party code does it bring in, under what licence? | seedling vendors nothing; it downloads from each publisher at your direction. Every offline bundle carries a `MANIFEST.json` listing component, source, and licence. See [LICENSING.md](LICENSING.md). |
+| What third-party code does it bring in, under what licence? | seedling vendors nothing; it downloads from each publisher at your direction. Every offline bundle carries a `MANIFEST.json` listing component, source, and licence — **including every wheel**, resolved from its own metadata and grouped by obligation. Run it yourself any time: `seed whl-licenses <dir>`, `seed venv-licenses`, `seed forge-licenses`. See [LICENSING.md](LICENSING.md). |
 
 The reasoning behind these behaviors is in **[Design and safety](DESIGN.md)**.

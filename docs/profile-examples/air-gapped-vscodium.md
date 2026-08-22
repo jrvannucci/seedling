@@ -108,6 +108,31 @@ SEEDLING_VSCODE_EXTENSIONS="ms-python.python,ms-toolsai.jupyter,charliermarsh.ru
   (`SEEDLING_PACKAGE_INDEX` and friends), which is install-time configuration
   a profile deliberately can't override.
 
+**What the manifest says about the wheels.** Alongside the components,
+`MANIFEST.json` reports every package's licence, resolved from its own
+metadata:
+
+```json
+{
+  "component": "python-packages",
+  "redistribution": "mixed -- includes copyleft-weak",
+  "licenses": {
+    "total": 63,
+    "summary": { "copyleft-weak": 1, "permissive": 62 },
+    "attention": [
+      { "name": "certifi", "version": "2024.7.4",
+        "license": "Mozilla Public License 2.0 (MPL 2.0)",
+        "family": "copyleft-weak", "source": "classifier" }
+    ]
+  }
+}
+```
+
+MPL is weak copyleft: it only asks something of you if you *modify* the
+library, which installing never does. Nothing here needs a decision — which is
+the answer a review wants, stated rather than assumed. Re-check any time with
+`seed whl-licenses S:\seedling\wheels`.
+
 **What the bundle looks like**
 
 ```

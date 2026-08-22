@@ -106,6 +106,30 @@ GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd
 - `mypy` in the venv rather than relying on Pylance alone: Pylance checks in
   the editor, but CI and pre-commit need a checker they can run headlessly.
 
+**What the manifest says.** This example stages the two components marked
+`restricted`, and the manifest records that alongside the per-package licences
+of the wheel set:
+
+```json
+[
+  { "component": "vscode",            "redistribution": "restricted" },
+  { "component": "vscode-extensions", "redistribution": "restricted" },
+  { "component": "python-packages",
+    "redistribution": "permissive",
+    "licenses": {
+      "total": 71,
+      "summary": { "permissive": 71 },
+      "attention": []
+    } }
+]
+```
+
+An empty `attention` list is a real answer, not a missing one: every wheel here
+resolved to a permissive licence. That is what `--accept-third-party-terms`
+does *not* cover — the acknowledgement is about VS Code and the Marketplace,
+and the wheels are reported separately so the two aren't confused for each
+other. Verify with `seed whl-licenses S:\seedling\wheels`.
+
 **What the bundle looks like**
 
 The same shape as the previous example, with two differences: `vendor/vscode/`

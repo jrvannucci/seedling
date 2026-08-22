@@ -186,6 +186,38 @@ lands and the licence acknowledgement:
 GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd
 ```
 
+**What the manifest says about the wheels.** `MANIFEST.json` records every
+component's licence, and for the wheel set it reports what was actually
+resolved from each package's own metadata rather than deferring:
+
+```json
+{
+  "component": "python-packages",
+  "redistribution": "mixed -- includes copyleft",
+  "licenses": {
+    "total": 214,
+    "summary": { "copyleft": 1, "copyleft-weak": 2, "permissive": 211 },
+    "attention": [
+      { "name": "PyQt6", "version": "6.7.0", "license": "GPL-3.0-only",
+        "family": "copyleft", "source": "License-Expression",
+        "license_files": ["PyQt6-6.7.0.dist-info/licenses/LICENSE"] },
+      { "name": "certifi", "version": "2024.7.4",
+        "license": "Mozilla Public License 2.0 (MPL 2.0)",
+        "family": "copyleft-weak", "source": "classifier" }
+    ]
+  }
+}
+```
+
+**The GPL entry is Spyder's.** `editor = ["vscode", "spyder"]` pulls in PyQt6,
+which is GPL-3.0-only — worth knowing before the share is built, not after
+someone asks. For internal use that is normally fine; it matters if the share
+crosses a legal-entity boundary. Check it yourself at any point with:
+
+```
+seed whl-licenses S:\seedling\wheels
+```
+
 **What each piece buys**
 
 | Piece | What it makes work with no internet |
@@ -220,8 +252,8 @@ GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd
   ```
 
 - **`MANIFEST.json`** records every component, its source, its licence, and
-  whether it was staged — the file to hand a security review rather than
-  reconstructing the answer.
+  whether it was staged — plus every wheel's licence grouped by obligation.
+  The file to hand a security review rather than reconstructing the answer.
 
 **What still needs the internet:** nothing, once the bundle is on the share.
 Users install from `S:\seedling\seedling`, `seed apply` provisions entirely
@@ -234,7 +266,7 @@ Everything the builder can produce, plus the one folder it can't:
 
 ```
 offline-bundle/                       -> copied to S:\seedling
-├── MANIFEST.json                     every component, its source and licence
+├── MANIFEST.json                     components + every wheel's licence
 ├── seedling/                         users run GET_STARTED/install.cmd from here
 │   ├── GET_STARTED/
 │   │   ├── install.cmd               what users actually run

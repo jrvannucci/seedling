@@ -34,6 +34,11 @@ what a release involves.
   RFC 822, both stdlib -- so this works on the air-gapped side, and
   seedling's "no third-party runtime dependencies" claim survives.
 
+  Documented where the question actually comes up: the offline guide, the
+  security-review table in the deployment guide, and every profile example
+  that builds a bundle now shows the manifest's licence entry for its own
+  wheel set -- including the GPL that arrives with Spyder.
+
 ### Fixed
 
 - **The bundle manifest claimed a licence category for packages it had never

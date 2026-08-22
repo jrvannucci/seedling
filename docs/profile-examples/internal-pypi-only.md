@@ -117,6 +117,30 @@ mingit = true
 GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd
 ```
 
+**What the manifest says about the wheels.** Even in a partial bundle, the
+wheel set that *is* staged is reported per package:
+
+```json
+{
+  "component": "python-packages",
+  "redistribution": "mixed -- includes copyleft",
+  "licenses": {
+    "total": 118,
+    "summary": { "copyleft": 1, "copyleft-weak": 1, "permissive": 116 },
+    "attention": [
+      { "name": "PyQt6", "version": "6.7.0", "license": "GPL-3.0-only",
+        "family": "copyleft", "source": "License-Expression" }
+    ]
+  }
+}
+```
+
+The GPL entry arrives with Spyder. On this network it matters twice over: once
+for the share, and again if you take the **publish** route below, since
+uploading wheels into your internal index is another act of redistribution.
+`seed whl-licenses S:\seedling\wheels --fail-on copyleft,unknown` makes that
+a gate rather than a memory.
+
 **Two ways to feed the index.** The wheel step is the one that's optional
 here, and which way you go decides what `package_index` points at:
 

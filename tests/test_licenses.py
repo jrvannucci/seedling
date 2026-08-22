@@ -243,3 +243,40 @@ class TestCommands:
                 "license": "GPL-2.0-or-later"}}}), encoding="utf-8")
         code, out = run_cli("forge-licenses", str(tmp_path))
         assert code == 0 and "pandoc" in out and "copyleft" in out
+
+
+# --- the documented examples ----------------------------------------------
+
+def test_every_documented_json_block_parses():
+    """The manifest excerpts in the offline examples are presented as real
+    output. A block that isn't valid JSON is a block nobody can check against
+    their own bundle -- and the first draft of one of these was a comma-
+    separated fragment that looked fine and parsed as nothing."""
+    import json
+    import re
+    from conftest import REPO_ROOT
+
+    checked = 0
+    for page in (REPO_ROOT / "docs").rglob("*.md"):
+        if "_build" in str(page):
+            continue
+        for block in re.findall(r"```json\n(.*?)```",
+                                page.read_text(encoding="utf-8"), re.S):
+            try:
+                json.loads(block)
+            except json.JSONDecodeError as e:
+                raise AssertionError(f"{page.name}: {e}") from e
+            checked += 1
+    assert checked >= 4, "the offline examples lost their manifest excerpts?"
+
+
+def test_the_documented_families_are_the_real_ones():
+    """The docs name the families in severity order. If a family is renamed
+    in code and not in prose, an admin greps for a category that never
+    appears in output."""
+    from conftest import REPO_ROOT
+    text = (REPO_ROOT / "docs" / "LICENSING.md").read_text(encoding="utf-8")
+    for family in licenses.SEVERITY:
+        if family == "unclassified":
+            continue          # an internal fallback, not something to promise
+        assert f"`{family}`" in text, f"{family} is not documented"
