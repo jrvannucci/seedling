@@ -21,6 +21,7 @@ shorter ones:
 
 | Family | Commands |
 |---|---|
+| **[Entry points](commands/entry-points.md)** *(the files you run directly, before `seed` exists)* | `GET_STARTED/install.cmd`, `GET_STARTED/uninstall.cmd`, `GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd`, the one-line installers |
 | **[Python interpreters](commands/interpreters.md)** *(structural — the base installs venvs are built from)* | `python [ver]` *(install)*, `python-list`, `remove-python` |
 | **[Venvs & packages](commands/venvs-and-packages.md)** *(day-to-day environment work)* | `venv <name>` *(create)*, `venv-list`, `activate`, `deactivate`, `run`, `which`, `venv-default`, `auto-activate`, `install`, `uninstall`, `package-list`, `show`, `venv-licenses`, `remove-venv`, `remove-venv-all` |
 | **[Python applications](commands/python-apps.md)** *(run, not imported — each in its own env)* | `tool-install <name>` *(install)*, `tool-list`, `tool-remove` |
@@ -37,6 +38,7 @@ shorter ones:
 :maxdepth: 1
 :hidden:
 
+commands/entry-points
 commands/interpreters
 commands/venvs-and-packages
 commands/python-apps

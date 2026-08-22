@@ -480,3 +480,36 @@ def test_resolve_base_via_alias_and_direct(home):
     target = make_base_python(home, "312", "cpython-3.12.5-windows-x86_64-none")
     assert python_cmd.resolve_base("312") == target
     assert python_cmd.resolve_base("999") is None
+
+
+# --- entry-point reference -------------------------------------------------
+
+def test_the_entry_points_page_documents_every_launcher():
+    """docs/commands/entry-points.md is the reference for the files a person
+    runs directly. A launcher that isn't in it is one nobody can look up."""
+    from conftest import REPO_ROOT
+    page = (REPO_ROOT / "docs" / "commands" / "entry-points.md").read_text(
+        encoding="utf-8")
+    launchers = ["GET_STARTED/install.cmd", "GET_STARTED/uninstall.cmd",
+                 "GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd",
+                 "GET_STARTED_OFFLINE_BUNDLE/offline-bundler.sh"]
+    for path in launchers:
+        assert (REPO_ROOT / path).is_file(), f"{path} no longer exists"
+        # The page names each file, sometimes in its folder's context rather
+        # than by full path -- either way the reader can find it.
+        assert path.rsplit("/", 1)[-1] in page, f"{path} is undocumented"
+
+
+def test_the_documented_install_overrides_are_the_real_ones():
+    """Every environment variable the page promises must actually be read by
+    install.sh -- documenting one that isn't is worse than omitting it."""
+    from conftest import REPO_ROOT
+    page = (REPO_ROOT / "docs" / "commands" / "entry-points.md").read_text(
+        encoding="utf-8")
+    installer = (REPO_ROOT / "installers" / "install.sh").read_text(
+        encoding="utf-8")
+    import re
+    documented = set(re.findall(r"`(SEEDLING_[A-Z_]+)`", page))
+    assert documented, "the overrides table vanished?"
+    for var in documented:
+        assert f"${{{var}:-}}" in installer or f"${var}" in installer,             f"{var} is documented as an override but install.sh never reads it"

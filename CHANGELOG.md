@@ -13,6 +13,17 @@ what a release involves.
 
 ### Added
 
+- **A reference page for the files you run directly** --
+  [Entry points](docs/commands/entry-points.md), listed first in the command
+  reference. Everything else there is a `seed` subcommand, which needs
+  seedling installed; `GET_STARTED/install.cmd`, `GET_STARTED/uninstall.cmd`
+  and `GET_STARTED_OFFLINE_BUNDLE/offline-bundler.cmd` exist for the moments
+  when `seed` isn't available, and their documentation was scattered across
+  three guides. One page now covers what each does, the environment
+  overrides the installer honours, why the uninstaller exists when
+  `seed purge` is better, and the polyglot `:;` first line that lets one file
+  serve Windows and POSIX.
+
 - **`seed venv-licenses`, `seed whl-licenses <dir>`, `seed forge-licenses`** --
   what is everything here licensed under, and which packages carry an
   obligation? Three commands because the question arrives from three

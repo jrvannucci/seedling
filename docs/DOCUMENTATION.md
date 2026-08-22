@@ -50,6 +50,7 @@ layout, and running the tests.
 | I want to… | Go to |
 |---|---|
 | Install seedling | [Using seedling → How installation works](GUIDE.md#how-installation-works) |
+| Know what a .cmd file actually does | [Entry points](commands/entry-points.md) |
 | Deploy it to other people | [Deployment guide → The deployment workflow](DEPLOYMENT.md#the-deployment-workflow) |
 | Build a bundle for an air-gapped network | [Offline networks → The workflow](OFFLINE.md#the-workflow) |
 | Look up a command | [Command reference](COMMANDS.md) |
