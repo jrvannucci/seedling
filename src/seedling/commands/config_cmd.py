@@ -112,7 +112,10 @@ def set_(args) -> int:
     if warning:
         print(colors.warn(warning))
     config.set_value(key, value)
-    print(colors.ok(f"Set {key} = {_format_value(value)}"))
+    # Masked for the same reason the listing is: this line is tee'd
+    # into the daily log.
+    print(colors.ok(f"Set {key} = "
+                    f"{_format_value(config.mask(key, value))}"))
     if key == "default_venv":
         print("New shells will auto-activate it. (Existing shells are unaffected.)")
     return 0

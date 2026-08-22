@@ -11,6 +11,30 @@ what a release involves.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The upload token leaked into `seed summary` and the daily log.** It was
+  masked in `seed config` from the start, on the reasoning that seedling tees
+  command output into `system/logs` and a log outlives the command that wrote
+  it. Two other paths reached the same place and weren't covered: `seed
+  summary` (and `summary --json`) printed the settings dict verbatim, and
+  `runlog` recorded the full command line -- so `seed config set
+  package_upload_token <token>` wrote the token to disk before anything had a
+  chance to mask it. Masking now happens where the settings dict is built, so
+  every consumer inherits it; the log redacts the value of a secret key while
+  keeping the key and every non-secret setting readable, since the log is an
+  audit trail.
+
+- **`--fail-on` silently accepted a family it didn't know.** `seed
+  whl-licenses --fail-on coplyeft` exited `0` against a wheelhouse full of
+  GPL: the typo matched nothing, so the gate reported success while enforcing
+  nothing. Unknown families are now an error (exit `2`) naming the valid ones.
+
+- **`unclassified` packages were reported with no obligation text**, printing
+  a blank where the guidance belongs -- the one family where a reader most
+  needs to be told to go read the licence themselves.
+
+
 ### Changed (breaking)
 
 - **An offline build now produces a compressed archive by default**, and it is

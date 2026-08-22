@@ -82,6 +82,19 @@ def _prune_old_logs() -> None:
         pass
 
 
+def _redacted(argv: list[str]) -> list[str]:
+    """The command line as it may be written to disk.
+
+    `seed config set <key> <value>` carries the value on the command line, and
+    some keys are secrets -- an upload token most obviously. The log is a
+    plain-text file that lives for as long as the install does, so the one
+    place a token must never be written is the very place a full argv goes."""
+    from . import config
+    if len(argv) >= 3 and argv[0] == "config" and argv[1] == "set"             and argv[2] in config.SECRET_KEYS:
+        return [*argv[:3], "********"]
+    return list(argv)
+
+
 def start(argv: list[str]) -> None:
     """Begin logging this invocation. Safe to call exactly once per process."""
     global _logfile, _saved_streams
@@ -92,7 +105,7 @@ def start(argv: list[str]) -> None:
         today = _dt.date.today().isoformat()
         _logfile = open(paths.LOGS_DIR / f"seed-{today}.log", "a", encoding="utf-8")
         now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        _logfile.write(f"\n=== [{now}] seed {' '.join(argv)}\n")
+        _logfile.write(f"\n=== [{now}] seed {' '.join(_redacted(argv))}\n")
         _logfile.flush()
     except OSError:
         _logfile = None

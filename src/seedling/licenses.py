@@ -78,6 +78,8 @@ OBLIGATIONS = {
     "copyleft-network": "as copyleft, and network users count as recipients",
     "proprietary": "redistribution may be forbidden outright -- read the terms",
     "unknown": "nobody declared one; resolve it by hand",
+    "unclassified": "a licence seedling doesn't recognize -- read it before "
+                    "redistributing",
 }
 
 # Everything except these wants a human to look at it once.

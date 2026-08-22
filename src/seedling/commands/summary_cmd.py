@@ -190,7 +190,12 @@ def collect(want_sizes: bool = False) -> dict:
         "pythons": collect_pythons(want_sizes),
         "venvs": collect_venvs(want_sizes),
         "repos": _collect_repos(want_sizes, git_tool.find_git()),
-        "settings": {key: settings.get(key) for key in config.KNOWN_KEYS},
+        # Masked at the source, not at the printer: this dict feeds both
+        # the human output and --json, and seedling tees command output
+        # into system/logs -- so an unmasked secret here is written to
+        # disk by the act of running `seed summary`.
+        "settings": {key: config.mask(key, settings.get(key))
+                     for key in config.KNOWN_KEYS},
         "total_size_bytes": _size_of(home, want_sizes),
     }
 

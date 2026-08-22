@@ -105,8 +105,10 @@ or environment variables:
   **A write credential**: every value in this file is seeded into every
   user's settings at install time, so leave it empty in the copy you
   distribute and set it only on the machine that publishes (`seed config set
-  package_upload_token`). seedling masks it wherever it prints settings and
-  passes it to twine through the environment, never on a command line.
+  package_upload_token`). seedling masks it wherever it prints settings
+  (`seed config`, `seed summary`, both `--json` forms), redacts it from the
+  daily log — including the `config set` line that carries it — and passes it
+  to twine through the environment, never on a command line.
 - `SEEDLING_CONDA_CHANNEL` (default: `conda-forge`) — where `seed
   forge-install` fetches conda-forge command-line tools from: a URL or a
   local directory for an internal mirror or an offline network. Seeds the

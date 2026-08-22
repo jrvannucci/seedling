@@ -201,3 +201,36 @@ def test_the_upload_token_is_masked_wherever_settings_are_printed(run_cli, home)
 def test_an_unset_secret_is_not_shown_as_masked(run_cli, home):
     code, out = run_cli("config", "get", "package_upload_token")
     assert code == 0 and out.strip() == "", "unset must stay empty for scripts"
+
+
+# --- secrets must not reach the log or the screen -------------------------
+
+def test_a_secret_setting_never_reaches_the_daily_log(run_cli, home):
+    """seedling tees every command's output into system/logs, and the log
+    lives as long as the install. `config set` carries the value on the
+    command line, so BOTH the recorded argv and the echoed confirmation had
+    to be masked -- the argv line was still leaking after the echo was
+    fixed."""
+    from seedling import runlog
+    secret = "s3cr3t-token-value"
+    argv = ["config", "set", "package_upload_token", secret]
+    assert secret not in " ".join(runlog._redacted(argv))
+    assert "package_upload_token" in " ".join(runlog._redacted(argv)),         "the KEY stays readable -- only the value is hidden"
+
+    # a non-secret setting is still logged in full, or the log stops being
+    # an audit trail
+    plain = ["config", "set", "package_upload_url", "https://corp/pypi/"]
+    assert "https://corp/pypi/" in " ".join(runlog._redacted(plain))
+
+
+def test_summary_masks_secrets_in_both_output_forms(run_cli, home):
+    """`seed config` masked them from the start; `seed summary` prints the
+    same settings and did not."""
+    from seedling import config
+    config.set_value("package_upload_token", "s3cr3t-token-value")
+    for args in (("summary",), ("summary", "--json")):
+        code, out = run_cli(*args)
+        assert code == 0
+        assert "s3cr3t-token-value" not in out, f"{args} leaks the token"
+        assert "package_upload_token" in out
+

@@ -41,6 +41,13 @@ def _emit(packages: list[licenses.PackageLicence], args, *, subject: str) -> int
     show_all = getattr(args, "all", False)
     fail_on = {f.strip() for f in (getattr(args, "fail_on", None) or "").split(",")
                if f.strip()}
+    # A misspelled family would match nothing and exit 0 -- a gate that
+    # reports success while enforcing nothing is worse than no gate.
+    unknown_families = sorted(fail_on - set(licenses.SEVERITY))
+    if unknown_families:
+        print(f"error: --fail-on doesn't know {', '.join(unknown_families)}")
+        print(f"       valid families: {', '.join(licenses.SEVERITY)}")
+        return 2
     attention = licenses.needs_attention(packages)
 
     if getattr(args, "json", False):

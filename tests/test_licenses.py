@@ -280,3 +280,25 @@ def test_the_documented_families_are_the_real_ones():
         if family == "unclassified":
             continue          # an internal fallback, not something to promise
         assert f"`{family}`" in text, f"{family} is not documented"
+
+
+# --- a gate that silently doesn't gate ------------------------------------
+
+def test_a_misspelled_fail_on_family_is_an_error_not_a_pass(run_cli, home,
+                                                            tmp_path):
+    """`--fail-on coplyeft` used to exit 0 against a wheelhouse full of GPL:
+    the set matched nothing, so the gate reported success while enforcing
+    nothing. A policy that silently doesn't apply is worse than no policy."""
+    d = _mixed_wheelhouse(tmp_path)
+    code, out = run_cli("whl-licenses", str(d), "--fail-on", "coplyeft")
+    assert code == 2
+    assert "doesn't know" in out and "copyleft" in out
+
+
+def test_every_family_states_an_obligation():
+    """The report prints each family beside what it asks of you. A family
+    with no text prints a blank line exactly where guidance is most
+    wanted -- which is what `unclassified` did."""
+    for family in licenses.SEVERITY:
+        assert licenses.OBLIGATIONS.get(family), f"{family} has no obligation"
+
